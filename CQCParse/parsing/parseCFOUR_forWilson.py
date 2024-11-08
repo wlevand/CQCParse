@@ -28,6 +28,13 @@ import numpy as np
 import os
 import pickle
 
+from scipy import constants
+
+def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:
+    """Convert wavenumber (cm-1) to energy (Hartree)"""
+    hartree2J = constants.physical_constants['hartree-joule relationship'][0]
+    return reciprocal_cm * (100 * constants.h * constants.c / hartree2J)
+
 
 class CFOURdataParser:
     """A class that contains parsed CFOUR output data"""
@@ -358,8 +365,7 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
 
 def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int, fundamentals_harmonic: dict) -> tuple:
     firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
-    from wilson.spectrum2d.spectrum import rec_cm2rec_s
-    w_h = rec_cm2rec_s(np.array([v for k, v in fundamentals_harmonic.items()]))
+    w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
     matrix_2d = np.outer(w_h, w_h)
     # prefac_3d = w_h[:, np.newaxis, np.newaxis] * w_h[np.newaxis, :, np.newaxis] * w_h[np.newaxis,
     #                                                                                    np.newaxis, :]
@@ -382,8 +388,7 @@ def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int, f
 
 
 def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
-    from wilson.spectrum2d.spectrum import rec_cm2rec_s
-    w_h = rec_cm2rec_s(np.array([v for k, v in fundamentals_harmonic.items()]))
+    w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
     matrix_2d = np.outer(w_h, w_h)
     sqrtvec = 1. / np.sqrt(w_h)
     sqrtmat = 1. / np.sqrt(matrix_2d.T)

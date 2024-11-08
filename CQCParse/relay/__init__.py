@@ -1,1 +1,1 @@
-from wilson.relay.relay_data import DataVault
+from .relay_data import DataVault
