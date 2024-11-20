@@ -14,11 +14,16 @@ import numpy as np
 # np.set_printoptions(linewidth=250, suppress=True, precision=3)
 import sys
 import pandas as pd
+# from decorator import append
+
 pd.set_option('display.max_rows', sys.maxsize)
 
 class GaussianDataParser(object):
 
     def __init__(self, all_files_dict: dict):
+        """
+        all_files_dict = {"files": {"3quanta": '', "log": ''}}
+        """
         self.all_files_dict = all_files_dict
         # {'log', 'fchk', 'com'}
 
@@ -38,7 +43,11 @@ class GaussianDataParser(object):
         self.harmonic_states = None
         self.anharmonic_states = None
         self.cubic_force_constants = None
-        self.quartic_constants = None
+        self.quartic_force_constants = None
+
+        self.cubic_cm_1 = None
+        self.quartic_cm_1 = None
+        self.rotational_constant, self.coriolis_constant = None, None
 
         self.equilibrium_geometry = None
         self.Q_normal_coordinates = None
@@ -47,6 +56,18 @@ class GaussianDataParser(object):
         self.atoms = None
         self.basis = None
         self.lot = None
+
+    def __dir__(self):
+        return['nModesStart',
+               'dipole_first_derivatives', 'dipole_second_derivatives',
+               'polarizability_first_derivatives', 'polarizability_second_derivatives',
+               'fundamentals_harmonic_str', 'fundamentals_anharmonic_str',
+               'fundamentals_harmonic_int', 'fundamentals_anharmonic_int',
+               'harmonic_states', 'anharmonic_states',
+               'cubic_force_constants', 'quartic_force_constants',
+               'equilibrium_geometry',
+               'Q_normal_coordinates', 'q_normal_coordinates_dimensionless',
+               'atoms', 'basis', 'lot']
 
     def getData(self, linear_molecule: bool = False):
         """Collect the data into the attributes.
@@ -85,9 +106,84 @@ class GaussianDataParser(object):
         self.polarizability_second_derivatives = alpha[1]
 
         cubic_df = parse_cubic_constants(self.all_files_dict['files']['log'])[0]
-        selected_df = cubic_df[['I', 'J', 'K', 'K(I,J,K)']]
-        cubic = selected_df.to_numpy()
+        cubic_rcm = cubic_df[['I', 'J', 'K', 'FI(I,J,K)']].to_numpy()
+        selected_df1 = cubic_df[['I', 'J', 'K', 'K(I,J,K)']]
+        cubic = selected_df1.to_numpy()
+
+        quartic_df = parse_quartic_constants(self.all_files_dict['files']['log'])[0]
+        quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy()
+        selected_df2 = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']]
+        quartic = selected_df2.to_numpy()
+
         self.cubic_force_constants = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
+        self.quartic_force_constants = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
+        self.cubic_cm_1 = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
+        self.quartic_cm_1 = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
+
+        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['3quanta'])
+
+
+def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
+    """
+    returns:
+        rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
+    """
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    corXtuples, corYtuples, corZtuples = [], [], []
+    rotational_constant = []
+
+    start1, start2, start3 = False, False, False
+    for line in lines:
+        if 'Coriolis Zeta matrix for IXYZ=                     1 :' in line:
+            start1 = True
+        elif 'CHECKSUM' in line:
+            start1 = False
+        elif start1:
+            l1 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+            corXtuples.append(tuple(l1))
+
+        if 'Coriolis Zeta matrix for IXYZ=                     2 :' in line:
+            start2 = True
+        elif 'CHECKSUM' in line:
+            start2 = False
+        elif start2:
+            l2 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+            corYtuples.append(tuple(l2))
+
+        if 'Coriolis Zeta matrix for IXYZ=                     3 :' in line:
+            start3 = True
+        elif 'CHECKSUM' in line:
+            start3 = False
+        elif start3:
+            l3 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+            corZtuples.append(tuple(l3))
+
+        if 'B in cm-1:' in line:
+            rotational_constant.append(float(line.split()[-1]))
+        rotational_constant = np.array(rotational_constant)
+
+    corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
+                                          tuple(item for item in corYtuples if item[0] !=0. ),
+                                          tuple(item for item in corZtuples if item[0] !=0. ))
+
+    corX, corY, corZ = np.zeros((6, 6)), np.zeros((6, 6)), np.zeros((6, 6))
+
+    for val, i, j in corXtuples:
+        corX[i - 7, j - 7] = val
+        corX[j - 7, i - 7] = val
+
+    for val, i, j in corYtuples:
+        corY[i - 7, j - 7] = val
+        corY[j - 7, i - 7] = val
+
+    for val, i, j in corZtuples:
+        corZ[i - 7, j - 7] = val
+        corZ[j - 7, i - 7] = val
+    coriolis_constant = np.array([corX, corY, corZ])
+
+    return rotational_constant, coriolis_constant
 
 # used in retrievedata.py
 def parse_frequencies(file_path: str) -> dict[str: pd.DataFrame]:
@@ -350,7 +446,7 @@ def parse_quartic_constants(file_path: str) -> [pd.DataFrame, list]:
     return df, units_lines
 
 # used in retrievedata.py
-def get_cubic_post(len_freq: int, cubic: np.ndarray):
+def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
     K3 = np.zeros((len_freq, len_freq, len_freq), dtype=np.float64)
 
     for fijk in cubic:
@@ -366,16 +462,17 @@ def get_cubic_post(len_freq: int, cubic: np.ndarray):
         K3[j, i, k] = d
         K3[j, k, i] = d
 
-    from scipy import constants
-    # to go from amu to au mass unit (m_e)
-    amc_au = constants.physical_constants['atomic mass constant'][0] / \
-             constants.physical_constants['atomic unit of mass'][0]
+    if reduced:
+        from scipy import constants
+        # to go from amu to au mass unit (m_e)
+        amc_au = constants.physical_constants['atomic mass constant'][0] / \
+                 constants.physical_constants['atomic unit of mass'][0]
 
-    K3 = K3 / amc_au**1.5
+        K3 = K3 / amc_au**1.5
 
     return K3
 
-def get_quartic_post(len_freq: int, quartic: np.ndarray):
+def get_quartic_post(len_freq: int, quartic: np.ndarray, reduced: bool = True):
     K4 = np.zeros((len_freq, len_freq, len_freq, len_freq), dtype=np.float64)
 
     for fijkl in quartic:
@@ -395,12 +492,13 @@ def get_quartic_post(len_freq: int, quartic: np.ndarray):
         for idx in indices:
             K4[idx] = d
 
-    from scipy import constants
-    # to go from amu to au mass unit (m_e)
-    amc_au = constants.physical_constants['atomic mass constant'][0] / \
-             constants.physical_constants['atomic unit of mass'][0]
+    if reduced:
+        from scipy import constants
+        # to go from amu to au mass unit (m_e)
+        amc_au = constants.physical_constants['atomic mass constant'][0] / \
+                 constants.physical_constants['atomic unit of mass'][0]
 
-    K4 = K4 / amc_au**2
+        K4 = K4 / amc_au**2
 
     return K4
 

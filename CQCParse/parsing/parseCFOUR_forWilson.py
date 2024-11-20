@@ -28,10 +28,10 @@ import numpy as np
 import os
 import pickle
 
-from scipy import constants
-
 def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:
     """Convert wavenumber (cm-1) to energy (Hartree)"""
+    from scipy import constants
+
     hartree2J = constants.physical_constants['hartree-joule relationship'][0]
     return reciprocal_cm * (100 * constants.h * constants.c / hartree2J)
 
@@ -50,12 +50,16 @@ class CFOURdataParser:
         self.polarizability_first_derivatives = None
         self.polarizability_second_derivatives = None
 
+        self.funds_harm_ints = None
         self.fundamentals_harmonic_str = None
         self.fundamentals_anharmonic_str = None
         self.harmonic_states = None
         self.anharmonic_states = None
         self.cubic_force_constants = None
         self.quartic_constants = None
+
+        self.cubic_cm_1, self.quartic_cm_1 = None, None
+        self.rotational_constant, self.coriolis_constant = None, None
 
         self.equilibrium_geometry = None
         self.Q_normal_coordinates = None
@@ -64,6 +68,7 @@ class CFOURdataParser:
         self.atoms = None
         self.basis = None
         self.lot = None
+
 
     def getData(self, linear_molecule: bool = False):
         """Collect the data into the attributes.
@@ -91,13 +96,17 @@ class CFOURdataParser:
         self.fundamentals_harmonic_str = {str(k[0]):v for k,v in harm_tuple_dict.items() if len(k)==1}
         self.fundamentals_anharmonic_str = {str(k[0]):v for k,v in anharm_tuple_dict.items() if len(k)==1}
 
-        self.anharmonic_states = {tuple(str(i -7) for i in k): v for k, v in anharm_states_dict.items()}
+        self.anharmonic_states = {tuple(str(i-7) for i in k): v for k, v in anharm_states_dict.items()}
         self.harmonic_states = {tuple(str(i-7) for i in k): v for k, v in harm_states_dict.items()}
 
         cubic = pCubicORQuartic(self.all_files_dict['files']['cubic'])
+        quartic = pCubicORQuartic(self.all_files_dict['files']['quartic'])
         self.funds_harm_ints = {int(k): v for k, v in self.fundamentals_harmonic_str.items()}
         # transformed to Wilson units in getCubicPost
-        self.cubic_force_constants = getCubicPost(self.funds_harm_ints, cubic)
+        self.cubic_force_constants = getCubicPost(self.funds_harm_ints, cubic, recipcm=False)
+
+        self.cubic_cm_1 = getCubicPost(self.funds_harm_ints, cubic, recipcm=True)
+        self.quartic_cm_1 = getQuarticPost(self.funds_harm_ints, quartic, recipcm=True)
 
         labelsModes_original = [i+self.nModesStart for i in list(self.funds_harm_ints)]
         mu = getDipoleDers_anharm_au(self.all_files_dict['files']['dipolexyz'], labelsModes_original, self.nModesStart,
@@ -108,6 +117,71 @@ class CFOURdataParser:
         alpha = getPolarDers_pkl_au(self.all_files_dict['files']['polar_pkl'], self.fundamentals_harmonic_str)
         self.polarizability_first_derivatives = alpha[0]
         self.polarizability_second_derivatives = alpha[1]
+
+        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['out_anharm_final'])
+
+
+def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
+    """
+    returns:
+        rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
+    """
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    corXtuples, corYtuples, corZtuples = [], [], []
+    rotational_constant = []
+
+    start1, start2, start3 = False, False, False
+    for line in lines:
+        if 'Coriolis Zeta matrix for IXYZ=                     1 :' in line:
+            start1 = True
+        elif 'CHECKSUM' in line:
+            start1 = False
+        elif start1:
+            l1 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+            corXtuples.append(tuple(l1))
+
+        if 'Coriolis Zeta matrix for IXYZ=                     2 :' in line:
+            start2 = True
+        elif 'CHECKSUM' in line:
+            start2 = False
+        elif start2:
+            l2 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+            corYtuples.append(tuple(l2))
+
+        if 'Coriolis Zeta matrix for IXYZ=                     3 :' in line:
+            start3 = True
+        elif 'CHECKSUM' in line:
+            start3 = False
+        elif start3:
+            l3 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+            corZtuples.append(tuple(l3))
+
+        if 'B in cm-1:' in line:
+            rotational_constant.append(float(line.split()[-1]))
+        rotational_constant = np.array(rotational_constant)
+
+    corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
+                                          tuple(item for item in corYtuples if item[0] !=0. ),
+                                          tuple(item for item in corZtuples if item[0] !=0. ))
+
+    corX, corY, corZ = np.zeros((6, 6)), np.zeros((6, 6)), np.zeros((6, 6))
+
+    for val, i, j in corXtuples:
+        corX[i - 7, j - 7] = val
+        corX[j - 7, i - 7] = val
+
+    for val, i, j in corYtuples:
+        corY[i - 7, j - 7] = val
+        corY[j - 7, i - 7] = val
+
+    for val, i, j in corZtuples:
+        corZ[i - 7, j - 7] = val
+        corZ[j - 7, i - 7] = val
+    coriolis_constant = np.array([corX, corY, corZ])
+
+    return rotational_constant, coriolis_constant
 
 
 # used for things
@@ -295,6 +369,43 @@ def getCubicPost(freq: dict, cubic: np.ndarray, recipcm: bool = False):
         # to Wilson units
         K3 /= amc_au ** 1.5
         return K3
+
+def getQuarticPost(freq: dict, quartic: np.ndarray, recipcm: bool = False):
+    """ Derives cubic and quartic anharmonic constants.
+        It takes reduced values [cm-1] from gaussian output
+        and transforms it to :
+          * cubic   force constants : [Hartree*amu(-3/2)*Bohr(-3)]
+          * quartic force constants : [Hartree*amu(-2  )*Bohr(-4)]
+    """
+    n = len(freq)
+    K4 = np.zeros((n, n, n, n), dtype=np.float64)
+
+    for fijkl in quartic:
+        i = int(fijkl[0]) - 7
+        j = int(fijkl[1]) - 7
+        k = int(fijkl[2]) - 7
+        l = int(fijkl[3]) - 7
+        d = np.float64(fijkl[4])
+
+        indices = [(i, j, k, l), (i, j, l, k), (i, k, j, l), (i, k, l, j),
+                   (i, l, j, k), (i, l, k, j), (j, i, k, l), (j, i, l, k),
+                   (j, k, i, l), (j, k, l, i), (j, l, i, k), (j, l, k, i),
+                   (k, i, j, l), (k, i, l, j), (k, j, i, l), (k, j, l, i),
+                   (k, l, i, j), (k, l, j, i), (l, i, j, k), (l, i, k, j),
+                   (l, j, i, k), (l, j, k, i), (l, k, i, j), (l, k, j, i)]
+
+        for idx in indices:
+            K4[idx] = d
+
+    if not recipcm:
+        from scipy import constants
+        # to go from amu to au mass unit (m_e)
+        amc_au = constants.physical_constants['atomic mass constant'][0] / \
+                 constants.physical_constants['atomic unit of mass'][0]
+        K4 = K4 / amc_au ** 2
+
+    return K4
+
 
 # used in getDipoleDers_anharm
 def pDipole(filenamebase: str):
