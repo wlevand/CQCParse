@@ -14,9 +14,13 @@ import numpy as np
 # np.set_printoptions(linewidth=250, suppress=True, precision=3)
 import sys
 import pandas as pd
-# from decorator import append
-
 pd.set_option('display.max_rows', sys.maxsize)
+
+from scipy import constants
+
+def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
+    """Conversion from GHz to cm-1"""
+    return ghz*10**9/(constants.c*100)
 
 class GaussianDataParser(object):
 
@@ -132,37 +136,30 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
         lines = file.readlines()
 
     corXtuples, corYtuples, corZtuples = [], [], []
-    rotational_constant = []
+    rotational_constantF = []
 
     start1, start2, start3 = False, False, False
     for line in lines:
-        if 'Coriolis Zeta matrix for IXYZ=                     1 :' in line:
+        if 'CORIOLIS COUPLINGS' in line:
             start1 = True
-        elif 'CHECKSUM' in line:
+        elif 'Num. of Coriolis couplings larger than' in line:
             start1 = False
-        elif start1:
-            l1 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+        elif start1 and len(line.strip().split())==4 and line.strip().split()[0]=='x':
+            l1 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corXtuples.append(tuple(l1))
 
-        if 'Coriolis Zeta matrix for IXYZ=                     2 :' in line:
-            start2 = True
-        elif 'CHECKSUM' in line:
-            start2 = False
-        elif start2:
-            l2 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+        elif start1 and len(line.strip().split()) == 4 and line.strip().split()[0] == 'y':
+            l2 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corYtuples.append(tuple(l2))
 
-        if 'Coriolis Zeta matrix for IXYZ=                     3 :' in line:
-            start3 = True
-        elif 'CHECKSUM' in line:
-            start3 = False
-        elif start3:
-            l3 = [int(line.split()[0]), int(line.split()[1]), float(line.split()[2])]
+        elif start1 and len(line.strip().split()) == 4 and line.strip().split()[0] == 'z':
+            l3 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corZtuples.append(tuple(l3))
 
-        if 'B in cm-1:' in line:
-            rotational_constant.append(float(line.split()[-1]))
-        rotational_constant = np.array(rotational_constant)
+        if 'Rotational constants (GHZ):' in line:
+            rotational_constant = [float(line.strip().split()[-3]), float(line.strip().split()[-2]),
+                                   float(line.strip().split()[-1])]
+            rotational_constantF = np.array(rotational_constant)
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
@@ -170,20 +167,20 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
 
     corX, corY, corZ = np.zeros((6, 6)), np.zeros((6, 6)), np.zeros((6, 6))
 
-    for val, i, j in corXtuples:
-        corX[i - 7, j - 7] = val
-        corX[j - 7, i - 7] = val
+    for i, j, val in corXtuples:
+        corX[i - 1, j - 1] = val
+        corX[j - 1, i - 1] = val
 
-    for val, i, j in corYtuples:
-        corY[i - 7, j - 7] = val
-        corY[j - 7, i - 7] = val
+    for i, j, val in corYtuples:
+        corY[i - 1, j - 1] = val
+        corY[j - 1, i - 1] = val
 
-    for val, i, j in corZtuples:
-        corZ[i - 7, j - 7] = val
-        corZ[j - 7, i - 7] = val
+    for i, j, val in corZtuples:
+        corZ[i - 1, j - 1] = val
+        corZ[j - 1, i - 1] = val
     coriolis_constant = np.array([corX, corY, corZ])
 
-    return rotational_constant, coriolis_constant
+    return GHz2Nu(rotational_constantF), coriolis_constant
 
 # used in retrievedata.py
 def parse_frequencies(file_path: str) -> dict[str: pd.DataFrame]:

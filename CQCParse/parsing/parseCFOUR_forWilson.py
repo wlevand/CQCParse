@@ -27,11 +27,14 @@
 import numpy as np
 import os
 import pickle
+from scipy import constants
+
+def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
+    """Conversion from GHz to cm-1"""
+    return ghz*10**9/(constants.c*100)
 
 def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:
     """Convert wavenumber (cm-1) to energy (Hartree)"""
-    from scipy import constants
-
     hartree2J = constants.physical_constants['hartree-joule relationship'][0]
     return reciprocal_cm * (100 * constants.h * constants.c / hartree2J)
 
@@ -50,7 +53,7 @@ class CFOURdataParser:
         self.polarizability_first_derivatives = None
         self.polarizability_second_derivatives = None
 
-        self.funds_harm_ints = None
+        self.fundamentals_harmonic_int = None
         self.fundamentals_harmonic_str = None
         self.fundamentals_anharmonic_str = None
         self.harmonic_states = None
@@ -101,22 +104,23 @@ class CFOURdataParser:
 
         cubic = pCubicORQuartic(self.all_files_dict['files']['cubic'])
         quartic = pCubicORQuartic(self.all_files_dict['files']['quartic'])
-        self.funds_harm_ints = {int(k): v for k, v in self.fundamentals_harmonic_str.items()}
+        self.fundamentals_harmonic_int = {int(k): v for k, v in self.fundamentals_harmonic_str.items()}
         # transformed to Wilson units in getCubicPost
-        self.cubic_force_constants = getCubicPost(self.funds_harm_ints, cubic, recipcm=False)
+        self.cubic_force_constants = getCubicPost(self.fundamentals_harmonic_int, cubic, recipcm=False)
 
-        self.cubic_cm_1 = getCubicPost(self.funds_harm_ints, cubic, recipcm=True)
-        self.quartic_cm_1 = getQuarticPost(self.funds_harm_ints, quartic, recipcm=True)
+        self.cubic_cm_1 = getCubicPost(self.fundamentals_harmonic_int, cubic, recipcm=True)
+        self.quartic_cm_1 = getQuarticPost(self.fundamentals_harmonic_int, quartic, recipcm=True)
 
-        labelsModes_original = [i+self.nModesStart for i in list(self.funds_harm_ints)]
+        labelsModes_original = [i + self.nModesStart for i in list(self.fundamentals_harmonic_int)]
         mu = getDipoleDers_anharm_au(self.all_files_dict['files']['dipolexyz'], labelsModes_original, self.nModesStart,
                                      self.fundamentals_harmonic_str)
         self.dipole_first_derivatives = mu[0]
         self.dipole_second_derivatives = mu[1]
 
-        alpha = getPolarDers_pkl_au(self.all_files_dict['files']['polar_pkl'], self.fundamentals_harmonic_str)
-        self.polarizability_first_derivatives = alpha[0]
-        self.polarizability_second_derivatives = alpha[1]
+        if self.all_files_dict['files']['polar_pkl'] != None:
+            alpha = getPolarDers_pkl_au(self.all_files_dict['files']['polar_pkl'], self.fundamentals_harmonic_str)
+            self.polarizability_first_derivatives = alpha[0]
+            self.polarizability_second_derivatives = alpha[1]
 
         self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['out_anharm_final'])
 
@@ -160,7 +164,9 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
 
         if 'B in cm-1:' in line:
             rotational_constant.append(float(line.split()[-1]))
-        rotational_constant = np.array(rotational_constant)
+    rotational_constant = np.array(rotational_constant)
+    if len(rotational_constant)>3:
+        rotational_constant = rotational_constant[-3:]
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
@@ -168,15 +174,15 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
 
     corX, corY, corZ = np.zeros((6, 6)), np.zeros((6, 6)), np.zeros((6, 6))
 
-    for val, i, j in corXtuples:
+    for i, j, val in corXtuples:
         corX[i - 7, j - 7] = val
         corX[j - 7, i - 7] = val
 
-    for val, i, j in corYtuples:
+    for i, j, val in corYtuples:
         corY[i - 7, j - 7] = val
         corY[j - 7, i - 7] = val
 
-    for val, i, j in corZtuples:
+    for i, j, val  in corZtuples:
         corZ[i - 7, j - 7] = val
         corZ[j - 7, i - 7] = val
     coriolis_constant = np.array([corX, corY, corZ])
