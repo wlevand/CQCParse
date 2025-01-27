@@ -29,9 +29,18 @@ class GaussianDataParser(object):
         all_files_dict = {"files": {"3quanta": '', "log": ''}}
         """
         self.all_files_dict = all_files_dict
+        # print(all_files_dict)
         # {'log', 'fchk', 'com'}
 
+        for filetype in self.all_files_dict['files']:
+            if filetype=='3quanta' or filetype=='log':
+                with open(self.all_files_dict['files'][filetype], 'r') as file:
+                    # lines = file.readlines()
+                    self.all_files_dict['files'][filetype] = [i.strip() for i in file.readlines()]
+                    # print(type(self.all_files_dict['files'][filetype]))
+
         self.nModesStart = None
+        self.molecule = self.all_files_dict['files']['mol_code']
 
         self.dipole_first_derivatives = None
         self.dipole_second_derivatives = None
@@ -60,6 +69,7 @@ class GaussianDataParser(object):
         self.atoms = None
         self.basis = None
         self.lot = None
+        self.nmodes = None
 
     def __dir__(self):
         return['nModesStart',
@@ -91,6 +101,7 @@ class GaussianDataParser(object):
                                                                                results_log['Fundamental Bands'][2])}
         self.fundamentals_harmonic_int = {int(k)-1: float(v) for k, v in zip(results_log['Fundamental Bands']['mode_a'],
                                                                              results_log['Fundamental Bands'][1])}
+        self.nmodes = len(self.fundamentals_harmonic_int)
 
         self.fundamentals_harmonic_str = {str(k):v for k,v in self.fundamentals_harmonic_int.items()}
         self.fundamentals_anharmonic_str = {str(k):v for k,v in self.fundamentals_anharmonic_int.items()}
@@ -124,16 +135,23 @@ class GaussianDataParser(object):
         self.cubic_cm_1 = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
         self.quartic_cm_1 = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
 
-        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['3quanta'])
+        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['3quanta'],
+                                                                          len(self.fundamentals_harmonic_int))
 
+        self.DD11 = ('No 1-1 Darling-Dennison resonance found' not in self.all_files_dict['files']['3quanta']
+                    and 'Search for 1-1 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['3quanta'])
+        self.DD13 = ('No 1-3 Darling-Dennison resonance found' not in self.all_files_dict['files']['3quanta']
+                    and 'Search for 1-3 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['3quanta'])
+        self.DD22 = ('No 2-2 Darling-Dennison resonance found' not in self.all_files_dict['files']['3quanta']
+                    and 'Search for 2-2 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['3quanta'])
 
-def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
+def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     """
     returns:
         rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
     """
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+    # with open(file_path, 'r') as file:
+    #     lines = file.readlines()
 
     corXtuples, corYtuples, corZtuples = [], [], []
     rotational_constantF = []
@@ -156,16 +174,16 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
             l3 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corZtuples.append(tuple(l3))
 
-        if 'Rotational constants (GHZ):' in line:
-            rotational_constant = [float(line.strip().split()[-3]), float(line.strip().split()[-2]),
-                                   float(line.strip().split()[-1])]
+        if 'Equilibrium Geometry' in line:
+            rotational_constant = [float(line.strip().split()[-1]), float(line.strip().split()[-2]),
+                                   float(line.strip().split()[-3])]
             rotational_constantF = np.array(rotational_constant)
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
                                           tuple(item for item in corZtuples if item[0] !=0. ))
 
-    corX, corY, corZ = np.zeros((6, 6)), np.zeros((6, 6)), np.zeros((6, 6))
+    corX, corY, corZ = np.zeros((nModes, nModes)), np.zeros((nModes, nModes)), np.zeros((nModes, nModes))
 
     for i, j, val in corXtuples:
         corX[i - 1, j - 1] = val
@@ -180,12 +198,13 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
         corZ[j - 1, i - 1] = val
     coriolis_constant = np.array([corX, corY, corZ])
 
-    return GHz2Nu(rotational_constantF), coriolis_constant
+    # return GHz2Nu(rotational_constantF), coriolis_constant
+    return rotational_constantF, coriolis_constant
 
 # used in retrievedata.py
-def parse_frequencies(file_path: str) -> dict[str: pd.DataFrame]:
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
+    # with open(file_path, 'r') as file:
+    #     lines = file.readlines()
 
     sections = ["Fundamental Bands", "Overtones", "Combination Bands"]
     results = {section: [] for section in sections}
@@ -290,14 +309,15 @@ def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = Fa
         allstates_harm = {**funddict1, **states1, **combinationbands1}
         return allstates_harm
 
-def get_detected_resonances_g16(filepath: str) -> list[str]:
+def get_detected_resonances_g16(file_content: list[str]) -> list[str]:
 
-    with open(filepath, 'r') as file:
-        file_content = file.read()
+    # with open(filepath, 'r') as file:
+    #     file_content = file.read()
 
     if "Resonance Analysis" in file_content:
-        with open(filepath, 'r') as file:
-            file_lines = file.readlines()
+        # with open(filepath, 'r') as file:
+        #     file_lines = file.readlines()
+        file_lines = file_content
         found_resonances_str = []
         inFR = False
         for line in file_lines:
@@ -388,9 +408,9 @@ def getPolarDers_au(logfile: str) -> tuple:
     return tuple([fdpol, sdpol])
 
 # used in retrievedata.py
-def parse_cubic_constants(file_path: str) -> [pd.DataFrame, list]:
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+def parse_cubic_constants(lines: list[str]) -> [pd.DataFrame, list]:
+    # with open(file_path, 'r') as file:
+    #     lines = file.readlines()
 
     results = []
     start = False
@@ -415,9 +435,9 @@ def parse_cubic_constants(file_path: str) -> [pd.DataFrame, list]:
 
     return df, units_lines
 
-def parse_quartic_constants(file_path: str) -> [pd.DataFrame, list]:
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+def parse_quartic_constants(lines: str) -> [pd.DataFrame, list]:
+    # with open(file_path, 'r') as file:
+    #     lines = file.readlines()
 
     results = []
     start = False
@@ -500,9 +520,9 @@ def get_quartic_post(len_freq: int, quartic: np.ndarray, reduced: bool = True):
     return K4
 
 # used in retrievedata.py
-def parse_dipole_moment(file_path: str) -> (pd.DataFrame, str):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+def parse_dipole_moment(lines: list[str]) -> (pd.DataFrame, str):
+    # with open(file_path, 'r') as file:
+    #     lines = file.readlines()
 
     results = []
     start = False
@@ -546,13 +566,13 @@ def parse_dipole_moment(file_path: str) -> (pd.DataFrame, str):
     return df, units_line
 
 # used in retrievedata.py
-def parse_polarizability(file_path: str) -> pd.DataFrame:
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+def parse_polarizability(lines: list[str]) -> pd.DataFrame:
+    # with open(file_path, 'r') as file:
+    #     lines = file.readlines()
 
     results = []
     start = False
-    units_line = None
+    # units_line = None
     column_names = ["P", "i", "j", "k", "comp", "X", "Y", "Z"]
     last_ijk = [np.nan, np.nan, np.nan]  # last seen "i", "j", "k" values
 

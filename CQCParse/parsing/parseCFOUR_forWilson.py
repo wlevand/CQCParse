@@ -43,10 +43,16 @@ class CFOURdataParser:
     """A class that contains parsed CFOUR output data"""
     def __init__(self, all_files_dict):
         self.all_files_dict = all_files_dict
+        for filetype in self.all_files_dict['files']:
+            if 'pkl' not in filetype:
+                with open(self.all_files_dict['files'][filetype], 'r') as file:
+                    # lines = file.readlines()
+                    self.all_files_dict['files'][filetype] = file.readlines()
         # {'outfile_anharm_start', 'out_anharm_end', 'molden', 'dipolexyz',
         #  'normco', 'quadrature', 'polar', 'dipder', 'dipol', 'cubic', 'fcmfinal'
         #  ''}
         self.nModesStart = None
+        self.molecule = self.all_files_dict['files']['mol_code']
 
         self.dipole_first_derivatives = None
         self.dipole_second_derivatives = None
@@ -59,7 +65,7 @@ class CFOURdataParser:
         self.harmonic_states = None
         self.anharmonic_states = None
         self.cubic_force_constants = None
-        self.quartic_constants = None
+        self.quartic_force_constants = None
 
         self.cubic_cm_1, self.quartic_cm_1 = None, None
         self.rotational_constant, self.coriolis_constant = None, None
@@ -71,6 +77,7 @@ class CFOURdataParser:
         self.atoms = None
         self.basis = None
         self.lot = None
+        self.nmodes = None
 
 
     def getData(self, linear_molecule: bool = False):
@@ -105,6 +112,8 @@ class CFOURdataParser:
         cubic = pCubicORQuartic(self.all_files_dict['files']['cubic'])
         quartic = pCubicORQuartic(self.all_files_dict['files']['quartic'])
         self.fundamentals_harmonic_int = {int(k): v for k, v in self.fundamentals_harmonic_str.items()}
+        self.nmodes = len(self.fundamentals_harmonic_int)
+
         # transformed to Wilson units in getCubicPost
         self.cubic_force_constants = getCubicPost(self.fundamentals_harmonic_int, cubic, recipcm=False)
 
@@ -122,16 +131,17 @@ class CFOURdataParser:
             self.polarizability_first_derivatives = alpha[0]
             self.polarizability_second_derivatives = alpha[1]
 
-        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['out_anharm_final'])
+        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['out_anharm_final'],
+                                                                         len(self.fundamentals_harmonic_int))
 
 
-def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
+def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     """
     returns:
         rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
     """
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+    # with open(file_path, 'r') as file:
+    #     lines = file.readlines()
 
     corXtuples, corYtuples, corZtuples = [], [], []
     rotational_constant = []
@@ -172,7 +182,7 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
                                           tuple(item for item in corYtuples if item[0] !=0. ),
                                           tuple(item for item in corZtuples if item[0] !=0. ))
 
-    corX, corY, corZ = np.zeros((6, 6)), np.zeros((6, 6)), np.zeros((6, 6))
+    corX, corY, corZ = np.zeros((nModes, nModes)), np.zeros((nModes, nModes)), np.zeros((nModes, nModes))
 
     for i, j, val in corXtuples:
         corX[i - 7, j - 7] = val
@@ -189,9 +199,8 @@ def parse_coriolis(file_path: str)-> [np.ndarray, np.ndarray]:
 
     return rotational_constant, coriolis_constant
 
-
 # used for things
-def parse_output_file(filepath: str):
+def parse_output_file(file_content: list[str]):
     """
     Parsing the out file - output of the anharmonic parallel procedure
     :param filepath:
@@ -205,8 +214,8 @@ def parse_output_file(filepath: str):
     anharmonic_intensities = []
     harmonic_transitions = []
 
-    with open(filepath, 'r') as file:
-        file_content = file.read()
+    # with open(filepath, 'r') as file:
+    #     file_content = file.read()
 
     if "All levels with up to three quanta" in file_content:
         start_index = file_content.find("All levels with up to three quanta")
@@ -240,7 +249,7 @@ def parse_output_file(filepath: str):
         print('\nNo anharmonic levels information in this file')
 
 # used for polarizability derivatives calculations
-def pTensor(filepath: str):
+def pTensor(lines: list[str]):
     """
     Parsing DIPOL or POLAR or FCMFINAL files
 
@@ -248,21 +257,21 @@ def pTensor(filepath: str):
     """
     alines = []
 
-    with open(filepath, 'r') as file:
-        lines = file.readlines()
-        start = 1 if len(lines[0].strip().split())==2 else 0
-        alines.extend([np.array([float(k) for k in i.strip().split()]) for i in lines[start:]])
+    # with open(filepath, 'r') as file:
+    #     lines = file.readlines()
+    start = 1 if len(lines[0].strip().split())==2 else 0
+    alines.extend([np.array([float(k) for k in i.strip().split()]) for i in lines[start:]])
 
     return np.array(alines) #.reshape((-1, 3 * na))
 
-def getRotationMatrix(filepath: str) -> np.array:
+def getRotationMatrix(file_content: list[str]) -> np.array:
     """
     Parsing outfile0.out to get the rotation matrix for xyz axes
     :param filepath:
     :return: OMAT transformation (rotation) matrix from outfile which is printed when PRINT_LEVEL=1
     """
-    with open(filepath, 'r') as file:
-        file_content = file.read()
+    # with open(filepath, 'r') as file:
+    #     file_content = file.read()
     if 'Transformation matrix between QCOM and QCOMP (OMAT)' in file_content:
         start_index = file_content.find("(QCOM = OMAT * QCOMP,")
         end_index = file_content.find("test:  OMAT * QCOMP = ", start_index)
@@ -280,14 +289,15 @@ def getRotationMatrix(filepath: str) -> np.array:
     else:
         print('No rotation matrix found in this outfile')
 
-def get_detected_resonances_c4(filepath: str):
+def get_detected_resonances_c4(file_content: list[str]):
 
-    with open(filepath, 'r') as file:
-        file_content = file.read()
+    # with open(filepath, 'r') as file:
+    #     file_content = file.read()
 
     if "Thresholds for removing resonance denominators:" in file_content:
-        with open(filepath, 'r') as file:
-            file_lines = file.readlines()
+        # with open(filepath, 'r') as file:
+        #     file_lines = file.readlines()
+        file_lines = file_content
         found_resonances_str = []
         for line in file_lines:
             if 'Resonance between' in line and 'combination' in line:
@@ -297,15 +307,15 @@ def get_detected_resonances_c4(filepath: str):
         return found_resonances_str
 
 # used
-def pCubicORQuartic(filepath: str):
+def pCubicORQuartic(lines: list[str]):
     """
     Parising cubic and quartic files with CFFs and QFFs
     :param filepath:
     :return: np.ndarray - parsed lines of files
     """
     alllines = []
-    with open(filepath, 'r') as file:
-        lines = file.readlines()
+    # with open(filepath, 'r') as file:
+    #     lines = file.readlines()
     for l in lines:
         elements = l.split()
         alllines.append(np.array([int(k) if i < len(elements) - 1 else float(k) for i, k in enumerate(elements)]))
@@ -414,15 +424,15 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, recipcm: bool = False):
 
 
 # used in getDipoleDers_anharm
-def pDipole(filenamebase: str):
+def pDipole(lines: list[str]):
     """
     Parsing dipole(xyz) files dipole(xyz)
     :param filenamebase: basename for dipole(xyz) files, e.g, 'dipole'
     :return: dictionary from dipole(xyz) data
     """
     dct = {}
-    with open(filenamebase, 'r') as file:
-        lines = file.readlines()
+    # with open(filenamebase, 'r') as file:
+    #     lines = file.readlines()
     for l in lines:
         nu = np.array([float(k) for k in l.split()])
         indx = tuple([int(i) for i in nu[:-1] if i!=0.0])
@@ -678,10 +688,10 @@ def pklPoldata(polar_dir):
     return filenamec
 
 # used for polarizability calculations (in pklDimless_normal_modes,)
-def pQUADRATURE(filepath) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
+def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """Dimensionless normal coordinates are here, in QUADRATURE file"""
-    with open(filepath, 'r') as file:
-        lines = file.readlines()
+    # with open(filepath, 'r') as file:
+    #     lines = file.readlines()
 
     current_frequency = None
     current_matrix = []
@@ -755,15 +765,15 @@ def pklDimless_normal_modes(quadratureFile):
 # not used now
 
 # used in computeRedMass4nm which is not used now; also used for making displacements (polar)
-def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
+def pMOLDEN(lines: list[str], linear: bool = False) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """
     Parsing MOLDEN file (VIB job output, harmonic or anharmonic)
     :param linear:
     :param filepath:
     :return:  geometry_data, atoms, selected_dict
     """
-    with open(filepath, 'r') as file:
-        lines = file.readlines()
+    # with open(filepath, 'r') as file:
+    #     lines = file.readlines()
 
     atoms = []
     geometry_data = []
