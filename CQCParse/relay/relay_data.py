@@ -55,8 +55,10 @@ class DataVault:
             if printing:
                 selected_columns_df = filtered_df[['code', 'method', 'basis_set', 'c4_out']]
             else:
-                selected_columns_df = filtered_df[['code', 'method', 'basis_set', 'c4_out', 'c4_cubic',
-                                                   'c4_dipolexyz', 'pkl_polar']]
+                selected_columns_df = filtered_df[['code', 'method', 'basis_set', 'c4_out',
+                                                   'c4_cubic',
+                                                   'c4_quartic',
+                                                   'c4_dipolexyz', 'pkl_polar', 'molden']]
 
             return selected_columns_df
 
@@ -68,6 +70,7 @@ class DataVault:
         pref_dir - prefix directory to the file locations given in the CSV files
         """
         dataframe = self.getting_files_DB(sourceProgram)
+
         mol_code, method, basis = mol_tuple
         files_dict = {'mol_code': mol_code, 'method': method, 'basis': basis}
 
@@ -85,7 +88,7 @@ class DataVault:
             if sourceProgram == 'gaussian':
                 result = {'source': 'gaussian', 'type': 'log'}
 
-                files_dict.update({'3quanta': pref_dir+narrow_df.iloc[0]['g16_3quanta_full'],
+                files_dict.update({#'3quanta': pref_dir+narrow_df.iloc[0]['g16_3quanta_full'],
                                    'log': pref_dir+narrow_df.iloc[0]['g16_3quanta_full']})
                 result['files'] = files_dict
                 return result
@@ -94,9 +97,11 @@ class DataVault:
                 result = {'source': 'cfour', 'type': 'out'}
                 files_dict.update({'out': pref_dir+narrow_df.iloc[0]['c4_out'],
                                    'cubic': pref_dir+narrow_df.iloc[0]['c4_cubic'],
+                                   'quartic': pref_dir+narrow_df.iloc[0]['c4_quartic'],
                                    'dipolexyz': pref_dir+narrow_df.iloc[0]['c4_dipolexyz'][:-1],
                                    'polar': pref_dir+narrow_df.iloc[0]['pkl_polar'],
                                    'out_anharm_final': pref_dir+narrow_df.iloc[0]['c4_out'],
-                                   'polar_pkl': pref_dir+narrow_df.iloc[0]['pkl_polar']})
+                                   'polar_pkl': pref_dir+narrow_df.iloc[0]['pkl_polar'],
+                                   'molden': pref_dir+narrow_df.iloc[0]['molden']})
                 result['files'] = files_dict
                 return result

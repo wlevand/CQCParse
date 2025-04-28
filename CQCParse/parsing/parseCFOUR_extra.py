@@ -344,7 +344,7 @@ def gethessinmat(hessinvec: np.ndarray):
         # frequency_analysis(coords, Hessian, elem=None, mass=None, energy=0.0,
         #             temperature=300.0, pressure=1.0, verbose=0, outfnm=None,
         #             note=None, wigner=None, ignore=0, normalized=True)
-        gg = g.normal_modes.frequency_analysis(coordsvec, hessmat, mass=massvec)
+        gg = g.get_normal_modes.frequency_analysis(coordsvec, hessmat, mass=massvec)
 
     :param hessinvec:
     :return:

@@ -30,17 +30,22 @@ class GaussianDataParser(object):
         """
         self.all_files_dict = all_files_dict
         # print(all_files_dict)
+        # print(self.all_files_dict)
         # {'log', 'fchk', 'com'}
+        if 'log' in self.all_files_dict['files']:
+            self.all_files_dict['files']['fname'] = self.all_files_dict['files']['log']
 
         for filetype in self.all_files_dict['files']:
-            if filetype=='3quanta' or filetype=='log':
+            if filetype=='log':
                 with open(self.all_files_dict['files'][filetype], 'r') as file:
                     # lines = file.readlines()
                     self.all_files_dict['files'][filetype] = [i.strip() for i in file.readlines()]
+
                     # print(type(self.all_files_dict['files'][filetype]))
 
         self.nModesStart = None
         self.molecule = self.all_files_dict['files']['mol_code']
+        self.program = self.all_files_dict['source']
 
         self.dipole_first_derivatives = None
         self.dipole_second_derivatives = None
@@ -96,7 +101,11 @@ class GaussianDataParser(object):
         # {'log', 'fchk', 'com'}
         self.nModesStart = 6 if linear_molecule else 7
 
-        results_log = parse_frequencies(self.all_files_dict['files']['3quanta'])
+        results_log = parse_frequencies(self.all_files_dict['files']['log'])
+        self.number_atoms = parse_Na(self.all_files_dict['files']['log'])
+
+        self.elements, self.coords = get_equil_geo(self.all_files_dict['files']['log'])
+
         self.fundamentals_anharmonic_int = {int(k)-1: float(v) for k, v in zip(results_log['Fundamental Bands']['mode_a'],
                                                                                results_log['Fundamental Bands'][2])}
         self.fundamentals_harmonic_int = {int(k)-1: float(v) for k, v in zip(results_log['Fundamental Bands']['mode_a'],
@@ -135,15 +144,22 @@ class GaussianDataParser(object):
         self.cubic_cm_1 = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
         self.quartic_cm_1 = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
 
-        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['3quanta'],
+        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['log'],
                                                                           len(self.fundamentals_harmonic_int))
 
-        self.DD11 = ('No 1-1 Darling-Dennison resonance found' not in self.all_files_dict['files']['3quanta']
-                    and 'Search for 1-1 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['3quanta'])
-        self.DD13 = ('No 1-3 Darling-Dennison resonance found' not in self.all_files_dict['files']['3quanta']
-                    and 'Search for 1-3 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['3quanta'])
-        self.DD22 = ('No 2-2 Darling-Dennison resonance found' not in self.all_files_dict['files']['3quanta']
-                    and 'Search for 2-2 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['3quanta'])
+        self.DD11 = ('No 1-1 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
+                    and 'Search for 1-1 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
+        self.DD13 = ('No 1-3 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
+                    and 'Search for 1-3 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
+        self.DD22 = ('No 2-2 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
+                    and 'Search for 2-2 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
+
+        modes = get_normal_modes(self.all_files_dict['files']['fname'], self.number_atoms)
+        rmodes = reordered_modes(self.all_files_dict['files']['fname'])
+        self.normal_modes = {}
+        for i in rmodes:
+            self.normal_modes[i-1] = modes[rmodes[i]-1]
+
 
 def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     """
@@ -157,6 +173,8 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     rotational_constantF = []
 
     start1, start2, start3 = False, False, False
+    start_rotcont = False
+
     for line in lines:
         if 'CORIOLIS COUPLINGS' in line:
             start1 = True
@@ -174,10 +192,34 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
             l3 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corZtuples.append(tuple(l3))
 
-        if 'Equilibrium Geometry' in line:
-            rotational_constant = [float(line.strip().split()[-1]), float(line.strip().split()[-2]),
-                                   float(line.strip().split()[-3])]
+
+
+        rotconst_str = 'equilibrium (e), ground vibr.state (00), and 00 + centr. dist.(0)'
+
+        if rotconst_str in line:
+            start_rotcont = True
+            rotational_constant = []
+
+        if start_rotcont:
+            if len(rotational_constant)<3:
+                rotational_constant.append(line.strip().split()[1])
+
+            else:
+                break
+
+        if 'E(harm)  E(anharm)' in line:
+            rot_order = [line.strip().split()[-3][-2], line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
+            reorder = [rot_order.index('x'), rot_order.index('y'), rot_order.index('z')]
+
+            rotational_constant = [rotational_constant[i] for i in reorder]
             rotational_constantF = np.array(rotational_constant)
+
+        # if 'Equilibrium Geometry' in line:
+        #     rotational_constant = [float(line.strip().split()[-3]), float(line.strip().split()[-2]),
+        #                            float(line.strip().split()[-1])]
+        #     rotational_constant = [rotational_constant[i] for i in reorder]
+        #     rotational_constantF = np.array(rotational_constant)
+        #     break
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
@@ -201,6 +243,14 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     # return GHz2Nu(rotational_constantF), coriolis_constant
     return rotational_constantF, coriolis_constant
 
+def parse_Na(lines: list[str]):
+
+    ind = 0
+    for line in lines:
+        ind += 1
+        if 'Distance matrix (angstroms):' in line:
+            return int(lines[ind-3].split()[0])
+
 # used in retrievedata.py
 def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
     # with open(file_path, 'r') as file:
@@ -208,13 +258,21 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
 
     sections = ["Fundamental Bands", "Overtones", "Combination Bands"]
     results = {section: [] for section in sections}
-    results_harm = {section: [] for section in sections}
+    # results_harm = {section: [] for section in sections}
     current_section = None
+
+    primary_line = "Anharmonic Infrared Spectroscopy"
+    alternative_line = "Vibrational Energies at Anharmonic Level"
+
+    if any(primary_line in line for line in lines):
+        target_line_anhram = primary_line
+    else:
+        target_line_anhram = alternative_line
 
     start = False
     units_counter = 0
     for line in lines:
-        if "Anharmonic Infrared Spectroscopy" in line:
+        if target_line_anhram in line:
             start = True
         elif "Units: Transition energies" in line:
             units_counter += 1
@@ -230,14 +288,14 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
                     if len(linelist)==5 and current_section=='Combination Bands': linelist.insert(2, None)
 
                     results[current_section].append(linelist)
-
+    # print(results)
     results_dataframes = {}
     for section, data in results.items():
         if section != 'Overtones':
             results_dataframes[section] = pd.DataFrame(data[1:-1])
         else:
             results_dataframes[section] = pd.DataFrame(data[2:-1])
-
+        # print(results_dataframes['Fundamental Bands'])
         main_numbers = [i.split('(')[0] for i in results_dataframes[section][0]]
         sub_numbers = [int(i[:-1].split('(')[1]) for i in results_dataframes[section][0]]
         # nserting columns at specific positions
@@ -336,7 +394,7 @@ def get_detected_resonances_g16(file_content: list[str]) -> list[str]:
                     found_resonances_str.append(line)
         return found_resonances_str
 
-def getDipDers_log(logfile: str) -> tuple:
+def getDipDers_log(logfile: list[str]) -> tuple:
     """
     Dipole derivatives: first order and second order
     Return: tuple[np.ndarray - shape(NM, 3), np.ndarray - shape(NM, NM, 3)]
@@ -353,7 +411,7 @@ def getDipDers_log(logfile: str) -> tuple:
 
     return tuple([a2d, a2d2_3d])
 
-def getDipDers_au(logfile: str) -> tuple:
+def getDipDers_au(logfile: list[str]) -> tuple:
     a2d, a2d2_3d = getDipDers_log(logfile)
     from scipy import constants
     # to go from amu to au mass unit (m_e)
@@ -365,7 +423,7 @@ def getDipDers_au(logfile: str) -> tuple:
     secder = a2d2_3d / amc_au
     return tuple([firstder, secder])
 
-def getPolarDers_log(logfile: str) -> tuple:
+def getPolarDers_log(logfile: list[str]) -> tuple:
     """
     Polarizability derivatives: first order and second order
     Return: tuple[np.ndarray - shape(NM, 3, 3), np.ndarray - shape(NM, NM, 3, 3)]
@@ -395,7 +453,7 @@ def getPolarDers_log(logfile: str) -> tuple:
 
     return tuple([p1_3d, p2_4d])
 
-def getPolarDers_au(logfile: str) -> tuple:
+def getPolarDers_au(logfile: list[str]) -> tuple:
     from scipy import constants
     # to go from amu to au mass unit (m_e)
     amc_au = constants.physical_constants['atomic mass constant'][0] / \
@@ -417,6 +475,24 @@ def parse_cubic_constants(lines: list[str]) -> [pd.DataFrame, list]:
     start2 = False
     units_lines = []
 
+    # for line in lines:
+    #     if "CUBIC FORCE CONSTANTS IN NORMAL MODES" in line:
+    #         start = True
+    #     elif line.strip().startswith("Num. of 3rd derivatives"):
+    #         break
+    #     elif start:
+    #         if line.strip().startswith("I"):
+    #             start2 = True
+    #         elif start2 and line.strip() and not line.isspace():
+    #             parts = line.split()
+    #             results.append(parts)
+    #         elif (line.strip().startswith(': FI =') or line.strip().startswith(': k  =')
+    #               or line.strip().startswith(': K  =')):
+    #             units_lines.append(line.strip())
+    #
+    # print(results)
+    # df = pd.DataFrame(results, columns=["I", "J", "K", "FI(I,J,K)", "k(I,J,K)", "K(I,J,K)"])
+
     for line in lines:
         if "CUBIC FORCE CONSTANTS IN NORMAL MODES" in line:
             start = True
@@ -427,15 +503,19 @@ def parse_cubic_constants(lines: list[str]) -> [pd.DataFrame, list]:
                 start2 = True
             elif start2 and line.strip() and not line.isspace():
                 parts = line.split()
+                # if "Sym.Forb." in line:
+                #     parts.append("Sym.Forb.")
+                if len(parts) == 6:
+                    parts.append(None)
                 results.append(parts)
             elif (line.strip().startswith(': FI =') or line.strip().startswith(': k  =')
                   or line.strip().startswith(': K  =')):
                 units_lines.append(line.strip())
-    df = pd.DataFrame(results, columns=["I", "J", "K", "FI(I,J,K)", "k(I,J,K)", "K(I,J,K)"])
+    df = pd.DataFrame(results, columns=["I", "J", "K", "FI(I,J,K)", "k(I,J,K)", "K(I,J,K)", "SymmetryForbidden"])
 
     return df, units_lines
 
-def parse_quartic_constants(lines: str) -> [pd.DataFrame, list]:
+def parse_quartic_constants(lines: list[str]) -> [pd.DataFrame, list]:
     # with open(file_path, 'r') as file:
     #     lines = file.readlines()
 
@@ -454,11 +534,13 @@ def parse_quartic_constants(lines: str) -> [pd.DataFrame, list]:
                 start2 = True
             elif start2 and line.strip() and not line.isspace():
                 parts = line.split()
+                if len(parts) == 7:
+                    parts.append(None)
                 results.append(parts)
             elif (line.strip().startswith(': FI =') or line.strip().startswith(': k  =')
                   or line.strip().startswith(': K  =')):
                 units_lines.append(line.strip())
-    df = pd.DataFrame(results, columns=["I", "J", "K", "L", "FI(I,J,K,L)", "k(I,J,K,L)", "K(I,J,K,L)"])
+    df = pd.DataFrame(results, columns=["I", "J", "K", "L", "FI(I,J,K,L)", "k(I,J,K,L)", "K(I,J,K,L)", "SymmetryForbidden"])
 
     return df, units_lines
 
@@ -467,9 +549,9 @@ def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
     K3 = np.zeros((len_freq, len_freq, len_freq), dtype=np.float64)
 
     for fijk in cubic:
-        i = int(fijk[0]) - 7
-        j = int(fijk[1]) - 7
-        k = int(fijk[2]) - 7
+        i = int(fijk[0]) -1
+        j = int(fijk[1]) -1
+        k = int(fijk[2]) -1
         d = np.float64(fijk[3])
 
         K3[i, j, k] = d
@@ -493,10 +575,11 @@ def get_quartic_post(len_freq: int, quartic: np.ndarray, reduced: bool = True):
     K4 = np.zeros((len_freq, len_freq, len_freq, len_freq), dtype=np.float64)
 
     for fijkl in quartic:
-        i = int(fijkl[0]) - 7
-        j = int(fijkl[1]) - 7
-        k = int(fijkl[2]) - 7
-        l = int(fijkl[3]) - 7
+        i = int(fijkl[0]) - 1
+        j = int(fijkl[1]) - 1
+        k = int(fijkl[2]) - 1
+        l = int(fijkl[3]) - 1
+
         d = np.float64(fijkl[4])
 
         indices = [(i, j, k, l), (i, j, l, k), (i, k, j, l), (i, k, l, j),
@@ -658,3 +741,249 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
 
     df = pd.DataFrame(array)
     return df#, units_line
+
+
+def remove_extra_g16():
+    """
+
+    """
+
+# ------------------ Normal modes ----------------------------------
+def nm_parse_lines(filename):
+    """
+    from freq output file returns lines with NM displacements
+    """
+    allines = []
+    with open(filename) as infile:
+        copy = False
+        for line in infile:
+            if line.strip() == "Atom  AN      X      Y      Z        X      Y      Z        X      Y      Z":
+                copy = True
+                continue
+            elif line.startswith(" Frequencies --  "):
+                copy = False
+                continue
+
+            elif line.startswith(" - Thermochemistry"):
+                return allines
+
+            if copy:
+                allines.append(line)
+
+    return allines
+
+
+def nm_floats(filename):
+    """
+    from lines with NM displacements returns numbers (floats)
+    """
+    import re
+    nums = []
+    allines = nm_parse_lines(filename)
+
+    for line in allines:
+        x = re.findall(r"[-+]?\d*\.\d+|\d+", line)
+        for i in x:
+            try:
+                int(i)
+            except ValueError as error:
+                # int(i) if int(i) == float(i) else float(i)
+                nums.append(float(i))
+    return nums
+
+
+def get_normal_modes(filename, Na):
+    """
+    from freq output file returns 2D array (array of vectorised 3Na-6 NMs as rows of 3Na)
+    """
+
+    # Ntot = (3 * Na - 6) * Na
+    m1 = np.reshape(np.array(nm_floats(filename)), (-1, Na, 3, 3))
+    result = np.transpose(m1, (0, 2, 1, 3)).reshape(-1, 3, Na, 3)
+
+    return result.reshape(-1, 3 * Na)
+
+
+def normal_modes_prec(lines, Na, linear):
+
+    collect = False
+    count = 0
+    nmodes = 3*Na-5 if linear else 3*Na-6
+
+    lines_relevant = {i:[] for i in range(nmodes)}
+    count_modes = 0
+
+    for line in lines:
+
+        if 'Coord Atom Element:' in line:
+            collect = True
+        if ' Harmonic frequencies (cm**-1), IR intensities (KM/Mole), Raman scattering' in line:
+            count+=1
+            if count==2:
+                # collect = False
+                return
+        if collect and len(line.strip().split())==1:
+            collect = False
+
+        if collect:
+            for i, e in enumerate(line.strip().split()[3:]):
+                if len(lines_relevant[i])<Na*3:
+                    lines_relevant[i].append(e)
+                else:
+                    lines_relevant[i].append(e)
+
+
+
+def nm_matrix_check(referenceFile, currentFile, Na, phase_change=False):
+    # Normal modes lists from the files
+    referenceNMs = get_normal_modes(referenceFile, Na)     # all normal modes from ref_file
+    currentNMs = get_normal_modes(currentFile, Na)         # all normal modes from curr_file
+
+    ####  Setting up the identity matrix
+    mtx = np.zeros((3 * Na - 6, 3 * Na - 6))
+
+    ###  Phase check for all NMs based oon the 1st one
+    # for the 1st non-zero element (coordinate), check if the sign is the same
+    curr0 = np.array(currentNMs[0]).reshape(-1, 3)
+    ref0 = np.array(referenceNMs[0]).reshape(-1, 3)
+    non_zero_ref = np.transpose(np.nonzero(ref0))
+    non_zero_curr = np.transpose(np.nonzero(curr0))
+
+    first_non_zero = None
+    for i in non_zero_ref:
+        for j in non_zero_curr:
+            comparison = i == j
+            if comparison.all():
+                first_non_zero = i
+                break
+        else:
+            continue
+        break
+
+    if first_non_zero is not None:
+        # print(first_non_zero)
+        s1 = ref0[first_non_zero[0], first_non_zero[1]]
+        s2 = curr0[first_non_zero[0], first_non_zero[1]]
+        # print(s1, s2)
+        if np.sign(s1) != np.sign(s2):
+            phase_change = True
+        else:
+            phase_change = False
+
+    for i in range(3 * Na - 6):
+        for j in range(3 * Na - 6):
+            # curr = np.array(currentNMs[j]).reshape(-1, 3)   # a column of the "identity" matrix
+            ref = np.array(referenceNMs[i]).reshape(-1, 3)   # a row of the "identity" matrix
+
+            ## Phase change switch
+            phase_change = False
+            # For coordinates swapping for normal mode (x->z, z->x), a manual inspection is needed
+            if phase_change:
+                ref *= -1
+
+            #if i==14 and j==12:  # i from ref ; j from curr
+                #print(ref)
+                #print(curr)
+
+
+            mtx[i][j] = np.dot(ref.flatten(), currentNMs[j]) / \
+                        np.linalg.norm(ref.flatten())/np.linalg.norm(currentNMs[j])
+            #mtx[i][j] = np.dot(currentNMs[i], np.transpose(referenceNMs[j]))
+            # print(i+1, j+1, "{0:0.8f}".format(mtx[i][j]))
+
+    new_order = []
+    for i in range(len(mtx[0])):
+        match = np.where(abs(mtx[i]) > 0.9)
+        #print(len(match[0]))
+        if len(match[0]) == 0:
+            match = np.where(abs(mtx[i]) > 0.8)
+            #print(len(match))
+            if len(match[0]) == 0:
+                match = np.where(abs(mtx[i]) > 0.6)
+                if len(match[0]) == 0:
+                    match = np.where(abs(mtx[i]) > 0.6)
+                    new_order.append(match)
+                #print(i)
+            else:
+                new_order.append(match)
+        else:
+            new_order.append(match)
+    #print(new_order)
+    #print(np.where(abs(mtx[22]) > 0.9))
+    new_order = [y for x in new_order for y in x]
+    new_new = np.concatenate(new_order).ravel()
+    print(new_new)
+    print(len(new_new))
+    if len(new_new) == len(mtx[0]):
+        return mtx, new_new, True
+    else:
+        print("Incomplete")   # if the order number was not identified for every normal mode
+        print()
+        df = pd.DataFrame(mtx)
+        print(df)
+        return mtx, new_new, False
+
+def reordered_modes(filepath):
+    """
+    {A:H}
+    """
+    with open(filepath, 'r') as file:
+        file_content = file.readlines()
+
+    collect = False
+    H = []
+    A = []
+    for l in file_content:
+        if l.strip() == '(H) is reported in the present equivalency table:':
+            collect = True
+        if l.strip() == 'Normal modes will be READ in ASCENDING order (imag. freq. first)':
+            collect = False
+
+        if collect and ('(H)' in l or '(A)' in l) and 'reported' not in l:
+            l = l.strip().replace('|', '').split()
+            if '(H)' in l:
+                for e in l[1:]:
+                    H.append(int(e))
+            elif '(A)' in l:
+                for e in l[1:]:
+                    A.append(int(e))
+
+    return dict(sorted(dict(zip(A,H)).items()))
+
+
+def get_equil_geo(allines):
+
+    opt = False
+    collect = False
+
+    elements = []
+    dictelem = {'6': 'C', '7': 'N', '8': 'O', '1': 'H'}
+    coords = []
+
+    countlines = 0
+
+    for line in allines:
+        if 'Optimization completed.' in line.strip():
+            opt = True
+            continue
+
+        if opt and len(line.strip().split())==1 and collect:
+            countlines+=1
+            continue
+
+        if 'Standard orientation:' in line.strip() and opt:
+            collect = True
+            continue
+
+        if 'Rotational constants (GHZ):' in line.strip() and collect:
+            break
+
+        if collect and len(line.strip().split())>2 and countlines==2:
+            elements.append(dictelem[line.strip().split()[1]])
+            coords.append([float(line.strip().split()[-3]),
+                           float(line.strip().split()[-2]),
+                           float(line.strip().split()[-1])])
+
+    coords = np.array(coords)
+
+    return elements, coords

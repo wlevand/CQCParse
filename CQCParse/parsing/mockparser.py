@@ -1,5 +1,8 @@
 import numpy as np
 
+from parsing import get_cubic_post, get_quartic_post
+
+
 class MockParser(object):
 
     def __init__(self):
@@ -85,7 +88,7 @@ class MockParser(object):
                                     ('3', '3'), ('3', '4'), ('3', '5'),
                                     ('4', '4'), ('4', '5'),
                                     ('5', '5')}
-        for i in self.harmonic_states_set:
+        # for i in self.harmonic_states_set:
 
 
         # (nmodes, 3)
@@ -99,7 +102,7 @@ class MockParser(object):
         self.dipole_second_derivatives = np.array([[[0.,       0.,     8.8e-5 ],
                                                     [0.,       0.,     1.01e-4],
                                                     [0.,       0.,    -3.75e-6],
-                                                    [-1.5e-5., 0.,     0.     ],
+                                                    [-1.5e-5, 0.,     0.     ],
                                                     [0.,      -2.2e-4, 0.     ],
                                                     [0.,       3.3e-5, 0.     ]],
 
