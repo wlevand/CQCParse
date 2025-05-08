@@ -156,10 +156,13 @@ class DataStorage:
     _instances = {}
 
     @classmethod
-    def save(cls, molecule, basis, method, program, enelvls, instance):
-        if (molecule, program, basis, method) in cls._instances:
+    def save(cls, molecule, basis, method, program, enelvls, instance, upd=False):
+        if (molecule, program, basis, method) in cls._instances and not upd:
             raise ValueError(f"Instance '{molecule, program, basis, method}' already exists!")
+
         cls._instances[(molecule, basis, method, program, enelvls)] = instance
+        if upd:
+            print('updated')
         return instance
 
     @classmethod
@@ -185,11 +188,11 @@ class DataStorage:
             cls._instances = {}
 
     @classmethod
-    def append_to_file(cls, filename, molecule, basis, method, program, enelvls, instance):
+    def append_to_file(cls, filename, molecule, basis, method, program, enelvls, instance, upd=False):
         """Append new data to the storage saved in a file."""
         cls.load_from_file(filename)
 
-        cls.save(molecule, basis, method, program, enelvls, instance)
+        cls.save(molecule, basis, method, program, enelvls, instance, upd)
 
         cls.save_to_file(filename)
 
