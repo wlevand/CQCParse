@@ -149,6 +149,7 @@ class ParsedData:
         return f"<ParsedData: {self.__dict__.keys()}"
 
 import pickle
+
 class DataStorage:
     """
     Saves and tracks multiple ParsedData instances.
@@ -157,8 +158,10 @@ class DataStorage:
 
     @classmethod
     def save(cls, molecule, basis, method, program, enelvls, instance, upd=False):
-        if (molecule, program, basis, method) in cls._instances and not upd:
-            raise ValueError(f"Instance '{molecule, program, basis, method}' already exists!")
+        if (molecule, basis, method, program, enelvls) in cls._instances: #and not upd:
+            # print(cls._instances.keys())
+            # raise ValueError(f"Instance '{molecule, program, basis, method, enelvls}' already exists!")
+            print(f"Warning: Instance '{molecule, program, basis, method, enelvls}' already exists!")
 
         cls._instances[(molecule, basis, method, program, enelvls)] = instance
         if upd:
@@ -167,11 +170,17 @@ class DataStorage:
 
     @classmethod
     def get(cls, name_tuple):
+        """
+        nametuple = (molecule, basis, method, program, enelvls)
+        """
         return cls._instances.get(name_tuple)
 
     @classmethod
     def save_to_file(cls, filename):
-        """Save the _instances dictionary to a file."""
+        """
+        Save the _instances dictionary to a file.
+        Should be done when finished collecting
+        """
         with open(filename, 'wb') as file:
             pickle.dump(cls._instances, file)
         print(f"DataStorage saved to {filename}")
@@ -182,14 +191,17 @@ class DataStorage:
         try:
             with open(filename, 'rb') as file:
                 cls._instances = pickle.load(file)
-            print(f"DataStorage loaded from {filename}")
+            # print(f"DataStorage loaded from {filename}")
         except FileNotFoundError:
             print(f"No existing file found at {filename}. Starting with an empty storage.")
             cls._instances = {}
 
     @classmethod
     def append_to_file(cls, filename, molecule, basis, method, program, enelvls, instance, upd=False):
-        """Append new data to the storage saved in a file."""
+        """
+        Append new data to the storage saved in a file.
+        Updates file
+        """
         cls.load_from_file(filename)
 
         cls.save(molecule, basis, method, program, enelvls, instance, upd)
@@ -200,6 +212,7 @@ class DataStorage:
     def initialize_empty_storage(cls, filename):
         """Initialize an empty storage and save it to a file."""
         cls._instances = {}
+        cls.save_to_file(filename)
 
     @classmethod
     def list_instances(cls):

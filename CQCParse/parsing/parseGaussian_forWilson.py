@@ -622,7 +622,7 @@ def parse_dipole_moment(lines: list[str]) -> (pd.DataFrame, str):
     for line in lines:
         if line.strip().startswith('Electric Dipole'):
             start = True
-        elif line.strip().startswith("Polarizability Tensor"):
+        elif line.strip().startswith("Polarizability Tensor") or line.strip().startswith("Input for POLYMODE"):
             break
         elif start:
             if line.strip().startswith("Unit of the property"):
@@ -632,6 +632,7 @@ def parse_dipole_moment(lines: list[str]) -> (pd.DataFrame, str):
                 parts = line.split('|')
                 allparts = [parts[0].strip()]
                 # if "i", "j", "k" values are missing, use last seen values
+                # print(parts)
                 if parts[1].strip() == '':
                     allparts.extend(last_ijk)
                 else:
