@@ -176,6 +176,7 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     start_rotcont = False
 
     for line in lines:
+
         if 'CORIOLIS COUPLINGS' in line:
             start1 = True
         elif 'Num. of Coriolis couplings larger than' in line:
@@ -192,20 +193,20 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
             l3 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corZtuples.append(tuple(l3))
 
+        if start_rotcont:
+            if len(rotational_constant)<3:
+                rotational_constant.append(line.strip().split()[1])
+            else:
+                break
 
+        if start_rotcont:
+            rotational_constantF = np.array(rotational_constant)
 
         rotconst_str = 'equilibrium (e), ground vibr.state (00), and 00 + centr. dist.(0)'
 
         if rotconst_str in line:
             start_rotcont = True
             rotational_constant = []
-
-        if start_rotcont:
-            if len(rotational_constant)<3:
-                rotational_constant.append(line.strip().split()[1])
-
-            else:
-                break
 
         if 'E(harm)  E(anharm)' in line:
             rot_order = [line.strip().split()[-3][-2], line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
