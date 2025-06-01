@@ -1,6 +1,7 @@
-from parsing.parseGaussian_forWilson import *
-from parsing.parseCFOUR_forWilson import *
+from parsing.parseGaussian_forWilson import GaussianDataParser, get_detected_resonances_g16
+from parsing.parseCFOUR_forWilson import CFOURdataParser, get_detected_resonances_c4
 from wilson.relay import DataVault
+import numpy as np
 
 def test_anharmonicHF_QZ_freqs():
 

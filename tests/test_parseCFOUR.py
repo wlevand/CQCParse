@@ -1,6 +1,7 @@
+import numpy as np
 import pytest
-from parsing.parseCFOUR_forWilson import *
-from parsing.parseCFOUR_extra import *
+from parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file, CFOURdataParser
+from parsing.parseCFOUR_extra import pNORMCO, get_anharmonic_fundamentals
 
 def test_getRotationMatrix():
     rotation_matrix = getRotationMatrix('./test_files_cfour/rawouts/anharm_hf_outfile0.out')
@@ -85,9 +86,9 @@ def test_pQUADRATURE_norm_coordinates():
 
 def test_parse_output_file():
     out = parse_output_file('./test_files_cfour/rawouts/anharm_hf_outfile0.out')
-    assert out == None
+    assert out is None
     out = parse_output_file('./test_files_cfour/rawouts/anharm_hf_out')
-    assert type(out) == tuple
+    assert isinstance(out, tuple)
 
 @pytest.fixture
 def mock_output_file(tmp_path):

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Dict
 import numpy as np
+import pickle
 
 
 @dataclass
@@ -25,7 +26,7 @@ class OutputFiles(ABC):
 
 @dataclass
 class StructureData:
-    atoms: np.ndarray | list = field(default_factory=lambda: np.array([]))
+    atoms: np.ndarray | List = field(default_factory=lambda: np.array([]))
     equilibrium_geometry: np.ndarray = field(default_factory=lambda: np.array([]))
     # nModesStart: int = 3*2-5
 
@@ -87,7 +88,7 @@ class VPT2Data:
     # quartic_cm_1: np.ndarray = np.array([])
     rotational_constants: np.ndarray = field(default_factory=lambda: np.array([]))
     coriolis_constants: np.ndarray = field(default_factory=lambda: np.array([]))
-    fermi_resonance: list = field(default_factory=lambda: [])
+    fermi_resonance: List = field(default_factory=lambda: [])
     DD11: str = "'1-1 Darling-Dennison resonance weren't parsed"
     DD13: str = "'1-3 Darling-Dennison resonance weren't parsed"
     DD22: str = "'2-2 Darling-Dennison resonance weren't parsed"
@@ -126,13 +127,12 @@ class ParsedData:
     normal_modes: NormalModesData = field(default_factory=lambda: NormalModesData())
     anharm_correction_data: VPT2Data = field(default_factory=lambda: VPT2Data())
     anharm_treatment: str = 'original'
-    list2exclude: list = field(default_factory=lambda: list)
+    list2exclude: List = field(default_factory=lambda: list)
 
     def get_vpt2(self, vpt2settings, list2exclude=None, print_level=0):
         if list2exclude is None:
             list2exclude = []
 
-        # if vpt2settings is not None:
         from wilson.spectrum.vpt2 import get_vpt2_corrected_levels
         all_states, fermi_resonance = get_vpt2_corrected_levels(self, vpt2settings,
                                                list2exclude,
@@ -148,7 +148,37 @@ class ParsedData:
     def __repr__(self):
         return f"<ParsedData: {self.__dict__.keys()}"
 
-import pickle
+    def check_if_have_data(self):
+        checkboxes = []
+        checkboxes.append(len(self.structure.atoms)>0)
+        checkboxes.append(self.structure.equilibrium_geometry.shape==(len(self.structure.atoms), 3))
+
+        checkboxes.append(self.nmodes!=0)
+        checkboxes.append(self.vib_states.fundamentals_harmonic_str!={})
+        checkboxes.append(self.vib_states.fundamentals_anharmonic_str!={})
+        checkboxes.append(self.vib_states.fundamentals_harmonic_int!={})
+        checkboxes.append(self.vib_states.fundamentals_anharmonic_int!={})
+        checkboxes.append(self.vib_states.harmonic_states!={})
+        checkboxes.append(self.vib_states.anharmonic_states!={})
+
+        checkboxes.append(self.derivatives.dipole_first_derivatives.shape == (self.nmodes, 3))
+        checkboxes.append(self.derivatives.dipole_second_derivatives.shape == (self.nmodes,self.nmodes, 3))
+        checkboxes.append(self.derivatives.polarizability_first_derivatives.shape == (self.nmodes,3,3))
+        checkboxes.append(self.derivatives.polarizability_second_derivatives.shape == (self.nmodes,self.nmodes,3,3))
+
+        checkboxes.append(self.derivatives.cubic_force_constants.shape == (self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.quartic_constants.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.cubic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.quartic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
+
+        checkboxes.append(len(self.anharm_correction_data.rotational_constants)==3)
+        checkboxes.append(self.anharm_correction_data.coriolis_constants.shape==(3, self.nmodes, self.nmodes))
+
+        if not checkboxes:
+            return False
+        else:
+            return all(checkboxes)
+
 
 class DataStorage:
     """
@@ -159,7 +189,6 @@ class DataStorage:
     @classmethod
     def save(cls, molecule, basis, method, program, enelvls, instance, upd=False):
         if (molecule, basis, method, program, enelvls) in cls._instances: #and not upd:
-            # print(cls._instances.keys())
             # raise ValueError(f"Instance '{molecule, program, basis, method, enelvls}' already exists!")
             print(f"Warning: Instance '{molecule, program, basis, method, enelvls}' already exists!")
 
@@ -289,8 +318,8 @@ class DataStorage:
             for i in range(dalpha.shape[0]):
                 for j in range(dalpha.shape[1]):
                     for k in range(dalpha.shape[2]):
-                        for l in range(dalpha.shape[3]):
-                            currdict[f'Q{i}Q{j} {axes[k]}{axes[l]}'] = dalpha[i,j,k,l]
+                        for L in range(dalpha.shape[3]):
+                            currdict[f'Q{i}Q{j} {axes[k]}{axes[L]}'] = dalpha[i,j,k,L]
             polarsecders[f'{' '.join(d)}'] = currdict
 
         return polarsecders
@@ -377,17 +406,3 @@ class Parser(ABC):
 
                           structure_data, self.nmodes, vib_states,
                           derivs, norm_modes, anharm_correction_data)
-
-    # def get_vpt2(self, parsedData, vpt2settings, list2exclude=None, print_level=0):
-    #     if list2exclude is None:
-    #         list2exclude = []
-    #
-    #     # if vpt2settings is not None:
-    #     from wilson.spectrum.vpt2 import get_vpt2_corrected_levels
-    #     all_states = get_vpt2_corrected_levels(parsedData, vpt2settings,
-    #                                            list2exclude,
-    #                                            print_level=print_level)
-    #     parsedData.vib_states.fundamentals_anharmonic_str = {k[0]: v for k, v in all_states.items() if len(k)==1}
-    #     parsedData.vib_states.anharmonic_states = all_states
-    #     parsedData.vib_states.vpt2_states_all = all_states
-    #     parsedData.vib_states.vpt2_states_fund = {k[0]: v for k, v in all_states.items() if len(k)==1}

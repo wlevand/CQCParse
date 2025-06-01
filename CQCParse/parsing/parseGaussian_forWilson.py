@@ -15,6 +15,7 @@ import numpy as np
 import sys
 import pandas as pd
 pd.set_option('display.max_rows', sys.maxsize)
+from CQCParse.debug import debugfunc, enabled, level, debug_deep
 
 from scipy import constants
 
@@ -170,7 +171,7 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     #     lines = file.readlines()
 
     corXtuples, corYtuples, corZtuples = [], [], []
-    rotational_constantF = []
+    rotational_constant = []
 
     start1, start2, start3 = False, False, False
     start_rotcont = False
@@ -181,7 +182,8 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
             start1 = True
         elif 'Num. of Coriolis couplings larger than' in line:
             start1 = False
-        elif start1 and len(line.strip().split())==4 and line.strip().split()[0]=='x':
+
+        if start1 and len(line.strip().split())==4 and line.strip().split()[0]=='x':
             l1 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corXtuples.append(tuple(l1))
 
@@ -196,31 +198,21 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
         if start_rotcont:
             if len(rotational_constant)<3:
                 rotational_constant.append(line.strip().split()[1])
+                if len(rotational_constant)==3:
+                    start_rotcont = False
             else:
-                break
-
-        if start_rotcont:
-            rotational_constantF = np.array(rotational_constant)
+                continue
 
         rotconst_str = 'equilibrium (e), ground vibr.state (00), and 00 + centr. dist.(0)'
 
-        if rotconst_str in line:
+        if rotconst_str in line and len(rotational_constant)<3:
             start_rotcont = True
-            rotational_constant = []
 
         if 'E(harm)  E(anharm)' in line:
             rot_order = [line.strip().split()[-3][-2], line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
             reorder = [rot_order.index('x'), rot_order.index('y'), rot_order.index('z')]
-
-            rotational_constant = [rotational_constant[i] for i in reorder]
-            rotational_constantF = np.array(rotational_constant)
-
-        # if 'Equilibrium Geometry' in line:
-        #     rotational_constant = [float(line.strip().split()[-3]), float(line.strip().split()[-2]),
-        #                            float(line.strip().split()[-1])]
-        #     rotational_constant = [rotational_constant[i] for i in reorder]
-        #     rotational_constantF = np.array(rotational_constant)
-        #     break
+            rotational_constant = np.array([float(rotational_constant[i]) for i in reorder])
+            break
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
@@ -241,16 +233,22 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
         corZ[j - 1, i - 1] = val
     coriolis_constant = np.array([corX, corY, corZ])
 
-    # return GHz2Nu(rotational_constantF), coriolis_constant
-    return rotational_constantF, coriolis_constant
+    return rotational_constant, coriolis_constant
 
 def parse_Na(lines: list[str]):
 
     ind = 0
+
+    Na = 0
     for line in lines:
         ind += 1
         if 'Distance matrix (angstroms):' in line:
-            return int(lines[ind-3].split()[0])
+            Na = int(lines[ind-3].split()[0])
+            break
+    if Na == 0:
+        debugfunc('Warning: Number of atoms not found in output', 'parseGaussian_forWilson.parse_Na')
+    return Na
+
 
 # used in retrievedata.py
 def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:

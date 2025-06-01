@@ -178,13 +178,13 @@ def change_idx_states(dict2upd, new_idx_dict):
     new_dict1 = {}
 
     for oldkey, val in dict2upd.items():
-        if type(oldkey)==tuple:
+        if isinstance(oldkey, tuple):
             typekey = tuple
             newkey = tuple([str(j) for j in sorted([new_idx_dict[int(i)] for i in oldkey])])
-        elif type(oldkey)==int:
+        elif isinstance(oldkey, int):
             typekey = int
             newkey = new_idx_dict[oldkey]
-        elif type(oldkey)==str:
+        elif isinstance(oldkey, str):
             typekey = str
             newkey = str(new_idx_dict[int(oldkey)])
         else:
@@ -193,13 +193,13 @@ def change_idx_states(dict2upd, new_idx_dict):
 
         new_dict1[newkey] = val
 
-    if typekey == str:
+    if typekey is str:
         sorted_keys = [str(j) for j in sorted([int(i) for i in new_dict1.keys()])]
 
-    elif typekey == int:
+    elif typekey is int:
         sorted_keys = sorted(list(new_dict1.keys()))
 
-    elif typekey == tuple:
+    elif typekey is tuple:
         sorted_keys = sorted(new_dict1.keys(), key=lambda x: tuple(map(int, x)))
     else:
         print('typekey is', typekey)
