@@ -1,5 +1,4 @@
 
-enabled = False
 level = 1
 
 def debugfunc(msgs, tag=""):

@@ -124,20 +124,20 @@ class FormchkInterface:
         expect_size = -1
         vec = []
         with open(file_path, "r") as file:
-            for l in file:
-                if l[:len(key)] == key:
+            for L in file:
+                if L[:len(key)] == key:
                     try:
-                        expect_size = int(l[len(key):].split()[2])
+                        expect_size = int(L[len(key):].split()[2])
                         flag_read = True
                         continue
                     except IndexError:
                         try:
-                            return float(l[len(key):].split()[1])
+                            return float(L[len(key):].split()[1])
                         except IndexError:
                             continue
                 if flag_read:
                     try:
-                        vec += [float(i) for i in l.split()]
+                        vec += [float(i) for i in L.split()]
                     except ValueError:
                         break
         if len(vec) != expect_size:

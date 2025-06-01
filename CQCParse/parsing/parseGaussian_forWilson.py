@@ -10,14 +10,14 @@
 #     - .fchk --- formcheck (generated from checkpoint file)
 """
 
+from CQCParse.debug import debugfunc
+from scipy import constants
 import numpy as np
 # np.set_printoptions(linewidth=250, suppress=True, precision=3)
 import sys
 import pandas as pd
 pd.set_option('display.max_rows', sys.maxsize)
-from CQCParse.debug import debugfunc, enabled, level, debug_deep
 
-from scipy import constants
 
 def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
     """Conversion from GHz to cm-1"""
@@ -173,7 +173,7 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     corXtuples, corYtuples, corZtuples = [], [], []
     rotational_constant = []
 
-    start1, start2, start3 = False, False, False
+    start1 = False
     start_rotcont = False
 
     for line in lines:
@@ -284,7 +284,8 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
                 if '------------' not in line:
                     linelist = line.split()
                     # inserting None at the desired index 2
-                    if len(linelist)==5 and current_section=='Combination Bands': linelist.insert(2, None)
+                    if len(linelist)==5 and current_section=='Combination Bands':
+                        linelist.insert(2, None)
 
                     results[current_section].append(linelist)
     # print(results)
@@ -380,7 +381,7 @@ def get_detected_resonances_g16(file_content: list[str]) -> list[str]:
         for line in file_lines:
             if 'I      J  +   K' in line:
                 inFR = True
-                col_names = line.strip().split()
+                # col_names = line.strip().split()
                 found_resonances_str.append(line)
             if 'Active Fermi resonances' in line:
                 number_of_FR = int(line.strip().split()[0])
@@ -577,16 +578,16 @@ def get_quartic_post(len_freq: int, quartic: np.ndarray, reduced: bool = True):
         i = int(fijkl[0]) - 1
         j = int(fijkl[1]) - 1
         k = int(fijkl[2]) - 1
-        l = int(fijkl[3]) - 1
+        L = int(fijkl[3]) - 1
 
         d = np.float64(fijkl[4])
 
-        indices = [(i, j, k, l), (i, j, l, k), (i, k, j, l), (i, k, l, j),
-                   (i, l, j, k), (i, l, k, j), (j, i, k, l), (j, i, l, k),
-                   (j, k, i, l), (j, k, l, i), (j, l, i, k), (j, l, k, i),
-                   (k, i, j, l), (k, i, l, j), (k, j, i, l), (k, j, l, i),
-                   (k, l, i, j), (k, l, j, i), (l, i, j, k), (l, i, k, j),
-                   (l, j, i, k), (l, j, k, i), (l, k, i, j), (l, k, j, i)]
+        indices = [(i, j, k, L), (i, j, L, k), (i, k, j, L), (i, k, L, j),
+                   (i, L, j, k), (i, L, k, j), (j, i, k, L), (j, i, L, k),
+                   (j, k, i, L), (j, k, L, i), (j, L, i, k), (j, L, k, i),
+                   (k, i, j, L), (k, i, L, j), (k, j, i, L), (k, j, L, i),
+                   (k, L, i, j), (k, L, j, i), (L, i, j, k), (L, i, k, j),
+                   (L, j, i, k), (L, j, k, i), (L, k, i, j), (L, k, j, i)]
 
         for idx in indices:
             K4[idx] = d
@@ -691,7 +692,7 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
                 row = [row_dict.get(column_name, np.nan) for column_name in column_names]
                 results.append(row)
 
-            elif ('|  X  |' in line or '|  Z  |') and len(line.split('|')) == 4 and not 'i' in line:
+            elif ('|  X  |' in line or '|  Z  |') and len(line.split('|')) == 4 and 'i' not in line:
                 parts = line.split('|')
                 allparts = [np.nan]
                 allparts.extend([np.nan, np.nan, np.nan])
@@ -786,7 +787,7 @@ def nm_floats(filename):
         for i in x:
             try:
                 int(i)
-            except ValueError as error:
+            except ValueError:
                 # int(i) if int(i) == float(i) else float(i)
                 nums.append(float(i))
     return nums
@@ -811,7 +812,6 @@ def normal_modes_prec(lines, Na, linear):
     nmodes = 3*Na-5 if linear else 3*Na-6
 
     lines_relevant = {i:[] for i in range(nmodes)}
-    count_modes = 0
 
     for line in lines:
 
@@ -933,19 +933,19 @@ def reordered_modes(filepath):
     collect = False
     H = []
     A = []
-    for l in file_content:
-        if l.strip() == '(H) is reported in the present equivalency table:':
+    for L in file_content:
+        if L.strip() == '(H) is reported in the present equivalency table:':
             collect = True
-        if l.strip() == 'Normal modes will be READ in ASCENDING order (imag. freq. first)':
+        if L.strip() == 'Normal modes will be READ in ASCENDING order (imag. freq. first)':
             collect = False
 
-        if collect and ('(H)' in l or '(A)' in l) and 'reported' not in l:
-            l = l.strip().replace('|', '').split()
-            if '(H)' in l:
-                for e in l[1:]:
+        if collect and ('(H)' in L or '(A)' in L) and 'reported' not in L:
+            L = L.strip().replace('|', '').split()
+            if '(H)' in L:
+                for e in L[1:]:
                     H.append(int(e))
-            elif '(A)' in l:
-                for e in l[1:]:
+            elif '(A)' in L:
+                for e in L[1:]:
                     A.append(int(e))
 
     return dict(sorted(dict(zip(A,H)).items()))

@@ -211,7 +211,7 @@ class GaussianData:
                 }
                 combinationbands = {
                     tuple(
-                        sorted([int(k) - 1 for k in t1.split()] * int(n1) + [int(l) - 1 for l in t2.split()] * int(n2) + [(int(t3)-1)] * int(n3))
+                        sorted([int(k) - 1 for k in t1.split()] * int(n1) + [int(L) - 1 for L in t2.split()] * int(n2) + [(int(t3)-1)] * int(n3))
                     ): float(v)
                     for t1, t2, t3, v, n1, n2, n3 in
                     zip(results['Combination Bands']['mode_a'], results['Combination Bands']['mode_b'],
@@ -226,7 +226,7 @@ class GaussianData:
                           zip(results['Overtones']['mode_a'], results['Overtones'][1], results['Overtones']['n_a'])}
                 combinationbands1 = {
                     tuple(
-                        sorted([int(k) - 1 for k in t1.split()] * int(n1) + [int(l) - 1 for l in t2.split()] * int(n2) + [(int(t3)-1)] * int(n3))
+                        sorted([int(k) - 1 for k in t1.split()] * int(n1) + [int(L) - 1 for L in t2.split()] * int(n2) + [(int(t3)-1)] * int(n3))
                     ): float(v)
                     for t1, t2, t3, v, n1, n2, n3 in
                     zip(results['Combination Bands']['mode_a'], results['Combination Bands']['mode_b'],
@@ -245,7 +245,7 @@ class GaussianData:
         Return: tuple[np.ndarray - shape(NM, 3), np.ndarray - shape(NM, NM, 3)]
         """
         if self.sourcetype == 'fchk':
-            dipderCart = self.getDipDersCart_fchk()
+            # dipderCart = self.getDipDersCart_fchk()
             pass
 
         elif self.sourcetype == 'log':

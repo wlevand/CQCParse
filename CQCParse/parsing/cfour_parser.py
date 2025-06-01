@@ -1,4 +1,4 @@
-from .parser_template import Parser, ParsedData, OutputFiles
+from .parser_template import Parser, OutputFiles
 from .parser_template import VPT2Data, DerivativesData, StatesData, NormalModesData, StructureData
 from  dataclasses import dataclass
 from .parseCFOUR_forWilson import (pMOLDEN, parse_output_file, parse_coriolis,

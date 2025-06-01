@@ -322,8 +322,8 @@ def getRotationMatrix(filepath: str) -> np.array:
         coords_section = omat_section[newlinebreak:][1:-1].split('\n')
 
         omat_array = []
-        for l in coords_section[:-1]:
-            ll = np.array([float(i) for i in l.strip().split() if '.' in i])
+        for L in coords_section[:-1]:
+            ll = np.array([float(i) for i in L.strip().split() if '.' in i])
             omat_array.append(ll)
         omat_array = np.array(omat_array)
 
@@ -357,8 +357,8 @@ def pCubicORQuartic(filepath: str):
     alllines = []
     with open(filepath, 'r') as file:
         lines = file.readlines()
-    for l in lines:
-        elements = l.split()
+    for L in lines:
+        elements = L.split()
         alllines.append(np.array([int(k) if i < len(elements) - 1 else float(k) for i, k in enumerate(elements)]))
 
     return np.array(alllines)
@@ -441,15 +441,15 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, startmode, recipcm: bool = F
         i = int(fijkl[0]) - startmode
         j = int(fijkl[1]) - startmode
         k = int(fijkl[2]) - startmode
-        l = int(fijkl[3]) - startmode
+        L = int(fijkl[3]) - startmode
         d = np.float64(fijkl[4])
 
-        indices = [(i, j, k, l), (i, j, l, k), (i, k, j, l), (i, k, l, j),
-                   (i, l, j, k), (i, l, k, j), (j, i, k, l), (j, i, l, k),
-                   (j, k, i, l), (j, k, l, i), (j, l, i, k), (j, l, k, i),
-                   (k, i, j, l), (k, i, l, j), (k, j, i, l), (k, j, l, i),
-                   (k, l, i, j), (k, l, j, i), (l, i, j, k), (l, i, k, j),
-                   (l, j, i, k), (l, j, k, i), (l, k, i, j), (l, k, j, i)]
+        indices = [(i, j, k, L), (i, j, L, k), (i, k, j, L), (i, k, L, j),
+                   (i, L, j, k), (i, L, k, j), (j, i, k, L), (j, i, L, k),
+                   (j, k, i, L), (j, k, L, i), (j, L, i, k), (j, L, k, i),
+                   (k, i, j, L), (k, i, L, j), (k, j, i, L), (k, j, L, i),
+                   (k, L, i, j), (k, L, j, i), (L, i, j, k), (L, i, k, j),
+                   (L, j, i, k), (L, j, k, i), (L, k, i, j), (L, k, j, i)]
 
         for idx in indices:
             K4[idx] = d
@@ -474,8 +474,8 @@ def pDipole(filenamebase: str):
     dct = {}
     with open(filenamebase, 'r') as file:
         lines = file.readlines()
-    for l in lines:
-        nu = np.array([float(k) for k in l.split()])
+    for L in lines:
+        nu = np.array([float(k) for k in L.split()])
         indx = tuple([int(i) for i in nu[:-1] if i!=0.0])
         if len(indx) == 1:
             dct[indx[0]] = nu[-1]
@@ -505,29 +505,29 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
     dmudq_array = np.zeros((dq, 3))
     dmudqdq_array = np.zeros((dq, dq, 3))
 
-    for l in labels:
-        if type(l) ==int:
-            if l in dipx:
-                dmudq_array[l-nModesStart, 0] = dipx[l]
-            if l in dipy:
-                dmudq_array[l-nModesStart, 1] = dipy[l]
-            if l in dipz:
-                dmudq_array[l-nModesStart, 2] = dipz[l]
+    for L in labels:
+        if isinstance(L, int):
+            if L in dipx:
+                dmudq_array[L-nModesStart, 0] = dipx[L]
+            if L in dipy:
+                dmudq_array[L-nModesStart, 1] = dipy[L]
+            if L in dipz:
+                dmudq_array[L-nModesStart, 2] = dipz[L]
 
-    for l in dipx:
-        if type(l) != int:
-            if len(l) == 2:
-                dmudqdq_array[(l[0] - nModesStart, l[1] - nModesStart, 0)] = dipx[l]
+    for L in dipx:
+        if not isinstance(L, int):
+            if len(L) == 2:
+                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 0)] = dipx[L]
 
-    for l in dipy:
-        if type(l) != int:
-            if len(l) == 2:
-                dmudqdq_array[(l[0] - nModesStart, l[1] - nModesStart, 1)] = dipy[l]
+    for L in dipy:
+        if not isinstance(L, int):
+            if len(L) == 2:
+                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 1)] = dipy[L]
 
-    for l in dipz:
-        if type(l) != int:
-            if len(l) == 2:
-                dmudqdq_array[(l[0] - nModesStart, l[1] - nModesStart, 2)] = dipz[l]
+    for L in dipz:
+        if not isinstance(L, int):
+            if len(L) == 2:
+                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 2)] = dipz[L]
 
     return dmudq_array, dmudqdq_array
 
@@ -580,8 +580,8 @@ def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
             #     file1.writelines(str(polarizability_second_derivatives[i, j, :, :]))
 
             for k in range(3):
-                for l in range(3):
-                    sdpol[i, j, k, l] = polarizability_second_derivatives[i, j, k, l] / sqrtmat[i, j]
+                for L in range(3):
+                    sdpol[i, j, k, L] = polarizability_second_derivatives[i, j, k, L] / sqrtmat[i, j]
 
     return tuple([fdpol, sdpol])
 
@@ -903,30 +903,30 @@ def getDipoleDers(filenamebase: str, outfile: str):
     dmudqdqdict['y'] = np.zeros((dq, dq))
     dmudqdqdict['z'] = np.zeros((dq, dq))
 
-    for l in labels:
-        if type(l) == int:
-            dmudqdict[l] = np.zeros(3)
-            if l in dipx:
-                dmudqdict[l][0] = dipx[l]
-            if l in dipy:
-                dmudqdict[l][1] = dipy[l]
-            if l in dipz:
-                dmudqdict[l][2] = dipz[l]
+    for L in labels:
+        if isinstance(L,int):
+            dmudqdict[L] = np.zeros(3)
+            if L in dipx:
+                dmudqdict[L][0] = dipx[L]
+            if L in dipy:
+                dmudqdict[L][1] = dipy[L]
+            if L in dipz:
+                dmudqdict[L][2] = dipz[L]
 
-    for l in dipx:
-        if type(l) != int:
-            if len(l) == 2:
-                dmudqdqdict['x'][(l[0] - 7, l[1] - 7)] = dipx[l]
+    for L in dipx:
+        if not isinstance(L, int):
+            if len(L) == 2:
+                dmudqdqdict['x'][(L[0] - 7, L[1] - 7)] = dipx[L]
 
-    for l in dipy:
-        if type(l) != int:
-            if len(l) == 2:
-                dmudqdqdict['y'][(l[0] - 7, l[1] - 7)] = dipy[l]
+    for L in dipy:
+        if not isinstance(L, int):
+            if len(L) == 2:
+                dmudqdqdict['y'][(L[0] - 7, L[1] - 7)] = dipy[L]
 
-    for l in dipz:
-        if type(l) != int:
-            if len(l) == 2:
-                dmudqdqdict['z'][(l[0] - 7, l[1] - 7)] = dipz[l]
+    for L in dipz:
+        if not isinstance(L, int):
+            if len(L) == 2:
+                dmudqdqdict['z'][(L[0] - 7, L[1] - 7)] = dipz[L]
 
     dmudqarray = np.array(list(dmudqdict.values()))
     dmudqdarray = np.array(list(dmudqdqdict.values())).T
