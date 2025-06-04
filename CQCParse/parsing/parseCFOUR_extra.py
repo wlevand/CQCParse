@@ -1,6 +1,6 @@
 import numpy as np
 import pickle
-from parseCFOUR_forWilson import pMOLDEN
+from .parseCFOUR_forWilson import pMOLDEN
 
 # not used now
 def pNORMCO(filepath: str):

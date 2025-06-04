@@ -127,12 +127,13 @@ class ParsedData:
     normal_modes: NormalModesData = field(default_factory=lambda: NormalModesData())
     anharm_correction_data: VPT2Data = field(default_factory=lambda: VPT2Data())
     anharm_treatment: str = 'original'
-    list2exclude: List = field(default_factory=lambda: list)
+    list2exclude: List = field(default_factory=list)
 
     def get_vpt2(self, vpt2settings, list2exclude=None, print_level=0):
         if list2exclude is None:
             list2exclude = []
 
+        # todo: make general - routine to do gvpt2
         from wilson.spectrum.vpt2 import get_vpt2_corrected_levels
         all_states, fermi_resonance = get_vpt2_corrected_levels(self, vpt2settings,
                                                list2exclude,
