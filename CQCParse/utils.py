@@ -35,7 +35,8 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
 
         # upd self.all_states
         for oldkey, val in parserObj.anharmonic_states.items():
-            newkey = tuple([str(j) for j in sorted([new_idx_dict[int(i)]  for i in oldkey])])
+
+            newkey = tuple([str(j) for j in sorted([new_idx_dict[int(i)]  for i in oldkey if i!='zero'])])
             new_dict1[newkey] = val
 
         sorted_keys = sorted(new_dict1.keys(), key=lambda x: tuple(map(int, x)))
@@ -44,7 +45,7 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
 
         # upd self.all_states_harmonic
         for oldkey, val in parserObj.harmonic_states.items():
-            newkey = tuple([str(j) for j in sorted([new_idx_dict[int(i)]  for i in oldkey])])
+            newkey = tuple([str(j) for j in sorted([new_idx_dict[int(i)]  for i in oldkey if i!='zero'])])
             new_dict2[newkey] = val
 
         sorted_keys = sorted(new_dict2.keys(), key=lambda x: tuple(map(int, x)))

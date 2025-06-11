@@ -181,6 +181,12 @@ class ParsedData:
             return all(checkboxes)
 
 
+    def upd_indices_several_parts(self, new_idx_dict):
+        self.derivatives.upd_indices(new_idx_dict)
+        self.vib_states.upd_indices(new_idx_dict)
+        self.anharm_correction_data.upd_indices(new_idx_dict)
+
+
 class DataStorage:
     """
     Saves and tracks multiple ParsedData instances.
