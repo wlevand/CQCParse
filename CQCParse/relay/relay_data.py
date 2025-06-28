@@ -36,9 +36,8 @@ class DataVault:
         """
 
         DB = self.read_csv_DB()
-
         if sourceProgram == 'gaussian':
-            filtered_df = DB.query('g16_3quanta_full.notna() and g16_3quanta_full != ""')
+            filtered_df = DB[DB["g16_3quanta_full"].notna() & (DB["g16_3quanta_full"] != "")]
             selected_columns_df = filtered_df[['code', 'method', 'basis_set', 'g16_3quanta_full']]
             return selected_columns_df
 
