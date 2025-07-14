@@ -24,7 +24,7 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
              parserObj.polarizability_first_derivatives,
              parserObj.polarizability_second_derivatives,
              parserObj.cubic_force_constants]
-    self.deriv_data = dict(zip(['mu_Q', 'mu_QQ', 'alpha_Q', 'alpha_QQ', 'F_abc'], ddata))
+    self.deriv_data = dict(zip(['dipgrad', 'diphess', 'polgrad', 'polhess', 'cff'], ddata))
     """
 
     if data2transform=='states':
@@ -127,7 +127,7 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
 
 
         ddata = [newmu1, newmu2, newalpha1, newalpha2, newF]
-        deriv_data = dict(zip(['mu_Q', 'mu_QQ', 'alpha_Q', 'alpha_QQ', 'F_abc'], ddata))
+        deriv_data = dict(zip(['dipgrad', 'diphess', 'polgrad', 'polhess', 'cff'], ddata))
 
         return deriv_data
 

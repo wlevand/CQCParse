@@ -47,11 +47,11 @@ class DerivativesData:
 
         deriv_data  = change_idx_modes(self, new_idx_dict,
                                        data2transform='derivatives')
-        self.dipole_first_derivatives = deriv_data['mu_Q']
-        self.dipole_second_derivatives = deriv_data['mu_QQ']
-        self.polarizability_first_derivatives = deriv_data['alpha_Q']
-        self.polarizability_second_derivatives = deriv_data['alpha_QQ']
-        self.cubic_force_constants = deriv_data['F_abc']
+        self.dipole_first_derivatives = deriv_data['dipgrad']
+        self.dipole_second_derivatives = deriv_data['diphess']
+        self.polarizability_first_derivatives = deriv_data['polgrad']
+        self.polarizability_second_derivatives = deriv_data['polhess']
+        self.cubic_force_constants = deriv_data['cff']
 
         self.cubic_cm_1, self.quartic_cm_1 = change_idx_modes(self, new_idx_dict,
                                                               data2transform='force_consts')
