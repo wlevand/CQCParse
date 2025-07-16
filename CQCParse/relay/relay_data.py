@@ -68,6 +68,12 @@ class DataVault:
 
         pref_dir - prefix directory to the file locations given in the CSV files
         """
+        print('pref_dir', pref_dir)
+        from wilson.utils import get_package_root
+        wilson_root = get_package_root()
+        if pref_dir == wilson_root: # FIXME
+            pref_dir += '/../tests'
+        print('pref_dir', pref_dir)
         dataframe = self.getting_files_DB(sourceProgram)
 
         mol_code, method, basis = mol_tuple
