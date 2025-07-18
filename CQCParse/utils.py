@@ -19,11 +19,11 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
 
         deriv_data, list2exclude
 
-            ddata = [parserObj.dipole_first_derivatives,
-             parserObj.dipole_second_derivatives,
-             parserObj.polarizability_first_derivatives,
-             parserObj.polarizability_second_derivatives,
-             parserObj.cubic_force_constants]
+            ddata = [parserObj.dipgrad,
+             parserObj.diphess,
+             parserObj.polgrad,
+             parserObj.polhess,
+             parserObj.cff]
     self.deriv_data = dict(zip(['dipgrad', 'diphess', 'polgrad', 'polhess', 'cff'], ddata))
     """
 
@@ -93,19 +93,19 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
         return mode_indices
 
     elif data2transform=='derivatives':
-        newmu1 = np.zeros_like(parserObj.dipole_first_derivatives)
-        newmu2 = np.zeros_like(parserObj.dipole_second_derivatives)
-        newalpha1 = np.zeros_like(parserObj.polarizability_first_derivatives)
-        newalpha2 = np.zeros_like(parserObj.polarizability_second_derivatives)
-        newF = np.zeros_like(parserObj.cubic_force_constants)
+        newmu1 = np.zeros_like(parserObj.dipgrad)
+        newmu2 = np.zeros_like(parserObj.diphess)
+        newalpha1 = np.zeros_like(parserObj.polgrad)
+        newalpha2 = np.zeros_like(parserObj.polhess)
+        newF = np.zeros_like(parserObj.cff)
 
         # cff_cm_1_new = np.zeros_like(parserObj.cubic_cm_1)
         # qff_cm_1_new = np.zeros_like(parserObj.quartic_cm_1)
         # cor_c_new = np.zeros_like(parserObj.coriolis_constant)
 
         for oldkey, newkey in new_idx_dict.items():
-            newmu1[newkey, :] = parserObj.dipole_first_derivatives[oldkey, :]
-            newalpha1[newkey, :, :] = parserObj.polarizability_first_derivatives[oldkey, :, :]
+            newmu1[newkey, :] = parserObj.dipgrad[oldkey, :]
+            newalpha1[newkey, :, :] = parserObj.polgrad[oldkey, :, :]
 
         new_idx_dict_2d = {}
         for old_i, new_i in new_idx_dict.items():
@@ -113,8 +113,8 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
                 new_idx_dict_2d[(old_i, old_j)] = (new_i, new_j)
 
         for (old_i, old_j), (new_i, new_j) in new_idx_dict_2d.items():
-            newmu2[new_i, new_j, :] = parserObj.dipole_second_derivatives[old_i, old_j, :]
-            newalpha2[new_i, new_j, :, :] = parserObj.polarizability_second_derivatives[old_i, old_j, :, :]
+            newmu2[new_i, new_j, :] = parserObj.diphess[old_i, old_j, :]
+            newalpha2[new_i, new_j, :, :] = parserObj.polhess[old_i, old_j, :, :]
 
         new_idx_dict_3d = {}
         for old_i, new_i in new_idx_dict.items():
@@ -123,7 +123,7 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
                     new_idx_dict_3d[(old_i, old_j, old_k)] = (new_i, new_j, new_k)
 
         for (old_i, old_j, old_k), (new_i, new_j, new_k) in new_idx_dict_3d.items():
-            newF[new_i, new_j, new_k] = parserObj.cubic_force_constants[old_i, old_j, old_k]
+            newF[new_i, new_j, new_k] = parserObj.cff[old_i, old_j, old_k]
 
 
         ddata = [newmu1, newmu2, newalpha1, newalpha2, newF]

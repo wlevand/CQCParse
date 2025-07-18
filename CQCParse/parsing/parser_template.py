@@ -33,11 +33,11 @@ class StructureData:
 
 @dataclass
 class DerivativesData:
-    dipole_first_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    dipole_second_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    polarizability_first_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    polarizability_second_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    cubic_force_constants: np.ndarray = field(default_factory=lambda: np.array([]))
+    dipgrad: np.ndarray = field(default_factory=lambda: np.array([]))
+    diphess: np.ndarray = field(default_factory=lambda: np.array([]))
+    polgrad: np.ndarray = field(default_factory=lambda: np.array([]))
+    polhess: np.ndarray = field(default_factory=lambda: np.array([]))
+    cff: np.ndarray = field(default_factory=lambda: np.array([]))
     quartic_constants: np.ndarray = field(default_factory=lambda: np.array([]))
     cubic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
     quartic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -47,11 +47,11 @@ class DerivativesData:
 
         deriv_data  = change_idx_modes(self, new_idx_dict,
                                        data2transform='derivatives')
-        self.dipole_first_derivatives = deriv_data['dipgrad']
-        self.dipole_second_derivatives = deriv_data['diphess']
-        self.polarizability_first_derivatives = deriv_data['polgrad']
-        self.polarizability_second_derivatives = deriv_data['polhess']
-        self.cubic_force_constants = deriv_data['cff']
+        self.dipgrad = deriv_data['dipgrad']
+        self.diphess = deriv_data['diphess']
+        self.polgrad = deriv_data['polgrad']
+        self.polhess = deriv_data['polhess']
+        self.cff = deriv_data['cff']
 
         self.cubic_cm_1, self.quartic_cm_1 = change_idx_modes(self, new_idx_dict,
                                                               data2transform='force_consts')
@@ -162,12 +162,12 @@ class ParsedData:
         checkboxes.append(self.vib_states.harmonic_states!={})
         checkboxes.append(self.vib_states.anharmonic_states!={})
 
-        checkboxes.append(self.derivatives.dipole_first_derivatives.shape == (self.nmodes, 3))
-        checkboxes.append(self.derivatives.dipole_second_derivatives.shape == (self.nmodes,self.nmodes, 3))
-        checkboxes.append(self.derivatives.polarizability_first_derivatives.shape == (self.nmodes,3,3))
-        checkboxes.append(self.derivatives.polarizability_second_derivatives.shape == (self.nmodes,self.nmodes,3,3))
+        checkboxes.append(self.derivatives.dipgrad.shape == (self.nmodes, 3))
+        checkboxes.append(self.derivatives.diphess.shape == (self.nmodes,self.nmodes, 3))
+        checkboxes.append(self.derivatives.polgrad.shape == (self.nmodes,3,3))
+        checkboxes.append(self.derivatives.polhess.shape == (self.nmodes,self.nmodes,3,3))
 
-        checkboxes.append(self.derivatives.cubic_force_constants.shape == (self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.cff.shape == (self.nmodes, self.nmodes, self.nmodes))
         checkboxes.append(self.derivatives.quartic_constants.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
         checkboxes.append(self.derivatives.cubic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes))
         checkboxes.append(self.derivatives.quartic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
@@ -270,7 +270,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dmu = dd.derivatives.dipole_first_derivatives
+            dmu = dd.derivatives.dipgrad
             currdict = {}
             for i in range(dmu.shape[0]):
                 for j in range(dmu.shape[1]):
@@ -286,7 +286,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dmu = dd.derivatives.dipole_second_derivatives
+            dmu = dd.derivatives.diphess
             currdict = {}
             for i in range(dmu.shape[0]):
                 for j in range(dmu.shape[1]):
@@ -303,7 +303,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dalpha = dd.derivatives.polarizability_first_derivatives
+            dalpha = dd.derivatives.polgrad
             currdict = {}
             for i in range(dalpha.shape[0]):
                 for j in range(dalpha.shape[1]):
@@ -320,7 +320,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dalpha = dd.derivatives.polarizability_second_derivatives
+            dalpha = dd.derivatives.polhess
             currdict = {}
             for i in range(dalpha.shape[0]):
                 for j in range(dalpha.shape[1]):
@@ -337,7 +337,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dalpha = dd.derivatives.cubic_force_constants
+            dalpha = dd.derivatives.cff
             currdict = {}
             for i in range(dalpha.shape[0]):
                 for j in range(dalpha.shape[1]):

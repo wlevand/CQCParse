@@ -24,11 +24,11 @@ def test_GaussianDataParser():
     #              parserGaussian.anharmonic_states,
     #              parserGaussian.fundamentals_harmonic_str,
     #              parserGaussian.fundamentals_anharmonic_str,
-    #              parserGaussian.dipole_first_derivatives,
-    #              parserGaussian.dipole_second_derivatives,
-    #              parserGaussian.polarizability_first_derivatives,
-    #              parserGaussian.polarizability_second_derivatives,
-    #              parserGaussian.cubic_force_constants
+    #              parserGaussian.dipgrad,
+    #              parserGaussian.diphess,
+    #              parserGaussian.polgrad,
+    #              parserGaussian.polhess,
+    #              parserGaussian.cff
     #              ]
     #
     # assert all(v is not None for v in essential)

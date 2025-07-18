@@ -93,7 +93,7 @@ class GaussianParser(Parser):
         quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy()
         quartic = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']].to_numpy()
 
-        cubic_force_constants = get_cubic_post(self.nmodes, cubic)
+        cff = get_cubic_post(self.nmodes, cubic)
         quartic_force_constants = get_quartic_post(self.nmodes, quartic)
 
         cubic_cm_1 = get_cubic_post(self.nmodes, cubic_rcm, reduced=False)
@@ -103,12 +103,12 @@ class GaussianParser(Parser):
         debugfunc(f'Polarizability derivs: {len(alpha), type(alpha)} -> {type(alpha[0])}: first - {alpha[0].shape}, second - {alpha[1].shape}', tag='parser.getDerivatives()')
         debugfunc(f'Cubic cm-1 {cubic_cm_1.shape}, has only zeros - {not np.any(cubic_cm_1)}, #non-zero elements {np.count_nonzero(cubic_cm_1)}', tag='parser.getDerivatives()')
         debugfunc(f'Quartic cm-1 {quartic_cm_1.shape}, has only zeros - {not np.any(quartic_cm_1)}, #non-zero elements {np.count_nonzero(quartic_cm_1)}', tag='parser.getDerivatives()')
-        debugfunc(f'Cubic Ha {cubic_force_constants.shape}, has only zeros - {not np.any(cubic_force_constants)}, #non-zero elements {np.count_nonzero(cubic_force_constants)}', tag='parser.getDerivatives()')
+        debugfunc(f'Cubic Ha {cff.shape}, has only zeros - {not np.any(cff)}, #non-zero elements {np.count_nonzero(cff)}', tag='parser.getDerivatives()')
         debugfunc(f'Quartic Ha {quartic_force_constants.shape}, has only zeros - {not np.any(quartic_force_constants)}, #non-zero elements {np.count_nonzero(quartic_force_constants)}', tag='parser.getDerivatives()')
 
         return DerivativesData(mu[0], mu[1],
                                alpha[0], alpha[1],
-                               cubic_force_constants, quartic_force_constants,
+                               cff, quartic_force_constants,
                                cubic_cm_1, quartic_cm_1)
 
 

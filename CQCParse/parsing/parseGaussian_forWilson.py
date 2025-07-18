@@ -48,10 +48,10 @@ class GaussianDataParser(object):
         self.molecule = self.all_files_dict['files']['mol_code']
         self.program = self.all_files_dict['source']
 
-        self.dipole_first_derivatives = None
-        self.dipole_second_derivatives = None
-        self.polarizability_first_derivatives = None
-        self.polarizability_second_derivatives = None
+        self.dipgrad = None
+        self.diphess = None
+        self.polgrad = None
+        self.polhess = None
 
         self.fundamentals_harmonic_str = None
         self.fundamentals_anharmonic_str = None
@@ -61,7 +61,7 @@ class GaussianDataParser(object):
 
         self.harmonic_states = None
         self.anharmonic_states = None
-        self.cubic_force_constants = None
+        self.cff = None
         self.quartic_force_constants = None
 
         self.cubic_cm_1 = None
@@ -79,12 +79,12 @@ class GaussianDataParser(object):
 
     def __dir__(self):
         return['nModesStart',
-               'dipole_first_derivatives', 'dipole_second_derivatives',
-               'polarizability_first_derivatives', 'polarizability_second_derivatives',
+               'dipgrad', 'diphess',
+               'polgrad', 'polhess',
                'fundamentals_harmonic_str', 'fundamentals_anharmonic_str',
                'fundamentals_harmonic_int', 'fundamentals_anharmonic_int',
                'harmonic_states', 'anharmonic_states',
-               'cubic_force_constants', 'quartic_force_constants',
+               'cff', 'quartic_force_constants',
                'equilibrium_geometry',
                'Q_normal_coordinates', 'q_normal_coordinates_dimensionless',
                'atoms', 'basis', 'lot']
@@ -123,12 +123,12 @@ class GaussianDataParser(object):
         self.harmonic_states = {tuple(str(i) for i in key): value for key, value in h_sts.items()}
 
         mu = getDipDers_au(self.all_files_dict['files']['log'])
-        self.dipole_first_derivatives = mu[0]
-        self.dipole_second_derivatives = mu[1]
+        self.dipgrad = mu[0]
+        self.diphess = mu[1]
 
         alpha = getPolarDers_au(self.all_files_dict['files']['log'])
-        self.polarizability_first_derivatives = alpha[0]
-        self.polarizability_second_derivatives = alpha[1]
+        self.polgrad = alpha[0]
+        self.polhess = alpha[1]
 
         cubic_df = parse_cubic_constants(self.all_files_dict['files']['log'])[0]
         cubic_rcm = cubic_df[['I', 'J', 'K', 'FI(I,J,K)']].to_numpy()
@@ -140,7 +140,7 @@ class GaussianDataParser(object):
         selected_df2 = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']]
         quartic = selected_df2.to_numpy()
 
-        self.cubic_force_constants = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
+        self.cff = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
         self.quartic_force_constants = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
         self.cubic_cm_1 = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
         self.quartic_cm_1 = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)

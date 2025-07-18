@@ -93,7 +93,7 @@ class CFOURParser(Parser):
         cubic = pCubicORQuartic(self.relevant_files.cubic_file)
         quartic = pCubicORQuartic(self.relevant_files.quartic_file)
 
-        cubic_force_constants = getCubicPost(self._saved_data['fundamentals_harmonic_int'], cubic,
+        cff = getCubicPost(self._saved_data['fundamentals_harmonic_int'], cubic,
                                                   startmode=self.nModesStart, recipcm=False)
         quartic_force_constants = getQuarticPost(self._saved_data['fundamentals_harmonic_int'], quartic,
                                                   startmode=self.nModesStart, recipcm=False)
@@ -106,19 +106,19 @@ class CFOURParser(Parser):
         labelsModes_original = [i + self.nModesStart for i in list(self._saved_data['fundamentals_harmonic_int'])]
         mu = getDipoleDers_anharm_au(self.relevant_files.dipole_file, labelsModes_original, self.nModesStart,
                                      self._saved_data['fundamentals_harmonic_str'])
-        # dipole_first_derivatives = mu[0]
-        # dipole_second_derivatives = mu[1]
+        # dipgrad = mu[0]
+        # diphess = mu[1]
 
         if self.relevant_files.polar_pkl is not None:
             alpha = getPolarDers_pkl_au(self.relevant_files.polar_pkl, self._saved_data['fundamentals_harmonic_str'])
-            # polarizability_first_derivatives = alpha[0]
-            # polarizability_second_derivatives = alpha[1]
+            # polgrad = alpha[0]
+            # polhess = alpha[1]
         else:
             print('Why no polarizability pickle?')
 
         return DerivativesData(mu[0], mu[1],
                                alpha[0], alpha[1],
-                               cubic_force_constants, quartic_force_constants,
+                               cff, quartic_force_constants,
                                cubic_cm_1, quartic_cm_1)
 
 

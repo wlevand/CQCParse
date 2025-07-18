@@ -10,10 +10,10 @@ class MockParser(object):
         all_files_dict = {"files": {"3quanta": '', "log": ''}}
         """
 
-        self.dipole_first_derivatives = None
-        self.dipole_second_derivatives = None
-        self.polarizability_first_derivatives = None
-        self.polarizability_second_derivatives = None
+        self.dipgrad = None
+        self.diphess = None
+        self.polgrad = None
+        self.polhess = None
 
         self.fundamentals_harmonic_str = None
         self.fundamentals_anharmonic_str = None
@@ -23,7 +23,7 @@ class MockParser(object):
 
         self.harmonic_states = None
         self.anharmonic_states = None
-        self.cubic_force_constants = None
+        self.cff = None
         self.quartic_force_constants = None
 
         self.cubic_cm_1 = None
@@ -40,12 +40,12 @@ class MockParser(object):
         self.nmodes = None
 
     def __dir__(self):
-        return['dipole_first_derivatives', 'dipole_second_derivatives',
-               'polarizability_first_derivatives', 'polarizability_second_derivatives',
+        return['dipgrad', 'diphess',
+               'polgrad', 'polhess',
                'fundamentals_harmonic_str', 'fundamentals_anharmonic_str',
                'fundamentals_harmonic_int', 'fundamentals_anharmonic_int',
                'harmonic_states', 'anharmonic_states',
-               'cubic_force_constants', 'quartic_force_constants',
+               'cff', 'quartic_force_constants',
                'equilibrium_geometry',
                'Q_normal_coordinates', 'q_normal_coordinates_dimensionless',
                'atoms', 'basis', 'lot']
@@ -62,11 +62,11 @@ class MockParser(object):
         parserObj.rotational_constant
         parserObj.coriolis_constant
 
-        parserObj.dipole_first_derivatives,
-        parserObj.dipole_second_derivatives,
-        parserObj.polarizability_first_derivatives,
-        parserObj.polarizability_second_derivatives,
-        parserObj.cubic_force_constants
+        parserObj.dipgrad,
+        parserObj.diphess,
+        parserObj.polgrad,
+        parserObj.polhess,
+        parserObj.cff
         """
 
         self.fundamentals_harmonic_str = {'0':1165., '1':1176.,
@@ -92,14 +92,14 @@ class MockParser(object):
 
 
         # (nmodes, 3)
-        self.dipole_first_derivatives = np.array([[0.,     0.,     6.3e-3,],
+        self.dipgrad = np.array([[0.,     0.,     6.3e-3,],
                                                   [0.,     0.,    -7.9e-3,],
                                                   [0.,     0.,    -2.5e-3,],
                                                   [1.4e-3, 0.,     0,     ],
                                                   [0.,    -8.5e-3, 0,     ],
                                                   [0.,     0.,     0,     ]])
         # (nmodes, nmodes, 3)
-        self.dipole_second_derivatives = np.array([[[0.,       0.,     8.8e-5 ],
+        self.diphess = np.array([[[0.,       0.,     8.8e-5 ],
                                                     [0.,       0.,     1.01e-4],
                                                     [0.,       0.,    -3.75e-6],
                                                     [-1.5e-5, 0.,     0.     ],
@@ -141,7 +141,7 @@ class MockParser(object):
                                                     [0., 0., 0.],
                                                     [0., 0., 0.]]])
         # (nmodes, 3, 3)
-        self.polarizability_first_derivatives = np.array( [[[0., 0., 0.],
+        self.polgrad = np.array( [[[0., 0., 0.],
                                                             [0., 0., 0.],
                                                             [0., 0., 0.]],
 
@@ -165,7 +165,7 @@ class MockParser(object):
                                                             [0., 0., 0.],
                                                             [0., 0., 0.]]])
         # (nmodes, nmodes, 3, 3)
-        self.polarizability_second_derivatives = np.array([[[[0., 0., 0.],
+        self.polhess = np.array([[[[0., 0., 0.],
                                                              [0., 0., 0.],
                                                              [0., 0., 0.]],
 
@@ -614,7 +614,7 @@ class MockParser(object):
                                          [0., 0., 0., 0., 0., 0.]]]])
 
         # (nmodes, nmodes, nmodes)
-        self.cubic_force_constants = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
+        self.cff = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
         # (nmodes, nmodes, nmodes, nmodes)
         self.quartic_force_constants = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
 

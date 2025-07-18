@@ -75,17 +75,17 @@ class CFOURdataParser:
         self.molecule = self.all_files_dict['files']['mol_code']
         self.program = self.all_files_dict['source']
 
-        self.dipole_first_derivatives = None
-        self.dipole_second_derivatives = None
-        self.polarizability_first_derivatives = None
-        self.polarizability_second_derivatives = None
+        self.dipgrad = None
+        self.diphess = None
+        self.polgrad = None
+        self.polhess = None
 
         self.fundamentals_harmonic_int = None
         self.fundamentals_harmonic_str = None
         self.fundamentals_anharmonic_str = None
         self.harmonic_states = None
         self.anharmonic_states = None
-        self.cubic_force_constants = None
+        self.cff = None
         self.quartic_force_constants = None
 
         self.cubic_cm_1, self.quartic_cm_1 = None, None
@@ -148,7 +148,7 @@ class CFOURdataParser:
         self.nmodes = len(self.fundamentals_harmonic_int)
 
         # transformed to Wilson units in getCubicPost
-        self.cubic_force_constants = getCubicPost(self.fundamentals_harmonic_int, cubic,
+        self.cff = getCubicPost(self.fundamentals_harmonic_int, cubic,
                                                   startmode=self.nModesStart, recipcm=False)
 
         self.cubic_cm_1 = getCubicPost(self.fundamentals_harmonic_int, cubic,
@@ -159,13 +159,13 @@ class CFOURdataParser:
         labelsModes_original = [i + self.nModesStart for i in list(self.fundamentals_harmonic_int)]
         mu = getDipoleDers_anharm_au(self.all_files_dict['files']['dipolexyz'], labelsModes_original, self.nModesStart,
                                      self.fundamentals_harmonic_str)
-        self.dipole_first_derivatives = mu[0]
-        self.dipole_second_derivatives = mu[1]
+        self.dipgrad = mu[0]
+        self.diphess = mu[1]
 
         if self.all_files_dict['files']['polar_pkl'] is not None:
             alpha = getPolarDers_pkl_au(self.all_files_dict['files']['polar_pkl'], self.fundamentals_harmonic_str)
-            self.polarizability_first_derivatives = alpha[0]
-            self.polarizability_second_derivatives = alpha[1]
+            self.polgrad = alpha[0]
+            self.polhess = alpha[1]
 
         self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['out_anharm_final'],
                                                                          len(self.fundamentals_harmonic_int),
@@ -563,25 +563,25 @@ def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
 
     with open(polar_pkl_file, 'rb') as file:
         alpha = pickle.load(file)
-    polarizability_first_derivatives = alpha[0]
-    polarizability_second_derivatives = alpha[1]
+    polgrad = alpha[0]
+    polhess = alpha[1]
 
-    fdpol = np.zeros_like(polarizability_first_derivatives)
+    fdpol = np.zeros_like(polgrad)
     for i in range(len(sqrtvec)):
         for j in range(3):
             for k in range(3):
-                fdpol[i, j, k] = polarizability_first_derivatives[i, j, k] / sqrtvec[i]
+                fdpol[i, j, k] = polgrad[i, j, k] / sqrtvec[i]
 
-    sdpol = np.zeros_like(polarizability_second_derivatives)
+    sdpol = np.zeros_like(polhess)
     for i in range(len(sqrtvec)):
         for j in range(len(sqrtvec)):
             # with open('./secPolder', 'a') as file1:
             #     file1.write(f'\n=============================={i} {j}\n{sqrtmat[i, j]}\n')
-            #     file1.writelines(str(polarizability_second_derivatives[i, j, :, :]))
+            #     file1.writelines(str(polhess[i, j, :, :]))
 
             for k in range(3):
                 for L in range(3):
-                    sdpol[i, j, k, L] = polarizability_second_derivatives[i, j, k, L] / sqrtmat[i, j]
+                    sdpol[i, j, k, L] = polhess[i, j, k, L] / sqrtmat[i, j]
 
     return tuple([fdpol, sdpol])
 
