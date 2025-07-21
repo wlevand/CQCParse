@@ -1,6 +1,7 @@
+import numpy as np
 import pytest
-from parsing.parseCFOUR_forWilson import *
-from parsing.parseCFOUR_extra import *
+from parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file, CFOURdataParser
+from parsing.parseCFOUR_extra import pNORMCO, get_anharmonic_fundamentals
 
 def test_getRotationMatrix():
     rotation_matrix = getRotationMatrix('./test_files_cfour/rawouts/anharm_hf_outfile0.out')
@@ -85,9 +86,9 @@ def test_pQUADRATURE_norm_coordinates():
 
 def test_parse_output_file():
     out = parse_output_file('./test_files_cfour/rawouts/anharm_hf_outfile0.out')
-    assert out == None
+    assert out is None
     out = parse_output_file('./test_files_cfour/rawouts/anharm_hf_out')
-    assert type(out) == tuple
+    assert isinstance(out, tuple)
 
 @pytest.fixture
 def mock_output_file(tmp_path):
@@ -140,21 +141,21 @@ def test_CFOURdataParser():
     datadict_full = {'source': 'cfour', 'type': 'out', 'files': datadict}
     parserC4 = CFOURdataParser(datadict_full)
     parserC4.getData()
-    # print('\ndipole_first_derivatives\n', parserC4.dipole_first_derivatives)
-    # print('\ndipole_second_derivatives\n', parserC4.dipole_second_derivatives)
+    # print('\ndipgrad\n', parserC4.dipgrad)
+    # print('\ndiphess\n', parserC4.diphess)
 
     # with np.printoptions(linewidth=250, suppress=True, precision=12):
-    #     print('\ncubic\n', parserC4.cubic_force_constants)
-    #     print('\npolarizability_first_derivatives\n', parserC4.polarizability_first_derivatives)
-    #     print('\npolarizability_second_derivatives\n', parserC4.polarizability_second_derivatives)
+    #     print('\ncubic\n', parserC4.cff)
+    #     print('\npolgrad\n', parserC4.polgrad)
+    #     print('\npolhess\n', parserC4.polhess)
 
     essential = [parserC4.harmonic_states,
                  parserC4.anharmonic_states,
                  parserC4.fundamentals_harmonic_str,
                  parserC4.fundamentals_anharmonic_str,
-                 parserC4.dipole_first_derivatives,
-                 parserC4.dipole_second_derivatives,
-                 parserC4.polarizability_first_derivatives,
-                 parserC4.polarizability_second_derivatives,
-                 parserC4.cubic_force_constants]
+                 parserC4.dipgrad,
+                 parserC4.diphess,
+                 parserC4.polgrad,
+                 parserC4.polhess,
+                 parserC4.cff]
     assert all(v is not None for v in essential)

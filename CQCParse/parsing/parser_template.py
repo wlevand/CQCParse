@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Dict
 import numpy as np
+import pickle
 
 
 @dataclass
@@ -25,18 +26,18 @@ class OutputFiles(ABC):
 
 @dataclass
 class StructureData:
-    atoms: np.ndarray | list = field(default_factory=lambda: np.array([]))
+    atoms: np.ndarray | List = field(default_factory=lambda: np.array([]))
     equilibrium_geometry: np.ndarray = field(default_factory=lambda: np.array([]))
     # nModesStart: int = 3*2-5
 
 
 @dataclass
 class DerivativesData:
-    dipole_first_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    dipole_second_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    polarizability_first_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    polarizability_second_derivatives: np.ndarray = field(default_factory=lambda: np.array([]))
-    cubic_force_constants: np.ndarray = field(default_factory=lambda: np.array([]))
+    dipgrad: np.ndarray = field(default_factory=lambda: np.array([]))
+    diphess: np.ndarray = field(default_factory=lambda: np.array([]))
+    polgrad: np.ndarray = field(default_factory=lambda: np.array([]))
+    polhess: np.ndarray = field(default_factory=lambda: np.array([]))
+    cff: np.ndarray = field(default_factory=lambda: np.array([]))
     quartic_constants: np.ndarray = field(default_factory=lambda: np.array([]))
     cubic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
     quartic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -46,11 +47,11 @@ class DerivativesData:
 
         deriv_data  = change_idx_modes(self, new_idx_dict,
                                        data2transform='derivatives')
-        self.dipole_first_derivatives = deriv_data['mu_Q']
-        self.dipole_second_derivatives = deriv_data['mu_QQ']
-        self.polarizability_first_derivatives = deriv_data['alpha_Q']
-        self.polarizability_second_derivatives = deriv_data['alpha_QQ']
-        self.cubic_force_constants = deriv_data['F_abc']
+        self.dipgrad = deriv_data['dipgrad']
+        self.diphess = deriv_data['diphess']
+        self.polgrad = deriv_data['polgrad']
+        self.polhess = deriv_data['polhess']
+        self.cff = deriv_data['cff']
 
         self.cubic_cm_1, self.quartic_cm_1 = change_idx_modes(self, new_idx_dict,
                                                               data2transform='force_consts')
@@ -87,7 +88,7 @@ class VPT2Data:
     # quartic_cm_1: np.ndarray = np.array([])
     rotational_constants: np.ndarray = field(default_factory=lambda: np.array([]))
     coriolis_constants: np.ndarray = field(default_factory=lambda: np.array([]))
-    fermi_resonance: list = field(default_factory=lambda: [])
+    fermi_resonance: List = field(default_factory=lambda: [])
     DD11: str = "'1-1 Darling-Dennison resonance weren't parsed"
     DD13: str = "'1-3 Darling-Dennison resonance weren't parsed"
     DD22: str = "'2-2 Darling-Dennison resonance weren't parsed"
@@ -126,13 +127,13 @@ class ParsedData:
     normal_modes: NormalModesData = field(default_factory=lambda: NormalModesData())
     anharm_correction_data: VPT2Data = field(default_factory=lambda: VPT2Data())
     anharm_treatment: str = 'original'
-    list2exclude: list = field(default_factory=lambda: list)
+    list2exclude: List = field(default_factory=list)
 
     def get_vpt2(self, vpt2settings, list2exclude=None, print_level=0):
         if list2exclude is None:
             list2exclude = []
 
-        # if vpt2settings is not None:
+        # todo: make general - routine to do gvpt2
         from wilson.spectrum.vpt2 import get_vpt2_corrected_levels
         all_states, fermi_resonance = get_vpt2_corrected_levels(self, vpt2settings,
                                                list2exclude,
@@ -148,7 +149,44 @@ class ParsedData:
     def __repr__(self):
         return f"<ParsedData: {self.__dict__.keys()}"
 
-import pickle
+    def check_if_have_data(self):
+        checkboxes = []
+        checkboxes.append(len(self.structure.atoms)>0)
+        checkboxes.append(self.structure.equilibrium_geometry.shape==(len(self.structure.atoms), 3))
+
+        checkboxes.append(self.nmodes!=0)
+        checkboxes.append(self.vib_states.fundamentals_harmonic_str!={})
+        checkboxes.append(self.vib_states.fundamentals_anharmonic_str!={})
+        checkboxes.append(self.vib_states.fundamentals_harmonic_int!={})
+        checkboxes.append(self.vib_states.fundamentals_anharmonic_int!={})
+        checkboxes.append(self.vib_states.harmonic_states!={})
+        checkboxes.append(self.vib_states.anharmonic_states!={})
+
+        checkboxes.append(self.derivatives.dipgrad.shape == (self.nmodes, 3))
+        checkboxes.append(self.derivatives.diphess.shape == (self.nmodes,self.nmodes, 3))
+        checkboxes.append(self.derivatives.polgrad.shape == (self.nmodes,3,3))
+        checkboxes.append(self.derivatives.polhess.shape == (self.nmodes,self.nmodes,3,3))
+
+        checkboxes.append(self.derivatives.cff.shape == (self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.quartic_constants.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.cubic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.quartic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
+
+        checkboxes.append(len(self.anharm_correction_data.rotational_constants)==3)
+        checkboxes.append(self.anharm_correction_data.coriolis_constants.shape==(3, self.nmodes, self.nmodes))
+
+        if not checkboxes:
+            return False
+        else:
+            return all(checkboxes)
+
+
+    def upd_indices_several_parts(self, new_idx_dict):
+        self.derivatives.upd_indices(new_idx_dict)
+        self.vib_states.upd_indices(new_idx_dict)
+        self.anharm_correction_data.upd_indices(new_idx_dict)
+
+
 class DataStorage:
     """
     Saves and tracks multiple ParsedData instances.
@@ -157,8 +195,9 @@ class DataStorage:
 
     @classmethod
     def save(cls, molecule, basis, method, program, enelvls, instance, upd=False):
-        if (molecule, program, basis, method) in cls._instances and not upd:
-            raise ValueError(f"Instance '{molecule, program, basis, method}' already exists!")
+        if (molecule, basis, method, program, enelvls) in cls._instances: #and not upd:
+            # raise ValueError(f"Instance '{molecule, program, basis, method, enelvls}' already exists!")
+            print(f"Warning: Instance '{molecule, program, basis, method, enelvls}' already exists!")
 
         cls._instances[(molecule, basis, method, program, enelvls)] = instance
         if upd:
@@ -167,11 +206,17 @@ class DataStorage:
 
     @classmethod
     def get(cls, name_tuple):
+        """
+        nametuple = (molecule, basis, method, program, enelvls)
+        """
         return cls._instances.get(name_tuple)
 
     @classmethod
     def save_to_file(cls, filename):
-        """Save the _instances dictionary to a file."""
+        """
+        Save the _instances dictionary to a file.
+        Should be done when finished collecting
+        """
         with open(filename, 'wb') as file:
             pickle.dump(cls._instances, file)
         print(f"DataStorage saved to {filename}")
@@ -182,14 +227,17 @@ class DataStorage:
         try:
             with open(filename, 'rb') as file:
                 cls._instances = pickle.load(file)
-            print(f"DataStorage loaded from {filename}")
+            # print(f"DataStorage loaded from {filename}")
         except FileNotFoundError:
             print(f"No existing file found at {filename}. Starting with an empty storage.")
             cls._instances = {}
 
     @classmethod
     def append_to_file(cls, filename, molecule, basis, method, program, enelvls, instance, upd=False):
-        """Append new data to the storage saved in a file."""
+        """
+        Append new data to the storage saved in a file.
+        Updates file
+        """
         cls.load_from_file(filename)
 
         cls.save(molecule, basis, method, program, enelvls, instance, upd)
@@ -200,6 +248,7 @@ class DataStorage:
     def initialize_empty_storage(cls, filename):
         """Initialize an empty storage and save it to a file."""
         cls._instances = {}
+        cls.save_to_file(filename)
 
     @classmethod
     def list_instances(cls):
@@ -221,7 +270,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dmu = dd.derivatives.dipole_first_derivatives
+            dmu = dd.derivatives.dipgrad
             currdict = {}
             for i in range(dmu.shape[0]):
                 for j in range(dmu.shape[1]):
@@ -237,7 +286,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dmu = dd.derivatives.dipole_second_derivatives
+            dmu = dd.derivatives.diphess
             currdict = {}
             for i in range(dmu.shape[0]):
                 for j in range(dmu.shape[1]):
@@ -254,7 +303,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dalpha = dd.derivatives.polarizability_first_derivatives
+            dalpha = dd.derivatives.polgrad
             currdict = {}
             for i in range(dalpha.shape[0]):
                 for j in range(dalpha.shape[1]):
@@ -271,13 +320,13 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dalpha = dd.derivatives.polarizability_second_derivatives
+            dalpha = dd.derivatives.polhess
             currdict = {}
             for i in range(dalpha.shape[0]):
                 for j in range(dalpha.shape[1]):
                     for k in range(dalpha.shape[2]):
-                        for l in range(dalpha.shape[3]):
-                            currdict[f'Q{i}Q{j} {axes[k]}{axes[l]}'] = dalpha[i,j,k,l]
+                        for L in range(dalpha.shape[3]):
+                            currdict[f'Q{i}Q{j} {axes[k]}{axes[L]}'] = dalpha[i,j,k,L]
             polarsecders[f'{' '.join(d)}'] = currdict
 
         return polarsecders
@@ -288,7 +337,7 @@ class DataStorage:
 
         for i, d in enumerate(cls._instances):
             dd = cls._instances[d]
-            dalpha = dd.derivatives.cubic_force_constants
+            dalpha = dd.derivatives.cff
             currdict = {}
             for i in range(dalpha.shape[0]):
                 for j in range(dalpha.shape[1]):
@@ -364,17 +413,3 @@ class Parser(ABC):
 
                           structure_data, self.nmodes, vib_states,
                           derivs, norm_modes, anharm_correction_data)
-
-    # def get_vpt2(self, parsedData, vpt2settings, list2exclude=None, print_level=0):
-    #     if list2exclude is None:
-    #         list2exclude = []
-    #
-    #     # if vpt2settings is not None:
-    #     from wilson.spectrum.vpt2 import get_vpt2_corrected_levels
-    #     all_states = get_vpt2_corrected_levels(parsedData, vpt2settings,
-    #                                            list2exclude,
-    #                                            print_level=print_level)
-    #     parsedData.vib_states.fundamentals_anharmonic_str = {k[0]: v for k, v in all_states.items() if len(k)==1}
-    #     parsedData.vib_states.anharmonic_states = all_states
-    #     parsedData.vib_states.vpt2_states_all = all_states
-    #     parsedData.vib_states.vpt2_states_fund = {k[0]: v for k, v in all_states.items() if len(k)==1}

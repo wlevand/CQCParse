@@ -1,10 +1,11 @@
 from . import get_allStates_fromParsedResults, get_equil_geo, reordered_modes, get_normal_modes, \
     parse_frequencies, getDipDers_au, getPolarDers_au, parse_cubic_constants, parse_quartic_constants, get_cubic_post, \
     get_quartic_post, parse_coriolis
-from .parser_template import Parser, ParsedData, OutputFiles
+from .parser_template import Parser, OutputFiles
 from .parser_template import VPT2Data, DerivativesData, StatesData, NormalModesData, StructureData
 from dataclasses import dataclass
-
+from CQCParse.debug import debugfunc
+import numpy as np
 
 @dataclass
 class GaussianOutput(OutputFiles):
@@ -61,6 +62,18 @@ class GaussianParser(Parser):
 
         anharmonic_states = {tuple(str(i) for i in key): value for key, value in ah_sts.items()}
         harmonic_states = {tuple(str(i) for i in key): value for key, value in h_sts.items()}
+        lenfund = len({k:v for k,v in anharmonic_states.items() if len(k)==1})
+        lenfund_h = len({k:v for k,v in harmonic_states.items() if len(k)==1})
+        debugfunc(f'Anharmonic states: {len(anharmonic_states)}. '
+                  f'Fund.: {lenfund}. '
+                  f'2quanta.: {len({k:v for k,v in anharmonic_states.items() if len(k)==2})}, should be {lenfund*(lenfund-1)//2+lenfund}. '
+                  f'3quanta.: {len({k:v for k,v in anharmonic_states.items() if len(k)==3})}, should be {lenfund*(lenfund-1)*(lenfund-2)//6+lenfund+lenfund*(lenfund-1)}. ',
+                  tag='parser.getVibStates')
+        debugfunc(f'Harmonic states: {len(harmonic_states)}. '
+                  f'Fund.: {lenfund_h}. '
+                  f'2quanta.: {len({k: v for k, v in harmonic_states.items() if len(k) == 2})}, should be {lenfund*(lenfund-1)//2+lenfund}. '
+                  f'3quanta.: {len({k: v for k, v in harmonic_states.items() if len(k) == 3})}, should be {lenfund*(lenfund-1)*(lenfund-2)//6+lenfund+lenfund*(lenfund-1)}. ',
+                  tag='parser.getVibStates')
 
         return StatesData(fundamentals_harmonic_str, fundamentals_anharmonic_str,
                           fundamentals_harmonic_int, fundamentals_anharmonic_int, # not needed for Gaussian
@@ -80,15 +93,22 @@ class GaussianParser(Parser):
         quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy()
         quartic = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']].to_numpy()
 
-        cubic_force_constants = get_cubic_post(self.nmodes, cubic)
+        cff = get_cubic_post(self.nmodes, cubic)
         quartic_force_constants = get_quartic_post(self.nmodes, quartic)
 
         cubic_cm_1 = get_cubic_post(self.nmodes, cubic_rcm, reduced=False)
         quartic_cm_1 = get_quartic_post(self.nmodes, quartic_rcm, reduced=False)
 
+        debugfunc(f'Dipole moment derivs: {len(mu), type(mu)} -> {type(mu[0])}: first - {mu[0].shape} ; second {mu[1].shape}', tag='parser.getDerivatives()')
+        debugfunc(f'Polarizability derivs: {len(alpha), type(alpha)} -> {type(alpha[0])}: first - {alpha[0].shape}, second - {alpha[1].shape}', tag='parser.getDerivatives()')
+        debugfunc(f'Cubic cm-1 {cubic_cm_1.shape}, has only zeros - {not np.any(cubic_cm_1)}, #non-zero elements {np.count_nonzero(cubic_cm_1)}', tag='parser.getDerivatives()')
+        debugfunc(f'Quartic cm-1 {quartic_cm_1.shape}, has only zeros - {not np.any(quartic_cm_1)}, #non-zero elements {np.count_nonzero(quartic_cm_1)}', tag='parser.getDerivatives()')
+        debugfunc(f'Cubic Ha {cff.shape}, has only zeros - {not np.any(cff)}, #non-zero elements {np.count_nonzero(cff)}', tag='parser.getDerivatives()')
+        debugfunc(f'Quartic Ha {quartic_force_constants.shape}, has only zeros - {not np.any(quartic_force_constants)}, #non-zero elements {np.count_nonzero(quartic_force_constants)}', tag='parser.getDerivatives()')
+
         return DerivativesData(mu[0], mu[1],
                                alpha[0], alpha[1],
-                               cubic_force_constants, quartic_force_constants,
+                               cff, quartic_force_constants,
                                cubic_cm_1, quartic_cm_1)
 
 
@@ -103,4 +123,7 @@ class GaussianParser(Parser):
         DD22 = ('No 2-2 Darling-Dennison resonance found' not in self._log_lines
                     and 'Search for 2-2 Darling-Dennison resonances deactivated' not in self._log_lines)
 
+        debugfunc(f'Rotational constant: {rotational_constant}; Coriolis constant: {coriolis_constant.shape}, has only zeros - {not np.any(coriolis_constant)}', tag='parser.getPreVPT2Data()')
+
+        # rotational_constants, coriolis_constants, fermi_resonance, DD11, DD13, DD22
         return VPT2Data(rotational_constant, coriolis_constant, [], DD11, DD13, DD22)

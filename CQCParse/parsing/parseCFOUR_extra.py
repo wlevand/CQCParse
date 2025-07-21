@@ -1,5 +1,6 @@
 import numpy as np
 import pickle
+from .parseCFOUR_forWilson import pMOLDEN
 
 # not used now
 def pNORMCO(filepath: str):
@@ -50,8 +51,8 @@ def pDIPDER(filepath: str):
     with open(filepath, 'r') as f:
         lines = f.readlines()
         dipmoment_cartder = []
-        for l in lines:
-            lr = l.strip().split()
+        for L in lines:
+            lr = L.strip().split()
             if len(lr) == 4:
                 lr = np.array([float(i) for i in lr])
                 dipmoment_cartder.append(lr)
@@ -140,15 +141,15 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, recipcm: bool = False):
             i = int(fijkl[0]) - 7
             j = int(fijkl[1]) - 7
             k = int(fijkl[2]) - 7
-            l = int(fijkl[3]) - 7
+            L = int(fijkl[3]) - 7
             d = np.float64(fijkl[4])
 
-            indices = [(i, j, k, l), (i, j, l, k), (i, k, j, l), (i, k, l, j),
-                       (i, l, j, k), (i, l, k, j), (j, i, k, l), (j, i, l, k),
-                       (j, k, i, l), (j, k, l, i), (j, l, i, k), (j, l, k, i),
-                       (k, i, j, l), (k, i, l, j), (k, j, i, l), (k, j, l, i),
-                       (k, l, i, j), (k, l, j, i), (l, i, j, k), (l, i, k, j),
-                       (l, j, i, k), (l, j, k, i), (l, k, i, j), (l, k, j, i)]
+            indices = [(i, j, k, L), (i, j, L, k), (i, k, j, L), (i, k, L, j),
+                       (i, L, j, k), (i, L, k, j), (j, i, k, L), (j, i, L, k),
+                       (j, k, i, L), (j, k, L, i), (j, L, i, k), (j, L, k, i),
+                       (k, i, j, L), (k, i, L, j), (k, j, i, L), (k, j, L, i),
+                       (k, L, i, j), (k, L, j, i), (L, i, j, k), (L, i, k, j),
+                       (L, j, i, k), (L, j, k, i), (L, k, i, j), (L, k, j, i)]
 
             for idx in indices:
                 K4[idx] = d
@@ -164,9 +165,9 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, recipcm: bool = False):
             i = int(fijkl[0]) - 7
             j = int(fijkl[1]) - 7
             k = int(fijkl[2]) - 7
-            l = int(fijkl[3]) - 7
+            L = int(fijkl[3]) - 7
             d = np.float64(fijkl[4])
-            d *= np.sqrt(freq[i] * freq[j] * freq[k] * freq[l])
+            d *= np.sqrt(freq[i] * freq[j] * freq[k] * freq[L])
 
             from scipy import constants
             a = np.sqrt(constants.h / constants.c / constants.physical_constants['unified atomic mass unit'][0] / 100)
@@ -176,12 +177,12 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, recipcm: bool = False):
 
             d /= Fact3R
 
-            indices = [(i, j, k, l), (i, j, l, k), (i, k, j, l), (i, k, l, j),
-                       (i, l, j, k), (i, l, k, j), (j, i, k, l), (j, i, l, k),
-                       (j, k, i, l), (j, k, l, i), (j, l, i, k), (j, l, k, i),
-                       (k, i, j, l), (k, i, l, j), (k, j, i, l), (k, j, l, i),
-                       (k, l, i, j), (k, l, j, i), (l, i, j, k), (l, i, k, j),
-                       (l, j, i, k), (l, j, k, i), (l, k, i, j), (l, k, j, i)]
+            indices = [(i, j, k, L), (i, j, L, k), (i, k, j, L), (i, k, L, j),
+                       (i, L, j, k), (i, L, k, j), (j, i, k, L), (j, i, L, k),
+                       (j, k, i, L), (j, k, L, i), (j, L, i, k), (j, L, k, i),
+                       (k, i, j, L), (k, i, L, j), (k, j, i, L), (k, j, L, i),
+                       (k, L, i, j), (k, L, j, i), (L, i, j, k), (L, i, k, j),
+                       (L, j, i, k), (L, j, k, i), (L, k, i, j), (L, k, j, i)]
 
             for idx in indices:
                 K4[idx] = d
@@ -225,26 +226,26 @@ def unpickle(file: str):
 
     with open(file, 'rb') as f:
         stuff = pickle.load(f)
-    if type(stuff) == tuple and (type(stuff[0]) != str or type(stuff[0]) != float or type(stuff[0]) != int):
+    if isinstance(stuff, tuple) and (isinstance(stuff[0], str) or isinstance(stuff[0], float) or isinstance(stuff[0], int)):
         print('  There are several things here')
         baselength = 7
         for i, thing in enumerate(stuff):
             print('\n' + ' ' * 6 + f'{i}:' + ' ' * (baselength - len(str(i))), type(thing))
-            if type(thing) == dict:
+            if isinstance(thing, dict):
                 dictinfo(thing)
-            elif type(thing) == np.ndarray:
+            elif isinstance(thing, np.ndarray):
                 print(' ' * 6 + f'---- Numpy array with shape {thing.shape}')
 
             print(' ' * 6 + '==' * 20)
 
     else:
         print(f'  There is just one thing here: {type(stuff)}')
-        if type(stuff) == np.ndarray:
+        if isinstance(stuff, np.ndarray):
             print('\n' + ' ' * 6 + f'---- Numpy array with shape {stuff.shape}')
             print(stuff)
-        elif type(stuff) == list:
+        elif isinstance(stuff, list):
             print('\n' + ' ' * 6 + f'---- List of length {len(stuff)}')
-        elif type(stuff) == dict:
+        elif isinstance(stuff, dict):
             dictinfo(stuff)
 
 def dictinfo(dct: dict, level: int = 0):
@@ -261,10 +262,10 @@ def dictinfo(dct: dict, level: int = 0):
     valuestype = type(dct[list(dct.keys())[0]])
 
     print('\n' + ' ' * levels[level] + f'Keys are {keystype} and values are {valuestype}')
-    print('\n' + ' ' * levels[level] + f'List of keys:')
+    print('\n' + ' ' * levels[level] + 'List of keys:')
     print(' ' * (levels[level] + 6) + str(list(dct.keys())))
 
-    if valuestype == dict:
+    if valuestype is dict:
         print(' ' * levels[level] + '>>' * 30)
         level += 1
 
@@ -275,9 +276,9 @@ def dictinfo(dct: dict, level: int = 0):
                 print('\n' + ' ' * levels[level] + 'Contents' + ' ' * (width - 11))
                 for descr in dct['metadata']['contents']:
                     # print(dct['input_data_info'][descr])
-                    if type(dct['input_data_info'][descr]) == np.ndarray:
+                    if isinstance(dct['input_data_info'][descr], np.ndarray):
                         extra = 'with shape ' + str(dct['input_data_info'][descr].shape)
-                    elif type(dct['input_data_info'][descr]) == list:
+                    elif isinstance(dct['input_data_info'][descr], list):
                         extra = 'with length ' + str(len(dct['input_data_info'][descr]))
                     else:
                         extra = ''
@@ -441,8 +442,8 @@ def computeRedMass4nm(filename: str):
     # sqrtmmminv = np.divide(1.0, sqrtmmm)
 
     # filename = '../scriptsHPC/data/rawouts/anharm_hf_MOLDEN'
-    with open(filename, 'rb') as f:
-        moldendata = pMOLDEN(filename)
+    # with open(filename, 'rb') as f:
+    moldendata = pMOLDEN(filename)
 
     print('Atoms:', moldendata[1])
 

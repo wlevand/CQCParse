@@ -36,9 +36,8 @@ class DataVault:
         """
 
         DB = self.read_csv_DB()
-
         if sourceProgram == 'gaussian':
-            filtered_df = DB.query('g16_3quanta_full.notna() and g16_3quanta_full != ""')
+            filtered_df = DB[DB["g16_3quanta_full"].notna() & (DB["g16_3quanta_full"] != "")]
             selected_columns_df = filtered_df[['code', 'method', 'basis_set', 'g16_3quanta_full']]
             return selected_columns_df
 
@@ -69,6 +68,12 @@ class DataVault:
 
         pref_dir - prefix directory to the file locations given in the CSV files
         """
+        print('pref_dir', pref_dir)
+        from wilson.utils import get_package_root
+        wilson_root = get_package_root()
+        if pref_dir == wilson_root: # FIXME
+            pref_dir += '/../tests'
+        print('pref_dir', pref_dir)
         dataframe = self.getting_files_DB(sourceProgram)
 
         mol_code, method, basis = mol_tuple
