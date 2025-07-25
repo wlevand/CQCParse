@@ -62,11 +62,11 @@ class GaussianDataParser(object):
         self.harmonic_states = None
         self.anharmonic_states = None
         self.cff = None
-        self.quartic_force_constants = None
+        self.qff = None
 
         self.cubic_cm_1 = None
         self.quartic_cm_1 = None
-        self.rotational_constant, self.coriolis_constant = None, None
+        self.B, self.coriolis = None, None
 
         self.equilibrium_geometry = None
         self.Q_normal_coordinates = None
@@ -141,13 +141,13 @@ class GaussianDataParser(object):
         quartic = selected_df2.to_numpy()
 
         self.cff = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
-        self.quartic_force_constants = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
+        self.qff = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
         self.cubic_cm_1 = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
         self.quartic_cm_1 = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
 
-        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['log'],
+        self.B, self.coriolis = parse_coriolis(self.all_files_dict['files']['log'],
                                                                           len(self.fundamentals_harmonic_int))
-
+        print('self.B, self.coriolis', self.B, self.coriolis)
         self.DD11 = ('No 1-1 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
                     and 'Search for 1-1 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
         self.DD13 = ('No 1-3 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
@@ -169,7 +169,7 @@ def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
     """
     # with open(file_path, 'r') as file:
     #     lines = file.readlines()
-
+    print('>>>>>>>>>>>>>> PARSING CORIOLIS >>>>>>>>>>>')
     corXtuples, corYtuples, corZtuples = [], [], []
     rotational_constant = []
 
