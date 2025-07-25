@@ -30,8 +30,6 @@ class GaussianDataParser(object):
         all_files_dict = {"files": {"3quanta": '', "log": ''}}
         """
         self.all_files_dict = all_files_dict
-        # print(all_files_dict)
-        # print(self.all_files_dict)
         # {'log', 'fchk', 'com'}
         if 'log' in self.all_files_dict['files']:
             self.all_files_dict['files']['fname'] = self.all_files_dict['files']['log']
@@ -39,10 +37,8 @@ class GaussianDataParser(object):
         for filetype in self.all_files_dict['files']:
             if filetype=='log':
                 with open(self.all_files_dict['files'][filetype], 'r') as file:
-                    # lines = file.readlines()
                     self.all_files_dict['files'][filetype] = [i.strip() for i in file.readlines()]
 
-                    # print(type(self.all_files_dict['files'][filetype]))
 
         self.nModesStart = None
         self.molecule = self.all_files_dict['files']['mol_code']
@@ -147,7 +143,6 @@ class GaussianDataParser(object):
 
         self.B, self.coriolis = parse_coriolis(self.all_files_dict['files']['log'],
                                                                           len(self.fundamentals_harmonic_int))
-        print('self.B, self.coriolis', self.B, self.coriolis)
         self.DD11 = ('No 1-1 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
                     and 'Search for 1-1 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
         self.DD13 = ('No 1-3 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
@@ -162,13 +157,11 @@ class GaussianDataParser(object):
             self.normal_modes[i-1] = modes[rmodes[i]-1]
 
 
-def parse_coriolis(lines: list[str], nModes: int)-> [np.ndarray, np.ndarray]:
+def parse_coriolis(lines: list[str], nModes: int)-> tuple[np.ndarray, np.ndarray]:
     """
     returns:
         rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
     """
-    # with open(file_path, 'r') as file:
-    #     lines = file.readlines()
     print('>>>>>>>>>>>>>> PARSING CORIOLIS >>>>>>>>>>>')
     corXtuples, corYtuples, corZtuples = [], [], []
     rotational_constant = []
@@ -288,14 +281,12 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
                         linelist.insert(2, None)
 
                     results[current_section].append(linelist)
-    # print(results)
     results_dataframes = {}
     for section, data in results.items():
         if section != 'Overtones':
             results_dataframes[section] = pd.DataFrame(data[1:-1])
         else:
             results_dataframes[section] = pd.DataFrame(data[2:-1])
-        # print(results_dataframes['Fundamental Bands'])
         main_numbers = [i.split('(')[0] for i in results_dataframes[section][0]]
         sub_numbers = [int(i[:-1].split('(')[1]) for i in results_dataframes[section][0]]
         # nserting columns at specific positions
@@ -475,24 +466,6 @@ def parse_cubic_constants(lines: list[str]) -> [pd.DataFrame, list]:
     start2 = False
     units_lines = []
 
-    # for line in lines:
-    #     if "CUBIC FORCE CONSTANTS IN NORMAL MODES" in line:
-    #         start = True
-    #     elif line.strip().startswith("Num. of 3rd derivatives"):
-    #         break
-    #     elif start:
-    #         if line.strip().startswith("I"):
-    #             start2 = True
-    #         elif start2 and line.strip() and not line.isspace():
-    #             parts = line.split()
-    #             results.append(parts)
-    #         elif (line.strip().startswith(': FI =') or line.strip().startswith(': k  =')
-    #               or line.strip().startswith(': K  =')):
-    #             units_lines.append(line.strip())
-    #
-    # print(results)
-    # df = pd.DataFrame(results, columns=["I", "J", "K", "FI(I,J,K)", "k(I,J,K)", "K(I,J,K)"])
-
     for line in lines:
         if "CUBIC FORCE CONSTANTS IN NORMAL MODES" in line:
             start = True
@@ -515,9 +488,7 @@ def parse_cubic_constants(lines: list[str]) -> [pd.DataFrame, list]:
 
     return df, units_lines
 
-def parse_quartic_constants(lines: list[str]) -> [pd.DataFrame, list]:
-    # with open(file_path, 'r') as file:
-    #     lines = file.readlines()
+def parse_quartic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:
 
     results = []
     start = False
@@ -603,9 +574,7 @@ def get_quartic_post(len_freq: int, quartic: np.ndarray, reduced: bool = True):
     return K4
 
 # used in retrievedata.py
-def parse_dipole_moment(lines: list[str]) -> (pd.DataFrame, str):
-    # with open(file_path, 'r') as file:
-    #     lines = file.readlines()
+def parse_dipole_moment(lines: list[str]) -> tuple[pd.DataFrame, str]:
 
     results = []
     start = False
@@ -628,11 +597,9 @@ def parse_dipole_moment(lines: list[str]) -> (pd.DataFrame, str):
             if line.strip().startswith("Unit of the property"):
                 units_line = line.strip()
             elif line.strip().startswith("P"):
-                # parts = re.split("[| ]+", line.strip())
                 parts = line.split('|')
                 allparts = [parts[0].strip()]
                 # if "i", "j", "k" values are missing, use last seen values
-                # print(parts)
                 if parts[1].strip() == '':
                     allparts.extend(last_ijk)
                 else:
@@ -651,8 +618,6 @@ def parse_dipole_moment(lines: list[str]) -> (pd.DataFrame, str):
 
 # used in retrievedata.py
 def parse_polarizability(lines: list[str]) -> pd.DataFrame:
-    # with open(file_path, 'r') as file:
-    #     lines = file.readlines()
 
     results = []
     start = False
@@ -788,7 +753,6 @@ def nm_floats(filename):
             try:
                 int(i)
             except ValueError:
-                # int(i) if int(i) == float(i) else float(i)
                 nums.append(float(i))
     return nums
 
@@ -861,10 +825,8 @@ def nm_matrix_check(referenceFile, currentFile, Na, phase_change=False):
         break
 
     if first_non_zero is not None:
-        # print(first_non_zero)
         s1 = ref0[first_non_zero[0], first_non_zero[1]]
         s2 = curr0[first_non_zero[0], first_non_zero[1]]
-        # print(s1, s2)
         if np.sign(s1) != np.sign(s2):
             phase_change = True
         else:
@@ -888,39 +850,30 @@ def nm_matrix_check(referenceFile, currentFile, Na, phase_change=False):
 
             mtx[i][j] = np.dot(ref.flatten(), currentNMs[j]) / \
                         np.linalg.norm(ref.flatten())/np.linalg.norm(currentNMs[j])
-            #mtx[i][j] = np.dot(currentNMs[i], np.transpose(referenceNMs[j]))
-            # print(i+1, j+1, "{0:0.8f}".format(mtx[i][j]))
 
     new_order = []
     for i in range(len(mtx[0])):
         match = np.where(abs(mtx[i]) > 0.9)
-        #print(len(match[0]))
         if len(match[0]) == 0:
             match = np.where(abs(mtx[i]) > 0.8)
-            #print(len(match))
             if len(match[0]) == 0:
                 match = np.where(abs(mtx[i]) > 0.6)
                 if len(match[0]) == 0:
                     match = np.where(abs(mtx[i]) > 0.6)
                     new_order.append(match)
-                #print(i)
             else:
                 new_order.append(match)
         else:
             new_order.append(match)
-    #print(new_order)
-    #print(np.where(abs(mtx[22]) > 0.9))
     new_order = [y for x in new_order for y in x]
     new_new = np.concatenate(new_order).ravel()
-    print(new_new)
-    print(len(new_new))
     if len(new_new) == len(mtx[0]):
         return mtx, new_new, True
     else:
         print("Incomplete")   # if the order number was not identified for every normal mode
         print()
-        df = pd.DataFrame(mtx)
-        print(df)
+        # df = pd.DataFrame(mtx)
+        # print(df)
         return mtx, new_new, False
 
 def reordered_modes(filepath):
