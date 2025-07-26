@@ -15,6 +15,10 @@ from scipy import constants
 import numpy as np
 # np.set_printoptions(linewidth=250, suppress=True, precision=3)
 import sys
+
+import logging
+logger = logging.getLogger("CQCParse")
+
 import pandas as pd
 pd.set_option('display.max_rows', sys.maxsize)
 
@@ -162,7 +166,6 @@ def parse_coriolis(lines: list[str], nModes: int)-> tuple[np.ndarray, np.ndarray
     returns:
         rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
     """
-    print('>>>>>>>>>>>>>> PARSING CORIOLIS >>>>>>>>>>>')
     corXtuples, corYtuples, corZtuples = [], [], []
     rotational_constant = []
 
