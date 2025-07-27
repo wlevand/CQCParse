@@ -115,6 +115,9 @@ class GaussianDataParser(object):
 
         self.fundamentals_harmonic_str = {str(k):v for k,v in self.fundamentals_harmonic_int.items()}
         self.fundamentals_anharmonic_str = {str(k):v for k,v in self.fundamentals_anharmonic_int.items()}
+        self.hess = np.zeros((self.nmodes, self.nmodes))
+        for i in self.fundamentals_anharmonic_int:
+            self.hess[i,i] = self.fundamentals_anharmonic_int[i]
 
         ah_sts = get_allStates_fromParsedResults(results_log, anharmonic=True)
         h_sts = get_allStates_fromParsedResults(results_log, anharmonic=False)
