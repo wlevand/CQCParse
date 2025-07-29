@@ -38,7 +38,8 @@ class DerivativesData:
     polgrad: np.ndarray = field(default_factory=lambda: np.array([]))
     polhess: np.ndarray = field(default_factory=lambda: np.array([]))
     cff: np.ndarray = field(default_factory=lambda: np.array([]))
-    quartic_constants: np.ndarray = field(default_factory=lambda: np.array([]))
+    # quartic_constants: np.ndarray = field(default_factory=lambda: np.array([]))
+    qff: np.ndarray = field(default_factory=lambda: np.array([]))
     cubic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
     quartic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
 
@@ -52,6 +53,7 @@ class DerivativesData:
         self.polgrad = deriv_data['polgrad']
         self.polhess = deriv_data['polhess']
         self.cff = deriv_data['cff']
+        self.qff = deriv_data['qff']
 
         self.cubic_cm_1, self.quartic_cm_1 = change_idx_modes(self, new_idx_dict,
                                                               data2transform='force_consts')
@@ -168,7 +170,7 @@ class ParsedData:
         checkboxes.append(self.derivatives.polhess.shape == (self.nmodes,self.nmodes,3,3))
 
         checkboxes.append(self.derivatives.cff.shape == (self.nmodes, self.nmodes, self.nmodes))
-        checkboxes.append(self.derivatives.quartic_constants.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
+        checkboxes.append(self.derivatives.qff.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
         checkboxes.append(self.derivatives.cubic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes))
         checkboxes.append(self.derivatives.quartic_cm_1.shape == (self.nmodes, self.nmodes, self.nmodes, self.nmodes))
 

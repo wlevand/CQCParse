@@ -11,6 +11,9 @@ Column names in the CSV are:
 
 import pandas as pd
 
+import logging
+logger = logging.getLogger("CQCParse")
+
 class DataVault:
 
     def __init__(self, csv_location: str = None):
@@ -26,8 +29,6 @@ class DataVault:
         """
         """
         database = pd.read_csv(self.csv_location)
-        # columnsDB = list(database.columns)
-        # print('\ncolumnsDB\n', columnsDB)
 
         return database
 
@@ -68,12 +69,12 @@ class DataVault:
 
         pref_dir - prefix directory to the file locations given in the CSV files
         """
-        print('pref_dir', pref_dir)
+        logger.debug(f'pref_dir: {pref_dir}')
         from wilson.utils import get_package_root
         wilson_root = get_package_root()
         if pref_dir == wilson_root: # FIXME
             pref_dir += '/../tests'
-        print('pref_dir', pref_dir)
+        logger.debug(f'pref_dir: {pref_dir}')
         dataframe = self.getting_files_DB(sourceProgram)
 
         mol_code, method, basis = mol_tuple
@@ -84,10 +85,10 @@ class DataVault:
                                   & (dataframe['basis_set'] == basis)]
 
         if len(narrow_df) > 1:
-            print('Something is wrong, more than one file found. First one is taken here.')
+            raise AssertionError('Something is wrong, more than one file found. First one is taken here.')
 
         elif len(narrow_df) == 0:
-            print('Not found requested (molecule, method, basis) identificator. Try again.')
+            raise AssertionError('Not found requested (molecule, method, basis) identificator. Try again.')
 
         else:
             if sourceProgram == 'gaussian':

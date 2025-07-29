@@ -98,6 +98,7 @@ def change_idx_modes(parserObj, new_idx_dict, list2exclude=None, only_modes = No
         newalpha1 = np.zeros_like(parserObj.polgrad)
         newalpha2 = np.zeros_like(parserObj.polhess)
         newF = np.zeros_like(parserObj.cff)
+        newQFF = np.zeros_like(parserObj.qff)
 
         # cff_cm_1_new = np.zeros_like(parserObj.cubic_cm_1)
         # qff_cm_1_new = np.zeros_like(parserObj.quartic_cm_1)
