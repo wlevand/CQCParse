@@ -28,8 +28,11 @@ import numpy as np
 import os
 import pickle
 from scipy import constants
-
 from scipy.constants import physical_constants
+
+import logging
+logger = logging.getLogger("CQCParse")
+
 bohr_in_angstroms = physical_constants['Bohr radius'][0]/10**(-10)
 
 def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
@@ -565,6 +568,12 @@ def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
         alpha = pickle.load(file)
     polgrad = alpha[0]
     polhess = alpha[1]
+
+    logger.debug('polgrad')
+    logger.debug(polgrad)
+
+    logger.debug('polhess')
+    logger.debug(polhess)
 
     fdpol = np.zeros_like(polgrad)
     for i in range(len(sqrtvec)):
