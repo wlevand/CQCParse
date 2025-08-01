@@ -59,24 +59,25 @@ class CFOURdataParser:
     'polar_pkl': '/mnt/c/Users/vle014/OneDrive - UiT Office 365/Documents/files_fram/refinedc4/FORM/CCSDTcc_pVQZ/polar.pkl'
     }}
     """
-    def __init__(self, all_files_dict):
-        self.all_files_dict = all_files_dict
-        # with open(self.all_files_dict['files']['out'] + 'x', 'r') as file:
-        #     self.all_files_dict['files']['out'] = file.readlines()
-        # for filetype in self.all_files_dict['files']:
-        #     if 'pkl' not in filetype:
-        #         if filetype not in ['mol_code', 'method', 'basis', 'dipolexyz', 'polar_pkl', 'polar']:
-        #             with open(self.all_files_dict['files'][filetype], 'r') as file:
-        #                 self.all_files_dict['files'][filetype] = file.readlines()
-                # if filetype=='dipole':
-                #     with open(self.all_files_dict['files'][filetype]+'x', 'r') as file:
-                #         self.all_files_dict['files'][filetype] = file.readlines()
+    def __init__(self, all_files_dict: dict = None):
+
+        if all_files_dict is None:
+            self.all_files_dict = {}
+        else:
+            self.all_files_dict = all_files_dict
+
         # {'outfile_anharm_start', 'out_anharm_end', 'molden', 'dipolexyz',
         #  'normco', 'quadrature', 'polar', 'dipder', 'dipol', 'cubic', 'fcmfinal'
         #  ''}
         self.nModesStart = None
-        self.molecule = self.all_files_dict['files']['mol_code']
-        self.program = self.all_files_dict['source']
+        
+        files = self.all_files_dict.get('files')
+        if files is not None:
+            self.molecule = files.get('mol_code')
+        else:
+            self.molecule = None
+        
+        self.program = self.all_files_dict.get('source')
 
         self.dipgrad = None
         self.diphess = None
@@ -107,6 +108,11 @@ class CFOURdataParser:
         self.DD13 = False
         self.DD22 = False
 
+    def addFilesDict(self, all_files_dict: dict):
+        """
+        Upd/attach a new dict as self.all_files_dict (source files for data)
+        """
+        self.all_files_dict = all_files_dict
 
     def getData(self, linear_molecule: bool = False):
         """Collect the data into the attributes.

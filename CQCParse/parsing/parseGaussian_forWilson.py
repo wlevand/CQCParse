@@ -29,24 +29,36 @@ def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
 
 class GaussianDataParser(object):
 
-    def __init__(self, all_files_dict: dict):
+    def __init__(self, all_files_dict: dict = None):
         """
         all_files_dict = {"files": {"3quanta": '', "log": ''}}
         """
-        self.all_files_dict = all_files_dict
-        # {'log', 'fchk', 'com'}
-        if 'log' in self.all_files_dict['files']:
-            self.all_files_dict['files']['fname'] = self.all_files_dict['files']['log']
 
-        for filetype in self.all_files_dict['files']:
-            if filetype=='log':
-                with open(self.all_files_dict['files'][filetype], 'r') as file:
-                    self.all_files_dict['files'][filetype] = [i.strip() for i in file.readlines()]
+        if all_files_dict is None:
+            self.all_files_dict = {}
+        else:
+            # will make self.all_files_dict and execute some logic
+            self.addFilesDict(all_files_dict=all_files_dict)
+        
+        # # 'log', 'fchk', 'com' - files types
+        # if 'log' in self.all_files_dict['files']:
+        #     # saving filename in 'fname' because 'log' will contain list of lines instead of the filename
+        #     self.all_files_dict['files']['fname'] = self.all_files_dict['files']['log']
 
+        # for filetype in self.all_files_dict['files']:
+        #     if filetype=='log':
+        #         with open(self.all_files_dict['files']['log'], 'r') as file:
+        #             self.all_files_dict['files']['log'] = [i.strip() for i in file.readlines()]
 
         self.nModesStart = None
-        self.molecule = self.all_files_dict['files']['mol_code']
-        self.program = self.all_files_dict['source']
+
+        files = self.all_files_dict.get('files')
+        if files is not None:
+            self.molecule = files.get('mol_code')
+        else:
+            self.molecule = None
+        
+        self.program = self.all_files_dict.get('source')
 
         self.dipgrad = None
         self.diphess = None
@@ -88,6 +100,23 @@ class GaussianDataParser(object):
                'equilibrium_geometry',
                'Q_normal_coordinates', 'q_normal_coordinates_dimensionless',
                'atoms', 'basis', 'lot']
+
+    def addFilesDict(self, all_files_dict:dict):
+        """
+        Upd/attach a new dict as self.all_files_dict (source files for data)
+        """
+        self.all_files_dict = all_files_dict
+
+        # 'log', 'fchk', 'com' - files types
+        if 'log' in self.all_files_dict['files']:
+            # saving filename in 'fname' because 'log' will contain list of lines instead of the filename
+            self.all_files_dict['files']['fname'] = self.all_files_dict['files']['log']
+
+        for filetype in self.all_files_dict['files']:
+            if filetype=='log':
+                with open(self.all_files_dict['files']['log'], 'r') as file:
+                    self.all_files_dict['files']['log'] = [i.strip() for i in file.readlines()]
+
 
     def getData(self, linear_molecule: bool = False):
         """Collect the data into the attributes.
@@ -157,6 +186,8 @@ class GaussianDataParser(object):
         self.DD22 = ('No 2-2 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
                     and 'Search for 2-2 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
 
+        # modes = get_normal_modes(self.all_files_dict['files']['fname'], self.number_atoms)
+        # rmodes = reordered_modes(self.all_files_dict['files']['fname'])
         modes = get_normal_modes(self.all_files_dict['files']['fname'], self.number_atoms)
         rmodes = reordered_modes(self.all_files_dict['files']['fname'])
         self.normal_modes = {}
