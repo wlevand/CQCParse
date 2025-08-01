@@ -93,23 +93,23 @@ class GaussianParser(Parser):
         quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy()
         quartic = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']].to_numpy()
 
-        cff = get_cubic_post(self.nmodes, cubic)
-        quartic_force_constants = get_quartic_post(self.nmodes, quartic)
+        cff_reduced = get_cubic_post(self.nmodes, cubic)
+        quartic_force_constants_reduced = get_quartic_post(self.nmodes, quartic)
 
-        cubic_cm_1 = get_cubic_post(self.nmodes, cubic_rcm, reduced=False)
+        cff = get_cubic_post(self.nmodes, cubic_rcm, reduced=False)
         quartic_cm_1 = get_quartic_post(self.nmodes, quartic_rcm, reduced=False)
 
         debugfunc(f'Dipole moment derivs: {len(mu), type(mu)} -> {type(mu[0])}: first - {mu[0].shape} ; second {mu[1].shape}', tag='parser.getDerivatives()')
         debugfunc(f'Polarizability derivs: {len(alpha), type(alpha)} -> {type(alpha[0])}: first - {alpha[0].shape}, second - {alpha[1].shape}', tag='parser.getDerivatives()')
-        debugfunc(f'Cubic cm-1 {cubic_cm_1.shape}, has only zeros - {not np.any(cubic_cm_1)}, #non-zero elements {np.count_nonzero(cubic_cm_1)}', tag='parser.getDerivatives()')
+        debugfunc(f'Cubic cm-1 {cff.shape}, has only zeros - {not np.any(cff)}, #non-zero elements {np.count_nonzero(cff)}', tag='parser.getDerivatives()')
         debugfunc(f'Quartic cm-1 {quartic_cm_1.shape}, has only zeros - {not np.any(quartic_cm_1)}, #non-zero elements {np.count_nonzero(quartic_cm_1)}', tag='parser.getDerivatives()')
-        debugfunc(f'Cubic Ha {cff.shape}, has only zeros - {not np.any(cff)}, #non-zero elements {np.count_nonzero(cff)}', tag='parser.getDerivatives()')
-        debugfunc(f'Quartic Ha {quartic_force_constants.shape}, has only zeros - {not np.any(quartic_force_constants)}, #non-zero elements {np.count_nonzero(quartic_force_constants)}', tag='parser.getDerivatives()')
+        debugfunc(f'Cubic Ha {cff_reduced.shape}, has only zeros - {not np.any(cff_reduced)}, #non-zero elements {np.count_nonzero(cff_reduced)}', tag='parser.getDerivatives()')
+        debugfunc(f'Quartic Ha {quartic_force_constants_reduced.shape}, has only zeros - {not np.any(quartic_force_constants_reduced)}, #non-zero elements {np.count_nonzero(quartic_force_constants_reduced)}', tag='parser.getDerivatives()')
 
         return DerivativesData(mu[0], mu[1],
                                alpha[0], alpha[1],
-                               cff, quartic_force_constants,
-                               cubic_cm_1, quartic_cm_1)
+                               cff_reduced, quartic_force_constants_reduced, None,
+                               cff, quartic_cm_1)
 
 
     def getPreVPT2Data(self) -> VPT2Data:

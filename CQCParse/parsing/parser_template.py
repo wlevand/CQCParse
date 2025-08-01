@@ -37,11 +37,12 @@ class DerivativesData:
     diphess: np.ndarray = field(default_factory=lambda: np.array([]))
     polgrad: np.ndarray = field(default_factory=lambda: np.array([]))
     polhess: np.ndarray = field(default_factory=lambda: np.array([]))
-    cff: np.ndarray = field(default_factory=lambda: np.array([]))
+    cff_reduced: np.ndarray = field(default_factory=lambda: np.array([]))
     # quartic_constants: np.ndarray = field(default_factory=lambda: np.array([]))
+    qff_reduced: np.ndarray = field(default_factory=lambda: np.array([]))
+    hess: np.ndarray = None #field(default_factory=lambda: np.array([]))
+    cff: np.ndarray = field(default_factory=lambda: np.array([]))
     qff: np.ndarray = field(default_factory=lambda: np.array([]))
-    cubic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
-    quartic_cm_1: np.ndarray = field(default_factory=lambda: np.array([]))
 
     def upd_indices(self, new_idx_dict):
         from CQCParse.utils import change_idx_modes

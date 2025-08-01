@@ -62,19 +62,19 @@ class DataVault:
 
             return selected_columns_df
 
-    def make_DatainputDict(self, sourceProgram: str, mol_tuple: tuple, pref_dir: str = '') -> dict:
+    def make_DatainputDict(self, sourceProgram: str, mol_tuple: tuple, csvfile_dir: str = '') -> dict:
         """
         Returns a dictionary of filetypes and their locations taken from the CSV file
         for selected software source and (molecule, method, basis) identification tuple
 
         pref_dir - prefix directory to the file locations given in the CSV files
         """
-        logger.debug(f'pref_dir: {pref_dir}')
+        logger.debug(f'pref_dir: {csvfile_dir}')
         from wilson.utils import get_package_root
         wilson_root = get_package_root()
-        if pref_dir == wilson_root: # FIXME
-            pref_dir += '/../tests'
-        logger.debug(f'pref_dir: {pref_dir}')
+        if csvfile_dir == wilson_root: # FIXME
+            csvfile_dir += '/../tests'
+        logger.debug(f'pref_dir: {csvfile_dir}')
         dataframe = self.getting_files_DB(sourceProgram)
 
         mol_code, method, basis = mol_tuple
@@ -95,19 +95,19 @@ class DataVault:
                 result = {'source': 'gaussian', 'type': 'log'}
 
                 files_dict.update({#'3quanta': pref_dir+narrow_df.iloc[0]['g16_3quanta_full'],
-                                   'log': pref_dir+narrow_df.iloc[0]['g16_3quanta_full']})
+                                   'log': csvfile_dir+narrow_df.iloc[0]['g16_3quanta_full']})
                 result['files'] = files_dict
                 return result
 
             elif sourceProgram == 'cfour':
                 result = {'source': 'cfour', 'type': 'out'}
-                files_dict.update({'out': pref_dir+narrow_df.iloc[0]['c4_out'],
-                                   'cubic': pref_dir+narrow_df.iloc[0]['c4_cubic'],
-                                   'quartic': pref_dir+narrow_df.iloc[0]['c4_quartic'],
-                                   'dipolexyz': pref_dir+narrow_df.iloc[0]['c4_dipolexyz'][:-1],
-                                   'polar': pref_dir+narrow_df.iloc[0]['pkl_polar'],
-                                   'out_anharm_final': pref_dir+narrow_df.iloc[0]['c4_out'],
-                                   'polar_pkl': pref_dir+narrow_df.iloc[0]['pkl_polar'],
-                                   'molden': pref_dir+narrow_df.iloc[0]['molden']})
+                files_dict.update({'out': csvfile_dir+narrow_df.iloc[0]['c4_out'],
+                                   'cubic': csvfile_dir+narrow_df.iloc[0]['c4_cubic'],
+                                   'quartic': csvfile_dir+narrow_df.iloc[0]['c4_quartic'],
+                                   'dipolexyz': csvfile_dir+narrow_df.iloc[0]['c4_dipolexyz'][:-1],
+                                   'polar': csvfile_dir+narrow_df.iloc[0]['pkl_polar'],
+                                   'out_anharm_final': csvfile_dir+narrow_df.iloc[0]['c4_out'],
+                                   'polar_pkl': csvfile_dir+narrow_df.iloc[0]['pkl_polar'],
+                                   'molden': csvfile_dir+narrow_df.iloc[0]['molden']})
                 result['files'] = files_dict
                 return result
