@@ -1,5 +1,5 @@
-from parsing.parseGaussian_forWilson import parse_coriolis
-from parsing.gaussian_parser import GaussianParser, GaussianOutput
+from CQCParse.parsing.gaussian_parser import GaussianParser, GaussianOutput
+from CQCParse.parsing.parseGaussian_forWilson import parse_coriolis
 from CQCParse import debug
 
 def test_GaussianDataParser():

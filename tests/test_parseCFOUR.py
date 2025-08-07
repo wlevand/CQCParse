@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-from parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file, CFOURdataParser
-from parsing.parseCFOUR_extra import pNORMCO, get_anharmonic_fundamentals
+from CQCParse.parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file, CFOURdataParser
+from CQCParse.parsing.parseCFOUR_extra import pNORMCO, get_anharmonic_fundamentals
 
 def test_getRotationMatrix():
     rotation_matrix = getRotationMatrix('./test_files_cfour/rawouts/anharm_hf_outfile0.out')
