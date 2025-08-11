@@ -93,7 +93,7 @@ class CFOURdataParser:
         self.quartic_force_constants = None
 
         self.cubic_cm_1, self.quartic_cm_1 = None, None
-        self.rotational_constant, self.coriolis_constant = None, None
+        self.B, self.coriolis = None, None
 
         self.equilibrium_geometry = None
         self.Q_normal_coordinates = None
@@ -159,7 +159,8 @@ class CFOURdataParser:
         # transformed to Wilson units in getCubicPost
         self.cff = getCubicPost(self.fundamentals_harmonic_int, cubic,
                                                   startmode=self.nModesStart, recipcm=False)
-
+        self.qff = getQuarticPost(self.fundamentals_harmonic_int, quartic,
+                                                  startmode=self.nModesStart, recipcm=False)
         self.cubic_cm_1 = getCubicPost(self.fundamentals_harmonic_int, cubic,
                                                   startmode=self.nModesStart, recipcm=True)
         self.quartic_cm_1 = getQuarticPost(self.fundamentals_harmonic_int, quartic,
@@ -176,9 +177,10 @@ class CFOURdataParser:
             self.polgrad = alpha[0]
             self.polhess = alpha[1]
 
-        self.rotational_constant, self.coriolis_constant = parse_coriolis(self.all_files_dict['files']['out_anharm_final'],
+        self.B, self.coriolis = parse_coriolis(self.all_files_dict['files']['out_anharm_final'],
                                                                          len(self.fundamentals_harmonic_int),
                                                                          startmode=self.nModesStart)
+        
 
 
 def parse_coriolis(file_path: str, nModes: int, startmode: int)-> [np.ndarray, np.ndarray]:

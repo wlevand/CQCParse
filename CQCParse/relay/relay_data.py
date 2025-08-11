@@ -74,6 +74,8 @@ class DataVault:
         wilson_root = get_package_root()
         if csvfile_dir == wilson_root: # FIXME
             csvfile_dir += '/../tests'
+        else:
+            csvfile_dir = ''
         logger.debug(f'pref_dir: {csvfile_dir}')
         dataframe = self.getting_files_DB(sourceProgram)
 
