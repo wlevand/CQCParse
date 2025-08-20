@@ -89,6 +89,8 @@ class GaussianDataParser(object):
         self.lot = None
         self.nmodes = None
 
+        self.Xmatrices = None
+
     def __dir__(self):
         return['nModesStart',
                'dipgrad', 'diphess',
@@ -172,10 +174,10 @@ class GaussianDataParser(object):
         selected_df2 = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']]
         quartic = selected_df2.to_numpy()
 
-        self.cff = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
-        self.qff = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
-        self.cubic_cm_1 = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
-        self.quartic_cm_1 = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
+        self.cff_reduced = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
+        self.qff_reduced = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
+        self.cff = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
+        self.qff = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
 
         self.B, self.coriolis = parse_coriolis(self.all_files_dict['files']['log'],
                                                                           len(self.fundamentals_harmonic_int))
@@ -185,6 +187,8 @@ class GaussianDataParser(object):
                     and 'Search for 1-3 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
         self.DD22 = ('No 2-2 Darling-Dennison resonance found' not in self.all_files_dict['files']['log']
                     and 'Search for 2-2 Darling-Dennison resonances deactivated' not in self.all_files_dict['files']['log'])
+
+        self.Xmatrices = parse_anharmonic_x_matrix(self.all_files_dict['files']['log'])
 
         # modes = get_normal_modes(self.all_files_dict['files']['fname'], self.number_atoms)
         # rmodes = reordered_modes(self.all_files_dict['files']['fname'])
@@ -977,3 +981,202 @@ def get_equil_geo(allines):
     coords = np.array(coords)
 
     return elements, coords
+
+
+def lower_triangular_to_full_matrix(lower_triangular_list):
+    """
+    Convert a lower triangular matrix stored as list of lists to a full symmetric matrix.
+    
+    Args:
+        lower_triangular_list (list): List of lists where each inner list represents
+                                    a row of the lower triangular matrix
+    
+    Returns:
+        numpy.ndarray: Full symmetric matrix as 2D numpy array
+    """
+    if not lower_triangular_list:
+        return np.array([])
+    
+    # Determine matrix size
+    n = len(lower_triangular_list)
+    
+    # Initialize full matrix with zeros
+    full_matrix = np.zeros((n, n))
+    
+    # Fill in the lower triangular part
+    for i in range(n):
+        row = lower_triangular_list[i]
+        for j in range(len(row)):
+            if j <= i:  # Only fill lower triangular part
+                full_matrix[i, j] = row[j]
+                # Mirror to upper triangular part (symmetric matrix)
+                full_matrix[j, i] = row[j]
+    
+    return full_matrix
+
+# Function to parse a matrix section
+def parse_matrix_section(lines, start_search, end_search, section_title_pattern="contributions to X Matrix"):
+    matrix_data = []
+    section_start = None
+    
+    # Find the section start
+    for i in range(start_search, len(lines)):
+        if end_search in lines[i]:
+            break
+        if section_title_pattern in lines[i]:
+            section_start = i
+            break
+    
+    if section_start is None:
+        return matrix_data
+    
+    # Skip header lines and find the actual matrix data
+    i = section_start + 1
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Stop if we hit another section or end with equals signs
+        if ("contributions to X Matrix" in line or 
+            "Anharmonic X Matrix" in line or
+            "=" in line):
+            break
+        
+        # Skip empty lines and lines that are just column headers
+        if not line:
+            i += 1
+            continue
+        
+        parts = line.split()
+        
+        # Skip column header lines (lines with only numbers like "1 2 3 4 5")
+        if len(parts) >= 2 and all(part.isdigit() for part in parts):
+            i += 1
+            continue
+        
+        # Skip lines that are just a single number (continuation column headers)
+        if len(parts) == 1 and parts[0].isdigit():
+            i += 1
+            continue
+        
+        # Parse matrix row - first element should be row number
+        if len(parts) >= 2:
+            try:
+                row_num = int(parts[0])
+                values = []
+                
+                for j in range(1, len(parts)):
+                    val_str = parts[j]
+                    # Handle scientific notation format like 0.000000D+00
+                    if 'D' in val_str:
+                        val_str = val_str.replace('D', 'E')
+                    values.append(float(val_str))
+                
+                # Ensure we have enough rows in matrix_data
+                while len(matrix_data) < row_num:
+                    matrix_data.append([])
+                
+                # Add values to the appropriate row
+                matrix_data[row_num-1].extend(values)
+            
+            except (ValueError, IndexError):
+                # Skip lines that can't be parsed as matrix data
+                pass
+        
+        i += 1
+    
+    return matrix_data
+
+
+def parse_anharmonic_x_matrix(file_lines):
+    """
+    Parse the Anharmonic X Matrix section from Gaussian output file lines.
+    
+    Args:
+        file_lines (list): List of strings, each representing a line from the file
+    
+    Returns:
+        dict: Dictionary containing parsed anharmonic X matrix data with keys:
+            - 'coriolis_contributions': 2D list of coriolis contribution values
+            - '3rd_deriv_contributions': 2D list of 3rd derivative contribution values  
+            - '4th_deriv_contributions': 2D list of 4th derivative contribution values
+            - 'total_anharmonic': 2D list of total anharmonic X matrix values
+            - 'matrix_size': integer indicating the size of the matrices
+    """
+    
+    result = {
+        'coriolis_contributions': [],
+        '3rd_deriv_contributions': [],
+        '4th_deriv_contributions': [],
+        'total_anharmonic': [],
+        'matrix_size': 0
+    }
+    
+    # Find the start of the Anharmonic X Matrix section
+    start_idx = None
+    for i, line in enumerate(file_lines):
+        if "Anharmonic X Matrix" in line:
+            start_idx = i+2
+            break
+    
+    if start_idx is None:
+        return result
+    
+    
+    # Parse each matrix section
+    search_start = start_idx
+    
+    # Parse Coriolis contributions
+    coriolis_start = None
+    for i in range(search_start, len(file_lines)):
+        if "Coriolis contributions to X Matrix" in file_lines[i]:
+            coriolis_start = i
+            break
+    
+    if coriolis_start:
+        k = parse_matrix_section(
+            file_lines, coriolis_start, "3rd Deriv. contributions"
+        )
+        result['coriolis_contributions'] = lower_triangular_to_full_matrix(k)
+    
+    # Parse 3rd derivative contributions
+    third_deriv_start = None
+    for i in range(search_start, len(file_lines)):
+        if "3rd Deriv. contributions to X Matrix" in file_lines[i]:
+            third_deriv_start = i
+            break
+    
+    if third_deriv_start:
+        m = parse_matrix_section(
+            file_lines, third_deriv_start, "4th Deriv. contributions"
+        )
+        result['3rd_deriv_contributions'] = lower_triangular_to_full_matrix(m)
+    
+    # Parse 4th derivative contributions  
+    fourth_deriv_start = None
+    for i in range(search_start, len(file_lines)):
+        if "4th Deriv. contributions to X Matrix" in file_lines[i]:
+            fourth_deriv_start = i
+            break
+    
+    if fourth_deriv_start:
+        n = parse_matrix_section(
+            file_lines, fourth_deriv_start, "Total Anharmonic X Matrix"
+        )
+        result['4th_deriv_contributions'] = lower_triangular_to_full_matrix(n)
+    
+    # Parse total anharmonic matrix
+    total_start = None  
+    for i in range(search_start, len(file_lines)):
+        if "Total Anharmonic X Matrix" in file_lines[i]:
+            total_start = i
+            break
+    
+    if total_start:
+        p = parse_matrix_section(
+            file_lines, total_start, "end_of_section", "Total Anharmonic X Matrix"
+        )
+        result['total_anharmonic'] = lower_triangular_to_full_matrix(p)
+    
+    result['matrix_size'] = result['total_anharmonic'].shape
+    
+    return result
