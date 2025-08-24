@@ -142,6 +142,8 @@ class GaussianDataParser(object):
                                                                                results_log['Fundamental Bands'][2])}
         self.fundamentals_harmonic_int = {int(k)-1: float(v) for k, v in zip(results_log['Fundamental Bands']['mode_a'],
                                                                              results_log['Fundamental Bands'][1])}
+        # logger.warning(f"self.fundamentals_anharmonic_int: {self.fundamentals_anharmonic_int}")
+
         self.nmodes = len(self.fundamentals_harmonic_int)
 
         self.fundamentals_harmonic_str = {str(k):v for k,v in self.fundamentals_harmonic_int.items()}
@@ -286,12 +288,9 @@ def parse_Na(lines: list[str]):
 
 # used in retrievedata.py
 def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
-    # with open(file_path, 'r') as file:
-    #     lines = file.readlines()
 
     sections = ["Fundamental Bands", "Overtones", "Combination Bands"]
     results = {section: [] for section in sections}
-    # results_harm = {section: [] for section in sections}
     current_section = None
 
     primary_line = "Anharmonic Infrared Spectroscopy"
@@ -304,9 +303,12 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
 
     start = False
     units_counter = 0
+    break_count = 0
+
     for line in lines:
         if target_line_anhram in line:
             start = True
+
         elif "Units: Transition energies" in line:
             units_counter += 1
             if units_counter == 2:
@@ -316,26 +318,58 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
                 current_section = next(section for section in sections if section in line)
             elif current_section:
                 if '------------' not in line:
-                    linelist = line.split()
+                    linelist = [i for i in line.strip('LH').split() if i != 'active']
                     # inserting None at the desired index 2
-                    if len(linelist)==5 and current_section=='Combination Bands':
-                        linelist.insert(2, None)
-
+                    # if len(linelist)==5 and current_section=='Combination Bands':
+                    #     linelist.insert(2, None)
+                    # if linelist and len(linelist) > 0:
                     results[current_section].append(linelist)
+
+                if current_section == 'Combination Bands' and '==========================' in line:
+                    break
+
+
     results_dataframes = {}
     for section, data in results.items():
         if section != 'Overtones':
             results_dataframes[section] = pd.DataFrame(data[1:-1])
         else:
             results_dataframes[section] = pd.DataFrame(data[2:-1])
-        main_numbers = [i.split('(')[0] for i in results_dataframes[section][0]]
-        sub_numbers = [int(i[:-1].split('(')[1]) for i in results_dataframes[section][0]]
+        results_dataframes[section].dropna(axis = 0, how = 'all', inplace = True)
+        
+        # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
+
+        if target_line_anhram == primary_line:
+            index_num = 0
+        
+        elif target_line_anhram == alternative_line:
+            index_num = 0
+            # if len(results_dataframes[section].columns) == 7:
+            #     index_num = 0
+            # elif len(results_dataframes[section].columns) == 8:
+            #     index_num = 1
+
+        # logger.warning(f"section: {section}")
+        # logger.warning(f"results_dataframes: {results_dataframes}")
+        # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
+        try:
+            main_numbers = [i.split('(')[0] for i in results_dataframes[section][index_num]]
+        except KeyError as e:
+            logger.error(f"KeyError: {index_num} not found in results_dataframes[section] for section {section}")
+            print(f"Available columns in results_dataframes[section]: {results_dataframes[section].columns}")
+            print(results_dataframes[section])
+            raise e
+        sub_numbers = [int(i[:-1].split('(')[1]) for i in results_dataframes[section][index_num]]
+
         # nserting columns at specific positions
         results_dataframes[section].insert(1, 'mode_a', main_numbers)
         results_dataframes[section].insert(2, 'n_a', sub_numbers)
         results_dataframes[section].drop(results_dataframes[section].columns[0], axis=1, inplace=True)
 
         if section=='Combination Bands':
+            # logger.warning(f"Processing Combination Bands section: {section}")
+            # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
+
             main_numbers = [int(i.split('(')[0]) for i in results_dataframes[section][1]]
             sub_numbers = [int(i[:-1].split('(')[1]) for i in results_dataframes[section][1]]
 
@@ -343,12 +377,19 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
             results_dataframes[section].insert(4, 'n_b', sub_numbers)
             results_dataframes[section].drop(results_dataframes[section].columns[2], axis=1, inplace=True)
 
-            main_numbers = [int(i.split('(')[0]) if i is not None else i for i in results_dataframes[section][2]]
-            sub_numbers = [int(i[:-1].split('(')[1]) if i is not None else i for i in results_dataframes[section][2]]
+            # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
 
+            main_numbers = [int(i.split('(')[0]) if '(' in i else None for i in results_dataframes[section][2]]
+            sub_numbers = [int(i[:-1].split('(')[1]) if '(' in i else None for i in results_dataframes[section][2]]
+            # logger.warning(f"main_numbers: {main_numbers}")
+            # logger.warning(f"sub_numbers: {sub_numbers}")
             results_dataframes[section].insert(5, 'mode_c', main_numbers)
             results_dataframes[section].insert(6, 'n_c', sub_numbers)
             results_dataframes[section].drop(results_dataframes[section].columns[4], axis=1, inplace=True)
+
+            # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
+
+    # logger.warning(f"results_dataframes: \n{results_dataframes}")
 
     return results_dataframes
 
@@ -565,6 +606,10 @@ def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
         j = int(fijk[1]) -1
         k = int(fijk[2]) -1
         d = np.float64(fijk[3])
+
+        # logger.warning(f"K3: {K3}")
+        # logger.warning(f"fijk: {fijk}, i: {i}, j: {j}, k: {k}, d: {d}")
+        # logger.warning(f"K3 shape: {K3.shape}")
 
         K3[i, j, k] = d
         K3[i, k, j] = d
