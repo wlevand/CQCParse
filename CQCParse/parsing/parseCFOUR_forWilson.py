@@ -90,7 +90,7 @@ class CFOURdataParser:
         self.harmonic_states = None
         self.anharmonic_states = None
         self.cff = None
-        self.quartic_force_constants = None
+        self.qff = None
 
         self.cubic_cm_1, self.quartic_cm_1 = None, None
         self.B, self.coriolis = None, None
@@ -157,13 +157,13 @@ class CFOURdataParser:
         self.nmodes = len(self.fundamentals_harmonic_int)
 
         # transformed to Wilson units in getCubicPost
+        self.cff_reduced = getCubicPost(self.fundamentals_harmonic_int, cubic,
+                                                  startmode=self.nModesStart, recipcm=False)
+        self.qff_reduced = getQuarticPost(self.fundamentals_harmonic_int, quartic,
+                                                  startmode=self.nModesStart, recipcm=False)
         self.cff = getCubicPost(self.fundamentals_harmonic_int, cubic,
-                                                  startmode=self.nModesStart, recipcm=False)
-        self.qff = getQuarticPost(self.fundamentals_harmonic_int, quartic,
-                                                  startmode=self.nModesStart, recipcm=False)
-        self.cubic_cm_1 = getCubicPost(self.fundamentals_harmonic_int, cubic,
                                                   startmode=self.nModesStart, recipcm=True)
-        self.quartic_cm_1 = getQuarticPost(self.fundamentals_harmonic_int, quartic,
+        self.qff = getQuarticPost(self.fundamentals_harmonic_int, quartic,
                                                   startmode=self.nModesStart, recipcm=True)
 
         labelsModes_original = [i + self.nModesStart for i in list(self.fundamentals_harmonic_int)]

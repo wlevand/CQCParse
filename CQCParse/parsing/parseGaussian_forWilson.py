@@ -176,8 +176,8 @@ class GaussianDataParser(object):
         selected_df2 = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']]
         quartic = selected_df2.to_numpy()
 
-        self.cff_reduced = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
-        self.qff_reduced = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
+        self.cff_au = get_cubic_post(len(self.fundamentals_harmonic_str), cubic)
+        self.qff_au = get_quartic_post(len(self.fundamentals_harmonic_str), quartic)
         self.cff = get_cubic_post(len(self.fundamentals_harmonic_int), cubic_rcm, reduced=False)
         self.qff = get_quartic_post(len(self.fundamentals_harmonic_int), quartic_rcm, reduced=False)
 
@@ -618,6 +618,7 @@ def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
         K3[j, i, k] = d
         K3[j, k, i] = d
 
+    # from [Hartree*amu(-3/2)*Bohr(-3)] to [Hartree*m_e(-3/2)*a0(-3)]
     if reduced:
         from scipy import constants
         # to go from amu to au mass unit (m_e)
