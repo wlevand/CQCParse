@@ -1,4 +1,4 @@
-Basis,Calc_Type,Conformer_Description,Conformer_ID,Full_Name,Method,Name,Status,cff,dipolex,dipoley,dipolez,file_location,molden,out,polar_pkl,qff
-cc-pVQZ,full,optimized,conf1,formaldehyde,B3LYP,FORM,done,,,,,/CQCParse/files_examples/dftGaussian/FORM/B3LYPcc_pVQZ/g16_inputFull_3q.out,,,,
-cc-pVDZ,full,optimized,conf1,formaldehyde,B3LYP,FORM,done,,,,,/CQCParse/files_examples/dftGaussian/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out,,,,
-cc-pVQZ,full,optimized,conf1,formaldehyde,CCSD(T),FORM,done,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/cubic,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/dipolex,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/dipoley,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/dipolez,,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/MOLDEN,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/out,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/polar.pkl,/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ/quartic
+Basis,Calc_Type,Conformer_Description,Conformer_ID,Full_Name,Method,Name,Status,cff,dipolex,dipoley,dipolez,file_location,file_location_pathtype,molden,out,polar_pkl,qff
+cc-pVQZ,full,optimized,conf1,formaldehyde,B3LYP,FORM,done,,,,,/dftGaussian/FORM/B3LYPcc_pVQZ/g16_inputFull_3q.out,relative,,,,
+cc-pVDZ,full,optimized,conf1,formaldehyde,B3LYP,FORM,done,,,,,/dftGaussian/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out,relative,,,,
+cc-pVQZ,full,optimized,conf1,formaldehyde,CCSD(T),FORM,done,/refinedc4/CCSDTcc_pVQZ/cubic,/refinedc4/CCSDTcc_pVQZ/dipolex,/refinedc4/CCSDTcc_pVQZ/dipoley,/refinedc4/CCSDTcc_pVQZ/dipolez,,relative,/refinedc4/CCSDTcc_pVQZ/MOLDEN,/refinedc4/CCSDTcc_pVQZ/out,/refinedc4/CCSDTcc_pVQZ/polar.pkl,/refinedc4/CCSDTcc_pVQZ/quartic

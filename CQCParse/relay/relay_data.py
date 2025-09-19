@@ -10,6 +10,7 @@ Column names in the CSV are:
 """
 
 import pandas as pd
+import os
 
 import logging
 logger = logging.getLogger("CQCParse")
@@ -138,7 +139,7 @@ class DataVault:
         Filters the database for Gaussian source program.
         """
         filtered_df = db[db["file_location"].notna() & (db["file_location"] != "")]
-        return filtered_df[['Calc_Type', 'Name', 'Conformer_ID', 'Method', 'Basis', 'file_location']]
+        return filtered_df[['Calc_Type', 'Name', 'Conformer_ID', 'Method', 'Basis', 'file_location', 'file_location_pathtype']]
     
     def _filter_cfour(self, db: pd.DataFrame, printing: bool = True) -> pd.DataFrame:
         """
@@ -147,9 +148,10 @@ class DataVault:
         columns_to_check = ['out', 'polar_pkl', 'cff', 'qff', 'dipolex', 'molden']
         filtered_df = db.query(" and ".join([f"{col}.notna() and {col} != ''" for col in columns_to_check]))
         if printing:
-            return filtered_df[['Calc_Type', 'Name', 'Conformer_ID', 'Method', 'Basis', 'out']]
+            return filtered_df[['Calc_Type', 'Name', 'Conformer_ID', 'Method', 'Basis', 'out', 'file_location_pathtype']]
         else:
-            return filtered_df[['Calc_Type', 'Name', 'Conformer_ID', 'Method', 'Basis', 'out', 'cff', 'qff', 'dipolex', 'polar_pkl', 'molden']]
+            return filtered_df[['Calc_Type', 'Name', 'Conformer_ID', 'Method', 'Basis', 
+                                'out', 'cff', 'qff', 'dipolex', 'polar_pkl', 'molden', 'file_location_pathtype']]
     
     def make_data_input_dict(self, source_program: str, mol_tuple: tuple) -> dict:
         """
@@ -191,12 +193,17 @@ class DataVault:
         """
         Builds the file dictionary based on the source program and row data.
         """
+        if row['file_location_pathtype'] == "absolute":
+            prefix = ''
+        elif row['file_location_pathtype'] == "relative":
+            prefix = os.path.dirname(os.path.abspath(self.csv_location))
+        
         files_dict = {'mol_name': row['Name'], 'method': row['Method'], 'basis': row['Basis']}
         if source_program == 'gaussian':
             return {
                 'source': 'gaussian',
                 'type': 'log',
-                'files': {**files_dict, 'log': row['file_location']}
+                'files': {**files_dict, 'log': prefix + row['file_location']}
             }
         elif source_program == 'cfour':
             return {
@@ -204,13 +211,13 @@ class DataVault:
                 'type': 'out',
                 'files': {
                     **files_dict,
-                    'out': row['out'],
-                    'out_anharm_final': row['out'],
-                    'cubic': row['cff'],
-                    'quartic': row['qff'],
-                    'dipolexyz': row['dipolex'][:-1],
-                    'polar_pkl': row['polar_pkl'],
-                    'molden': row['molden']
+                    'out': prefix + row['out'],
+                    'out_anharm_final': prefix + row['out'],
+                    'cubic': prefix + row['cff'],
+                    'quartic': prefix + row['qff'],
+                    'dipolexyz': prefix + row['dipolex'][:-1],
+                    'polar_pkl': prefix + row['polar_pkl'],
+                    'molden': prefix + row['molden']
                 }
             }
         else:
