@@ -91,6 +91,9 @@ class GaussianDataParser(object):
 
         self.Xmatrices = None
 
+        self.dir_prefix = ''
+
+
     def __dir__(self):
         return['nModesStart',
                'dipgrad', 'diphess',
@@ -103,20 +106,22 @@ class GaussianDataParser(object):
                'Q_normal_coordinates', 'q_normal_coordinates_dimensionless',
                'atoms', 'basis', 'lot']
 
-    def addFilesDict(self, all_files_dict:dict):
+    def addFilesDict(self, all_files_dict: dict):
         """
         Upd/attach a new dict as self.all_files_dict (source files for data)
         """
         self.all_files_dict = all_files_dict
 
+        fname = self.dir_prefix + self.all_files_dict['files']['log']
+
         # 'log', 'fchk', 'com' - files types
         if 'log' in self.all_files_dict['files']:
             # saving filename in 'fname' because 'log' will contain list of lines instead of the filename
-            self.all_files_dict['files']['fname'] = self.all_files_dict['files']['log']
+            self.all_files_dict['files']['fname'] = fname
 
         for filetype in self.all_files_dict['files']:
             if filetype=='log':
-                with open(self.all_files_dict['files']['log'], 'r') as file:
+                with open(fname, 'r') as file:
                     self.all_files_dict['files']['log'] = [i.strip() for i in file.readlines()]
 
 

@@ -108,7 +108,7 @@ logger = logging.getLogger("CQCParse")
 
 class DataVault:
     def __init__(self, csv_location: str = None):
-        self.csv_location = csv_location or './test_database/mini_files_database.csv'
+        self.csv_location = csv_location #or './test_database/mini_files_database.csv'
 
     def read_csv_DB(self) -> pd.DataFrame:
         """
@@ -125,6 +125,7 @@ class DataVault:
         Filters the database based on the source program and returns the relevant DataFrame.
         """
         db = self.read_csv_DB()
+        # print(db)
         if source_program == 'gaussian':
             return self._filter_gaussian(db)
         elif source_program == 'cfour':

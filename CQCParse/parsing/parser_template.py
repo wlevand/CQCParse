@@ -137,7 +137,7 @@ class ParsedData:
             list2exclude = []
 
         # todo: make general - routine to do gvpt2
-        from wilson.spectrum.vpt2 import get_vpt2_corrected_levels
+        from wilson_suite.wilson_intensities.anharmonic_treatment.vpt2 import get_vpt2_corrected_levels
         all_states, fermi_resonance = get_vpt2_corrected_levels(self, vpt2settings,
                                                list2exclude,
                                                print_level=print_level)

@@ -1,0 +1,30 @@
+Starting job 12741659 on c3-31 on saga at Mon Sep 30 20:20:24 CEST 2024
+
+/var/spool/slurmd/job12741659/slurm_script: line 32: lfs: command not found
+cp: cannot stat 'MeCN_Me2B2Cu_tddft_n50_NTO1.chk': No such file or directory
+
+real	7986m0.511s
+user	241496m31.152s
+sys	184m53.516s
+
+Job 12741659 consumed 4259.3 billing hours from project nn14654k.
+
+Submitted 2024-09-30T20:20:23; waited 1.0 seconds in the queue after becoming eligible to run.
+
+Requested wallclock time: 10.0 days
+Elapsed wallclock time:   5.5 days
+
+Task and CPU statistics:
+ID              CPUs  Tasks  CPU util                Start  Elapsed  Exit status
+12741659          32            0.0 %  2024-09-30T20:20:24  133.1 h  0
+12741659.batch    32      1    94.6 %  2024-09-30T20:20:24  133.1 h  0
+
+Used CPU time:   167.8 CPU days
+Unused CPU time: 9.6 CPU days
+
+Memory statistics, in GiB:
+ID               Alloc   Usage
+12741659         160.0        
+12741659.batch   160.0     4.6
+
+Job 12741659 completed at Sun Oct 6 09:26:34 CEST 2024
