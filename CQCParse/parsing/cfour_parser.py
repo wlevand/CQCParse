@@ -24,7 +24,7 @@ class CFOUROutput(OutputFiles):
 
 class CFOURParser(Parser):
 
-    def __init__(self, relevant_files: CFOUROutput):
+    def __init__(self, relevant_files: CFOUROutput = None):
         super().__init__(relevant_files)
         self.relevant_files: CFOUROutput = relevant_files
         self._saved_data = {}

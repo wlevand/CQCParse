@@ -14,6 +14,7 @@ class OutputFiles(ABC):
     CFOUROutput('FORM', 'CCSDT', 'cc_pVQZ', 'gaussian', log_file='')
     """
     molecule: str
+    conformer: str
     method: str
     basis: str
     program: str

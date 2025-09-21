@@ -17,7 +17,7 @@ class GaussianOutput(OutputFiles):
 
 class GaussianParser(Parser):
 
-    def __init__(self, relevant_files: GaussianOutput):
+    def __init__(self, relevant_files: GaussianOutput = None):
         super().__init__(relevant_files)
         self.relevant_files: GaussianOutput = relevant_files
 
@@ -41,6 +41,8 @@ class GaussianParser(Parser):
         normal_modes = {}
         for i in rmodes:
             normal_modes[i-1] = modes[rmodes[i]-1]
+       
+        self.normal_modes = normal_modes
 
         return NormalModesData(normal_modes)
 
@@ -75,6 +77,10 @@ class GaussianParser(Parser):
                   f'3quanta.: {len({k: v for k, v in harmonic_states.items() if len(k) == 3})}, should be {lenfund*(lenfund-1)*(lenfund-2)//6+lenfund+lenfund*(lenfund-1)}. ',
                   tag='parser.getVibStates')
 
+        self.nc_sqrt_eigval = fundamentals_harmonic_int
+        self.anharmonic_states = anharmonic_states
+        self.harmonic_states = harmonic_states
+
         return StatesData(fundamentals_harmonic_str, fundamentals_anharmonic_str,
                           fundamentals_harmonic_int, fundamentals_anharmonic_int, # not needed for Gaussian
                           harmonic_states, anharmonic_states)
@@ -106,6 +112,13 @@ class GaussianParser(Parser):
         debugfunc(f'Cubic Ha {cff_reduced.shape}, has only zeros - {not np.any(cff_reduced)}, #non-zero elements {np.count_nonzero(cff_reduced)}', tag='parser.getDerivatives()')
         debugfunc(f'Quartic Ha {quartic_force_constants_reduced.shape}, has only zeros - {not np.any(quartic_force_constants_reduced)}, #non-zero elements {np.count_nonzero(quartic_force_constants_reduced)}', tag='parser.getDerivatives()')
 
+        self.dipgrad = mu[0]
+        self.diphess = mu[1]
+        self.polgrad = alpha[0]
+        self.polhess = alpha[1]
+        self.cff = cff
+        self.qff = quartic_cm_1
+
         return DerivativesData(mu[0], mu[1],
                                alpha[0], alpha[1],
                                cff_reduced, quartic_force_constants_reduced, None,
@@ -124,6 +137,9 @@ class GaussianParser(Parser):
                     and 'Search for 2-2 Darling-Dennison resonances deactivated' not in self._log_lines)
 
         debugfunc(f'Rotational constant: {rotational_constant}; Coriolis constant: {coriolis_constant.shape}, has only zeros - {not np.any(coriolis_constant)}', tag='parser.getPreVPT2Data()')
+
+        self.B = rotational_constant
+        self.coriolis = coriolis_constant
 
         # rotational_constants, coriolis_constants, fermi_resonance, DD11, DD13, DD22
         return VPT2Data(rotational_constant, coriolis_constant, [], DD11, DD13, DD22)
