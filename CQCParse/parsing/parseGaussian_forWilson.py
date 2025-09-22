@@ -490,6 +490,9 @@ def getDipDers_log(logfile: list[str]) -> tuple:
     return tuple([a2d, a2d2_3d])
 
 def getDipDers_au(logfile: list[str]) -> tuple:
+    """
+    1a.u. = 2.541746Debye
+    """
     a2d, a2d2_3d = getDipDers_log(logfile)
     from scipy import constants
     # to go from amu to au mass unit (m_e)
@@ -544,7 +547,7 @@ def getPolarDers_au(logfile: list[str]) -> tuple:
     return tuple([fdpol, sdpol])
 
 # used in retrievedata.py
-def parse_cubic_constants(lines: list[str]) -> [pd.DataFrame, list]:
+def parse_cubic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:
     # with open(file_path, 'r') as file:
     #     lines = file.readlines()
 
@@ -623,7 +626,7 @@ def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
         K3[j, i, k] = d
         K3[j, k, i] = d
 
-    # from [Hartree*amu(-3/2)*Bohr(-3)] to [Hartree*m_e(-3/2)*a0(-3)]
+    # from [Hartree*amu(-3/2)*Bohr(-3)] to [Hartree*m_e(-3/2)*Bohr(-3)]
     if reduced:
         from scipy import constants
         # to go from amu to au mass unit (m_e)

@@ -566,6 +566,29 @@ def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int, f
     return tuple([firstder_mat, secder_mat])
 
 
+def getDipoleDers_anharm_au_simple(filenamebase: str, labels: list, nModesStart: int, 
+                                   fund_harmonic_energies_array: list | np.ndarray) -> tuple:
+    firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
+    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
+    matrix_2d = np.outer(w_h, w_h)
+    
+    sqrtvec = 1. / np.sqrt(w_h)
+    sqrtmat = 1. / np.sqrt(matrix_2d.T)
+
+    firstder_mat = np.zeros_like(firstder)
+    for i in range(len(sqrtvec)):
+        for j in range(3):
+            firstder_mat[i, j] = firstder[i, j] / sqrtvec[i]
+
+    secder_mat = np.zeros_like(secder)
+    for i in range(len(sqrtvec)):
+        for j in range(len(sqrtvec)):
+            for k in range(3):
+                secder_mat[i, j, k] = secder[i, j, k] / sqrtmat[i, j]
+
+    return tuple([firstder_mat, secder_mat])
+
+
 def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
     w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
     matrix_2d = np.outer(w_h, w_h)
@@ -602,6 +625,42 @@ def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
 
     return tuple([fdpol, sdpol])
 
+
+def getPolarDers_pkl_au_simple(polar_pkl_file: str, fund_harmonic_energies_array: np.ndarray | list):
+    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
+    matrix_2d = np.outer(w_h, w_h)
+    sqrtvec = 1. / np.sqrt(w_h)
+    sqrtmat = 1. / np.sqrt(matrix_2d.T)
+
+    with open(polar_pkl_file, 'rb') as file:
+        alpha = pickle.load(file)
+    polgrad = alpha[0]
+    polhess = alpha[1]
+
+    logger.debug('polgrad')
+    logger.debug(polgrad)
+
+    logger.debug('polhess')
+    logger.debug(polhess)
+
+    fdpol = np.zeros_like(polgrad)
+    for i in range(len(sqrtvec)):
+        for j in range(3):
+            for k in range(3):
+                fdpol[i, j, k] = polgrad[i, j, k] / sqrtvec[i]
+
+    sdpol = np.zeros_like(polhess)
+    for i in range(len(sqrtvec)):
+        for j in range(len(sqrtvec)):
+            # with open('./secPolder', 'a') as file1:
+            #     file1.write(f'\n=============================={i} {j}\n{sqrtmat[i, j]}\n')
+            #     file1.writelines(str(polhess[i, j, :, :]))
+
+            for k in range(3):
+                for L in range(3):
+                    sdpol[i, j, k, L] = polhess[i, j, k, L] / sqrtmat[i, j]
+
+    return tuple([fdpol, sdpol])
 
 # used
 def getDisplacementsPolarData(polar_dir: str, raw: bool = False):
