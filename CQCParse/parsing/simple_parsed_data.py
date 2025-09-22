@@ -29,10 +29,10 @@ class ParsedDataSimple:
     diphess: np.ndarray = None
     polgrad: np.ndarray = None
     polhess: np.ndarray = None
-    cff_reduced: np.ndarray = None # cm-1
-    qff_reduced: np.ndarray = None # cm-1
-    cff: np.ndarray = None # [Hartree*m_e(-3/2)*a0(-3)]
-    qff: np.ndarray = None # [Hartree*m_e(-2)*a0(-4)], unmassweighted?
+    cff: np.ndarray = None # cm-1
+    qff: np.ndarray = None # cm-1
+    cff_au: np.ndarray = None # [Hartree*m_e(-3/2)*a0(-3)]
+    qff_au: np.ndarray = None # [Hartree*m_e(-2)*a0(-4)], unmassweighted?
 
     units: dict[str, str] = field(default_factory=lambda: {
         "harmonic_states": "cm-1",
@@ -54,7 +54,8 @@ class ParsedDataSimple:
 
 
 
-def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, log_file: str):
+def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, 
+                            log_file: str) -> ParsedDataSimple:
     from .parseGaussian_forWilson import get_allStates_fromParsedResults, get_equil_geo, get_normal_modes, \
         parse_frequencies, getDipDers_au, getPolarDers_au, parse_cubic_constants, parse_quartic_constants, get_cubic_post, \
         get_quartic_post, parse_coriolis
@@ -64,6 +65,7 @@ def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, log
     
     atoms, equilibrium_geometry = get_equil_geo(log_lines)
     nmodes = get_normal_modes(filename=log_file, Na=len(atoms))
+    nmodes = {i: nm for i, nm in enumerate(nmodes)}
     results_log = parse_frequencies(lines=log_lines)
 
     ah_sts = get_allStates_fromParsedResults(results_log, anharmonic=True)
@@ -72,7 +74,7 @@ def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, log
     anharmonic_states = {tuple(str(i) for i in key): value for key, value in ah_sts.items()}
     harmonic_states = {tuple(str(i) for i in key): value for key, value in h_sts.items()}
     
-    rotational_constant, coriolis_constant = parse_coriolis(log_lines, nmodes)
+    rotational_constant, coriolis_constant = parse_coriolis(log_lines, len(nmodes))
     mu = getDipDers_au(log_lines)
     alpha = getPolarDers_au(log_lines)
 
@@ -86,10 +88,10 @@ def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, log
     selected_df2 = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']]
     quartic = selected_df2.to_numpy()
 
-    cff_au = get_cubic_post(nmodes, cubic)
-    qff_au = get_quartic_post(nmodes, quartic)
-    cff = get_cubic_post(nmodes, cubic_rcm, reduced=False)
-    qff = get_quartic_post(nmodes, quartic_rcm, reduced=False)
+    cff_au = get_cubic_post(len(nmodes), cubic)
+    qff_au = get_quartic_post(len(nmodes), quartic)
+    cff = get_cubic_post(len(nmodes), cubic_rcm, reduced=False)
+    qff = get_quartic_post(len(nmodes), quartic_rcm, reduced=False)
 
     return ParsedDataSimple(molecule=molecule,
                             program='gaussian',
@@ -99,7 +101,7 @@ def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, log
                             equilibrium_geometry=equilibrium_geometry,
                             harmonic_states=harmonic_states,
                             anharmonic_states=anharmonic_states,
-                            normal_modes=get_normal_modes(filename=log_file, Na=len(atoms)),
+                            normal_modes=nmodes,
                             hess=None,
                             B=rotational_constant,
                             coriolis=coriolis_constant,
@@ -131,7 +133,8 @@ def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, log
                             })
 
 
-def parse_cfour_output(molecule: str, level_of_theory: str, basis, files_dict: str, linear_molecule: bool):
+def parse_cfour_output(molecule: str, level_of_theory: str, basis, 
+                       files_dict: str, linear_molecule: bool) -> ParsedDataSimple:
     from .parseCFOUR_forWilson import (pMOLDEN, parse_output_file, parse_coriolis,
                                     getCubicPost, getQuarticPost, getDipoleDers_anharm_au_simple,
                                     getPolarDers_pkl_au_simple,
@@ -139,10 +142,10 @@ def parse_cfour_output(molecule: str, level_of_theory: str, basis, files_dict: s
     
     coords, atoms, normal_modes_dict = pMOLDEN(files_dict['molden'])
     nModesStart = 6 if linear_molecule else 7
-    nmodes = len(normal_modes_dict)-nModesStart
+    num_modes = len(normal_modes_dict)
 
     rotational_constant, coriolis_constant = parse_coriolis(files_dict['out_file'],
-                                                            nmodes,
+                                                            num_modes,
                                                             startmode=nModesStart)
     vib_energy_levels_list, _, anharmonic_freqs, _, harmonic_freqs = parse_output_file(files_dict['out_file'])
     anharm_states_dict = dict(zip(vib_energy_levels_list, anharmonic_freqs))
@@ -150,8 +153,8 @@ def parse_cfour_output(molecule: str, level_of_theory: str, basis, files_dict: s
 
     anharmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in anharm_states_dict.items()}
     harmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in harm_states_dict.items()}
-    fundamentals_harmonic_int = {k[0]:v for k,v in harmonic_states.items() if len(k)==1}
-    
+    fundamentals_harmonic_int = {int(k[0]):v for k,v in harmonic_states.items() if len(k)==1}
+
     fund_harmonic_energies_array = np.array(list(fundamentals_harmonic_int.values()))
 
     cubic = pCubicORQuartic(files_dict['cubic_file'])
