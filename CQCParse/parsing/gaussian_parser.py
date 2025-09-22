@@ -100,29 +100,31 @@ class GaussianParser(Parser):
         quartic = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']].to_numpy()
 
         cff_reduced = get_cubic_post(self.nmodes, cubic)
-        quartic_force_constants_reduced = get_quartic_post(self.nmodes, quartic)
+        qff_reduced = get_quartic_post(self.nmodes, quartic)
 
         cff = get_cubic_post(self.nmodes, cubic_rcm, reduced=False)
-        quartic_cm_1 = get_quartic_post(self.nmodes, quartic_rcm, reduced=False)
+        qff = get_quartic_post(self.nmodes, quartic_rcm, reduced=False)
 
         debugfunc(f'Dipole moment derivs: {len(mu), type(mu)} -> {type(mu[0])}: first - {mu[0].shape} ; second {mu[1].shape}', tag='parser.getDerivatives()')
         debugfunc(f'Polarizability derivs: {len(alpha), type(alpha)} -> {type(alpha[0])}: first - {alpha[0].shape}, second - {alpha[1].shape}', tag='parser.getDerivatives()')
         debugfunc(f'Cubic cm-1 {cff.shape}, has only zeros - {not np.any(cff)}, #non-zero elements {np.count_nonzero(cff)}', tag='parser.getDerivatives()')
-        debugfunc(f'Quartic cm-1 {quartic_cm_1.shape}, has only zeros - {not np.any(quartic_cm_1)}, #non-zero elements {np.count_nonzero(quartic_cm_1)}', tag='parser.getDerivatives()')
+        debugfunc(f'Quartic cm-1 {qff.shape}, has only zeros - {not np.any(qff)}, #non-zero elements {np.count_nonzero(qff)}', tag='parser.getDerivatives()')
         debugfunc(f'Cubic Ha {cff_reduced.shape}, has only zeros - {not np.any(cff_reduced)}, #non-zero elements {np.count_nonzero(cff_reduced)}', tag='parser.getDerivatives()')
-        debugfunc(f'Quartic Ha {quartic_force_constants_reduced.shape}, has only zeros - {not np.any(quartic_force_constants_reduced)}, #non-zero elements {np.count_nonzero(quartic_force_constants_reduced)}', tag='parser.getDerivatives()')
+        debugfunc(f'Quartic Ha {qff_reduced.shape}, has only zeros - {not np.any(qff_reduced)}, #non-zero elements {np.count_nonzero(qff_reduced)}', tag='parser.getDerivatives()')
 
         self.dipgrad = mu[0]
         self.diphess = mu[1]
         self.polgrad = alpha[0]
         self.polhess = alpha[1]
         self.cff = cff
-        self.qff = quartic_cm_1
+        self.qff = qff
 
-        return DerivativesData(mu[0], mu[1],
-                               alpha[0], alpha[1],
-                               cff_reduced, quartic_force_constants_reduced, None,
-                               cff, quartic_cm_1)
+        return DerivativesData(dipgrad=mu[0], diphess=mu[1],
+                               polgrad=alpha[0], polhess=alpha[1],
+                               cff_reduced=cff_reduced, 
+                               qff_reduced=qff_reduced, 
+                               hess=None,
+                               cff=cff, qff=qff)
 
 
     def getPreVPT2Data(self) -> VPT2Data:

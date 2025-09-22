@@ -58,7 +58,9 @@ class CFOURParser(Parser):
             self._saved_data['coords'] = coords
             self._saved_data['atoms'] = atoms
             self._saved_data['normal_modes_dict'] = normal_modes
-        # print(normal_modes)
+        
+        self.normal_modes = normal_modes
+        
         return NormalModesData(normal_modes)
 
 
@@ -83,6 +85,10 @@ class CFOURParser(Parser):
         anharmonic_states = {tuple(str(i-self.nModesStart) for i in k): v for k, v in anharm_states_dict.items()}
         harmonic_states = {tuple(str(i-self.nModesStart) for i in k): v for k, v in harm_states_dict.items()}
 
+        self.nc_sqrt_eigval = fundamentals_harmonic_int
+        self.anharmonic_states = anharmonic_states
+        self.harmonic_states = harmonic_states
+
         return StatesData(fundamentals_harmonic_str, fundamentals_anharmonic_str,
                           fundamentals_harmonic_int, fundamentals_anharmonic_int,
                           harmonic_states, anharmonic_states)
@@ -106,27 +112,32 @@ class CFOURParser(Parser):
         labelsModes_original = [i + self.nModesStart for i in list(self._saved_data['fundamentals_harmonic_int'])]
         mu = getDipoleDers_anharm_au(self.relevant_files.dipole_file, labelsModes_original, self.nModesStart,
                                      self._saved_data['fundamentals_harmonic_str'])
-        # dipgrad = mu[0]
-        # diphess = mu[1]
 
         if self.relevant_files.polar_pkl is not None:
             alpha = getPolarDers_pkl_au(self.relevant_files.polar_pkl, self._saved_data['fundamentals_harmonic_str'])
-            # polgrad = alpha[0]
-            # polhess = alpha[1]
         else:
             print('Why no polarizability pickle?')
 
-        return DerivativesData(mu[0], mu[1],
-                               alpha[0], alpha[1],
-                               cff, quartic_force_constants,
-                               cubic_cm_1, quartic_cm_1)
+        self.dipgrad = mu[0]
+        self.diphess = mu[1]
+        self.polgrad = alpha[0]
+        self.polhess = alpha[1]
+        self.cff = cubic_cm_1
+        self.qff = quartic_cm_1
+
+        return DerivativesData(dipgrad=mu[0], diphess=mu[1],
+                               polgrad=alpha[0], polhess=alpha[1],
+                               cff_reduced=cff, qff_reduced=quartic_force_constants, hess=None,
+                               cff=cubic_cm_1, qff=quartic_cm_1)
 
 
     def getPreVPT2Data(self) -> VPT2Data:
         rotational_constant, coriolis_constant = parse_coriolis(self.relevant_files.out_file,
                                                                           self.nmodes,
                                                                           startmode=self.nModesStart)
-
+        self.B = rotational_constant
+        self.coriolis = coriolis_constant
+        
         return VPT2Data(rotational_constant, coriolis_constant)
 
 
