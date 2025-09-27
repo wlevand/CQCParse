@@ -25,6 +25,8 @@ class ParsedDataSimple:
     coriolis: np.ndarray = None # coriolis constants, cm-1
     fermi_resonances: list = None
 
+    molecular_properties: dict = None
+
     dipgrad: np.ndarray = None
     diphess: np.ndarray = None
     polgrad: np.ndarray = None
@@ -55,6 +57,7 @@ class ParsedDataSimple:
 
 
 def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, 
+                            requested_data: list,
                             log_file: str) -> ParsedDataSimple:
     from .parseGaussian_forWilson import get_allStates_fromParsedResults, get_equil_geo, get_normal_modes, \
         parse_frequencies, getDipDers_au, getPolarDers_au, parse_cubic_constants, parse_quartic_constants, get_cubic_post, \

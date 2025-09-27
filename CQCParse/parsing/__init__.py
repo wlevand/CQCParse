@@ -7,6 +7,8 @@ from .cfour_parser import CFOURParser, CFOUROutput
 from .gaussian_parser import GaussianParser, GaussianOutput
 from .parser_template import DataStorage, ParsedData, Parser, OutputFiles
 
+from .parse_wilson_obtainer import parse_from_source
+
 __all__ = [
     "CFOURParser",
     "CFOUROutput",

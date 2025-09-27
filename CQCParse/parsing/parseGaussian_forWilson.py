@@ -400,6 +400,9 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
 
 def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = False) -> dict:
     """results is a DataFrame from parse_frequencies()"""
+    results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
+    results['Combination Bands']['n_c'] = results['Combination Bands']['n_c'].fillna(0)
+
     if anharmonic:
         results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
         results['Combination Bands']['n_c'] = results['Combination Bands']['n_c'].fillna(0)
@@ -431,6 +434,10 @@ def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = Fa
                      zip(results['Fundamental Bands']['mode_a'], results['Fundamental Bands'][1])}
         states1 = {tuple(sorted([int(t)-1] * int(n))): float(v) for t, v, n in
                    zip(results['Overtones']['mode_a'], results['Overtones'][1], results['Overtones']['n_a'])}
+        
+        # print(results['Combination Bands']['mode_a'], results['Combination Bands']['mode_b'],
+        #         results['Combination Bands']['mode_c'])
+        
         combinationbands1 = {
             tuple(
                 sorted([int(t1)-1] * int(n1) + [t2-1] * int(n2) + [
