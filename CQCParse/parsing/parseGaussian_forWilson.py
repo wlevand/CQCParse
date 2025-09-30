@@ -332,7 +332,8 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
 
                 if current_section == 'Combination Bands' and '==========================' in line:
                     break
-
+    
+    # print(results['Combination Bands'])
 
     results_dataframes = {}
     for section, data in results.items():
@@ -371,7 +372,21 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
         results_dataframes[section].insert(2, 'n_a', sub_numbers)
         results_dataframes[section].drop(results_dataframes[section].columns[0], axis=1, inplace=True)
 
+
+
         if section=='Combination Bands':
+
+            main_numbers_c = [int(i.split('(')[0]) if '(' in i else None for i in results_dataframes[section][2]]
+            sub_numbers_c = [int(i[:-1].split('(')[1]) if '(' in i else None for i in results_dataframes[section][2]]
+            for i, mn in enumerate(main_numbers_c):
+                if mn is None:
+                    # Shift values to the right and put None in column 2
+                    row = results_dataframes[section].loc[i]
+                    # Shift columns 2,3,4 to 3,4,5 
+                    results_dataframes[section].loc[i, [5,4,3]] = row[[4,3,2]].values
+                    # Set column 2 to None
+                    results_dataframes[section].loc[i, 2] = None
+
             # logger.warning(f"Processing Combination Bands section: {section}")
             # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
 
@@ -384,14 +399,17 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
 
             # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
 
-            main_numbers = [int(i.split('(')[0]) if '(' in i else None for i in results_dataframes[section][2]]
-            sub_numbers = [int(i[:-1].split('(')[1]) if '(' in i else None for i in results_dataframes[section][2]]
+
             # logger.warning(f"main_numbers: {main_numbers}")
             # logger.warning(f"sub_numbers: {sub_numbers}")
-            results_dataframes[section].insert(5, 'mode_c', main_numbers)
-            results_dataframes[section].insert(6, 'n_c', sub_numbers)
+            results_dataframes[section].insert(5, 'mode_c', main_numbers_c)
+            results_dataframes[section].insert(6, 'n_c', sub_numbers_c)
+            
+            pd.set_option('display.max_rows', 500)
+            pd.set_option('display.max_columns', 500)
+            pd.set_option('display.width', 1000)
+         
             results_dataframes[section].drop(results_dataframes[section].columns[4], axis=1, inplace=True)
-
             # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
 
     # logger.warning(f"results_dataframes: \n{results_dataframes}")
@@ -400,8 +418,8 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
 
 def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = False) -> dict:
     """results is a DataFrame from parse_frequencies()"""
-    results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
-    results['Combination Bands']['n_c'] = results['Combination Bands']['n_c'].fillna(0)
+    # results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
+    # results['Combination Bands']['n_c'] = results['Combination Bands']['n_c'].fillna(0)
 
     if anharmonic:
         results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
