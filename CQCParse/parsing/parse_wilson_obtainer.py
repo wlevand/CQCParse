@@ -64,6 +64,7 @@ def parse_gaussian16_output(requested_data: list,
             
         if 'harmonic_states' or 'nc_sqrt_eigval' in requested_data:
             h_sts = get_allStates_fromParsedResults(results_log, anharmonic=False)
+            # print('h_sts in parse_gaussian16_output()', h_sts)
             harmonic_states = {tuple([str(i) for i in key]): value for key, value in h_sts.items()}
             results['harmonic_states'] = harmonic_states
             fund_harm_dict = {k:v for k,v in harmonic_states.items() if len(k)==1}
@@ -77,7 +78,7 @@ def parse_gaussian16_output(requested_data: list,
         rotational_constant, coriolis_constant = parse_coriolis(log_lines, len_nmodes)
         
         if 'B' in requested_data:
-            results['rotational_constant'] = rotational_constant
+            results['B'] = rotational_constant
         if 'coriolis' in requested_data:
             results['coriolis'] = coriolis_constant
     

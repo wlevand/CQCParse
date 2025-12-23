@@ -418,8 +418,9 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
 
 def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = False) -> dict:
     """results is a DataFrame from parse_frequencies()"""
-    # results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
-    # results['Combination Bands']['n_c'] = results['Combination Bands']['n_c'].fillna(0)
+    results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
+    results['Combination Bands']['n_c'] = results['Combination Bands']['n_c'].fillna(0)
+    # print(results['Combination Bands'])
 
     if anharmonic:
         results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
