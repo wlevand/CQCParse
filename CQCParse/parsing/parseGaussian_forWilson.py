@@ -206,7 +206,7 @@ class GaussianDataParser(object):
             self.normal_modes[i-1] = modes[rmodes[i]-1]
 
 
-def parse_coriolis(lines: list[str], nModes: int)-> tuple[np.ndarray, np.ndarray]:
+def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)-> tuple[np.ndarray, np.ndarray]:
     """
     returns:
         rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
@@ -217,7 +217,7 @@ def parse_coriolis(lines: list[str], nModes: int)-> tuple[np.ndarray, np.ndarray
     start1 = False
     start_rotcont = False
 
-    for line in lines:
+    for i, line in enumerate(lines):
 
         if 'CORIOLIS COUPLINGS' in line:
             start1 = True
@@ -249,11 +249,34 @@ def parse_coriolis(lines: list[str], nModes: int)-> tuple[np.ndarray, np.ndarray
         if rotconst_str in line and len(rotational_constant)<3:
             start_rotcont = True
 
-        if 'E(harm)  E(anharm)' in line:
-            rot_order = [line.strip().split()[-3][-2], line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
-            reorder = [rot_order.index('x'), rot_order.index('y'), rot_order.index('z')]
-            rotational_constant = np.array([float(rotational_constant[i]) for i in reorder])
-            break
+        if linear_molecule:
+            if 'E(harm)  E(anharm)' in line:
+                print('linear')
+                rot_order = [line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
+                cart_lbls = ['x', 'y', 'z']
+                lbls_here = [i for i in cart_lbls if i in rot_order]
+                reorder = [rot_order.index(i) for i in lbls_here]
+
+                next_line = lines[i+1]
+                if 'Equilibrium Geometry' not in next_line:
+                    raise ValueError("Cannot get rotational constant at Equilibrium Geometry from file")
+                rotational_constant = [float(i) for i in next_line.split()[2:]]
+
+                rotational_constant = np.array([float(rotational_constant[i]) for i in reorder])
+
+
+                break
+        else:
+            if 'E(harm)  E(anharm)' in line:
+                rot_order = [line.strip().split()[-3][-2], line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
+                reorder = [rot_order.index('x'), rot_order.index('y'), rot_order.index('z')]
+                rotational_constant = np.array([float(rotational_constant[i]) for i in reorder])
+
+                next_line = lines[i+1]
+                if 'Equilibrium Geometry' not in next_line:
+                    raise ValueError("Cannot get rotational constant at Equilibrium Geometry from file")
+                rot_vals = [float(i) for i in next_line.split()[2:]]
+                break
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
@@ -276,6 +299,9 @@ def parse_coriolis(lines: list[str], nModes: int)-> tuple[np.ndarray, np.ndarray
 
     return rotational_constant, coriolis_constant
 
+def parse_rot_const(lines, linear_molecule: bool = False):
+    return
+
 def parse_Na(lines: list[str]):
 
     ind = 0
@@ -293,8 +319,11 @@ def parse_Na(lines: list[str]):
 
 # used in retrievedata.py
 def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
+    if 'Combination Bands' in lines:
+        sections = ["Fundamental Bands", "Overtones", "Combination Bands"]
+    else:
+        sections = ["Fundamental Bands", "Overtones"]
 
-    sections = ["Fundamental Bands", "Overtones", "Combination Bands"]
     results = {section: [] for section in sections}
     current_section = None
 
@@ -321,7 +350,8 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
         elif start:
             if any(section in line for section in sections):
                 current_section = next(section for section in sections if section in line)
-            elif current_section:
+                print('\ncurrent_section', current_section)
+            if current_section:
                 if '------------' not in line:
                     linelist = [i for i in line.strip('LH').split() if i != 'active']
                     # inserting None at the desired index 2
@@ -330,12 +360,14 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
                     # if linelist and len(linelist) > 0:
                     results[current_section].append(linelist)
 
-                if current_section == 'Combination Bands' and '==========================' in line:
+                if (current_section == 'Combination Bands' and '==========================' in line) or (current_section == 'Overtones' and 'Dipole strengths (DS) in' in line):
                     break
     
     # print(results['Combination Bands'])
+    print('\nresults', results)
 
     results_dataframes = {}
+
     for section, data in results.items():
         if section != 'Overtones':
             results_dataframes[section] = pd.DataFrame(data[1:-1])
@@ -359,12 +391,17 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
         # logger.warning(f"results_dataframes: {results_dataframes}")
         # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
         try:
+            print(results_dataframes[section])
+            print('section', section)
             main_numbers = [i.split('(')[0] for i in results_dataframes[section][index_num]]
         except KeyError as e:
+            print('section', section)
             logger.error(f"KeyError: {index_num} not found in results_dataframes[section] for section {section}")
             print(f"Available columns in results_dataframes[section]: {results_dataframes[section].columns}")
             print(results_dataframes[section])
             raise e
+        
+        print('\nsmth', [i[:-1].split('(')[1] for i in results_dataframes[section][index_num]])
         sub_numbers = [int(i[:-1].split('(')[1]) for i in results_dataframes[section][index_num]]
 
         # nserting columns at specific positions
@@ -415,6 +452,117 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
     # logger.warning(f"results_dataframes: \n{results_dataframes}")
 
     return results_dataframes
+
+
+def parse_frequencies_v2(lines: list[str]) -> dict:
+    """A safer, non-destructive alternative to `parse_frequencies`.
+
+    - Finds the anharmonic frequencies table and parses `Fundamental Bands`,
+      `Overtones`, and (if present) `Combination Bands`.
+    - Tolerant to varying spacing and scientific notation with D/E exponents.
+    - Returns a dict of pandas.DataFrame objects keyed by section name.
+    """
+    import re
+    sections = ["Fundamental Bands", "Overtones", "Combination Bands"]
+    results = {s: [] for s in sections}
+
+    primary_line = "Anharmonic Infrared Spectroscopy"
+    alternative_line = "Vibrational Energies at Anharmonic Level"
+    header_idx = None
+    for i, L in enumerate(lines):
+        if primary_line in L or alternative_line in L:
+            header_idx = i
+            break
+    if header_idx is None:
+        logger.debug('parse_frequencies_v2: header not found')
+        return {}
+
+    current_section = None
+    stop_tokens = ('Dipole strengths (DS) in', '==========================')
+
+    # regex for tokens like 1(1) or 12(3)
+    mode_token = re.compile(r"(\d+)\((\d+)\)")
+    # regex for numeric values (handles D/E notation)
+    num_token = re.compile(r"[+-]?[0-9]*\.?[0-9]+(?:[DEde][+-]?\d+)?")
+
+    for L in lines[header_idx:]:
+        if any(tok in L for tok in stop_tokens):
+            break
+        # detect section headers
+        for s in sections:
+            if s in L:
+                current_section = s
+                break
+        if current_section is None:
+            continue
+
+        # strip and skip separator lines
+        ls = L.strip()
+        if not ls or ls.startswith('-') or ls.startswith('Units:'):
+            continue
+
+        # find mode tokens (one or more)
+        mt = mode_token.findall(ls)
+        if not mt:
+            continue
+
+        # collect numeric values after last mode token
+        # split at the point after the last ')' to get numbers part
+        try:
+            after = ls.split(')')[-1]
+        except Exception:
+            after = ls
+        nums = num_token.findall(after)
+
+        # Build row depending on section type
+        if current_section == 'Fundamental Bands':
+            # expect one mode token and up to 4 numbers: E(harm), E(anharm), I(harm), I(anharm)
+            a_mode, a_n = mt[0]
+            row = {
+                'mode_a': a_mode,
+                'n_a': a_n,
+                'E_harm': float(nums[0]) if len(nums) > 0 else np.nan,
+                'E_anharm': float(nums[1]) if len(nums) > 1 else np.nan,
+                'I_harm': float(nums[2]) if len(nums) > 2 else np.nan,
+                'I_anharm': float(nums[3]) if len(nums) > 3 else np.nan,
+            }
+            results[current_section].append(row)
+
+        elif current_section == 'Overtones':
+            # overtones often have mode like 1(2) then E(harm), E(anharm), I(anharm)
+            a_mode, a_n = mt[0]
+            row = {
+                'mode_a': a_mode,
+                'n_a': a_n,
+                'E_harm': float(nums[0]) if len(nums) > 0 else np.nan,
+                'E_anharm': float(nums[1]) if len(nums) > 1 else np.nan,
+                'I_anharm': float(nums[2]) if len(nums) > 2 else np.nan,
+            }
+            results[current_section].append(row)
+
+        else:  # Combination Bands
+            # combination lines contain multiple mode tokens followed by numeric columns
+            modes = [m[0] for m in mt]
+            ns = [m[1] for m in mt]
+            # Attempt to map remaining numbers to intensities/frequencies
+            vals = [float(x.replace('D', 'E')) for x in nums] if nums else []
+            row = {'mode_a': modes[0] if len(modes) > 0 else None,
+                   'n_a': ns[0] if len(ns) > 0 else None,
+                   'mode_b': modes[1] if len(modes) > 1 else None,
+                   'n_b': ns[1] if len(ns) > 1 else None,
+                   'mode_c': modes[2] if len(modes) > 2 else None,
+                   'n_c': ns[2] if len(ns) > 2 else None,
+                   'values': vals}
+            results[current_section].append(row)
+
+    # Convert lists to DataFrames with consistent columns
+    dfs = {}
+    for s, rows in results.items():
+        if not rows:
+            continue
+        dfs[s] = pd.DataFrame(rows)
+
+    return dfs
 
 def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = False) -> dict:
     """results is a DataFrame from parse_frequencies()"""
