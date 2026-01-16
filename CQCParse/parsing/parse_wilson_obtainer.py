@@ -196,7 +196,12 @@ results {                       'Fundamental Bands': [['Fundamental', 'Bands'], 
 
     if 'B' or 'coriolis' in requested_data:
         linear = False
-        if len(results['atoms'])==2:
+        if 'atoms' not in results:
+            atoms, _ = get_equil_geo(log_lines)
+        else:
+            atoms = results['atoms']
+
+        if len(atoms)==2:
             linear = True
 
         from .parseGaussian_forWilson import parse_coriolis
