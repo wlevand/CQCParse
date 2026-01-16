@@ -61,7 +61,7 @@ def parse_gaussian16_output(requested_data: list,
             raise ValueError("smth went wrong")
     
     if 'anharmonic_states' or 'harmonic_states' or 'nc_sqrt_eigval' in requested_data:
-        from .parseGaussian_forWilson import parse_frequencies, get_allStates_fromParsedResults, parse_frequencies_v2
+        from .parseGaussian_forWilson import parse_frequencies
         try:
             # results_log = parse_frequencies(lines=log_lines)
             """
@@ -166,7 +166,7 @@ results {                       'Fundamental Bands': [['Fundamental', 'Bands'], 
                 raise ValueError("result of parse_frequencies() is empty")
         except Exception as e:
             print('Failed at "parse_frequencies" with:', e)
-            raise ValueError("smth went wrong")
+            raise ValueError("smth went wrong in parse_frequencies() or get_allStates_from_parsed_freqs()")
 
         if 'anharmonic_states' in requested_data:
             try:
