@@ -189,7 +189,6 @@ results {                       'Fundamental Bands': [['Fundamental', 'Bands'], 
                 len_nmodes = len(fund_harm_dict)
 
                 if 'nc_sqrt_eigval' in requested_data:
-                    print(fund_harm_dict)
                     results['nc_sqrt_eigval'] = {int(k[0]): v for k,v in fund_harm_dict.items()}
             except Exception as e:
                 print('Failed at "harmonic_states/nc_sqrt_eigval" with:', e)
