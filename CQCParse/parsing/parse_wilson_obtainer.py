@@ -239,6 +239,10 @@ results {                       'Fundamental Bands': [['Fundamental', 'Bands'], 
         cff_au = get_cubic_post(len_nmodes, cubic)
         results['cff'] = cff_au
 
+        cubic_rcm = cubic_df[['I', 'J', 'K', 'FI(I,J,K)']].to_numpy() # cm-1
+        results['cff_rc'] = get_cubic_post(len_nmodes, cubic_rcm, reduced=False)
+
+
     if 'qff' in requested_data:
         from .parseGaussian_forWilson import parse_quartic_constants, get_quartic_post
         quartic_df = parse_quartic_constants(log_lines)[0]
@@ -247,6 +251,9 @@ results {                       'Fundamental Bands': [['Fundamental', 'Bands'], 
 
         qff_au = get_quartic_post(len_nmodes, quartic)
         results['qff'] = qff_au
+
+        quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy() # cm-1
+        results['qff_rc'] = get_quartic_post(len_nmodes, quartic_rcm, reduced=False)
 
     return results
 
