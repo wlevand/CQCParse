@@ -4,7 +4,8 @@ def parse_from_source(requested_data: dict,
                       source_type: str, 
                       base_file_loc: str,
                       lvl_theory: str = '',
-                      basis_set: str = '') -> dict[str, Any]:
+                      basis_set: str = '',
+                      linear: bool = False) -> dict[str, Any]:
     """
     VALUES MUST BE IN ATOMIC UNITS
     """
@@ -17,12 +18,13 @@ def parse_from_source(requested_data: dict,
         files_dict = make_cfour_files_dict(base_file_loc)
         # todo: finish parse_cfour_output
         results_dict = parse_cfour_output(requested_data=requested_data,
-                                          base_file_loc=files_dict)
+                                          files_dict=files_dict,
+                                          linear_molecule=linear)
         return results_dict
 
 
 
-def parse_gaussian16_output(requested_data: list,
+def parse_gaussian16_output(requested_data: dict,
                             log_file: str):
     """
     
@@ -276,11 +278,27 @@ results {                       'Fundamental Bands': [['Fundamental', 'Bands'], 
     #     })
 
 
-def make_cfour_files_dict():
-    return
+def make_cfour_files_dict(base_dir_loc):
+    """
+    files_dict_keys = ['molden', 'out_file', 'cubic_file', 'quartic_file', 'dipole_file', 'polar_pkl']
+    """
+    files_dict_keys = {'molden': 'MOLDEN', 
+                       'out_file': 'out', 
+                       'cubic_file': 'cubic', 
+                       'quartic_file': 'quartic', 
+                       'dipole_file': 'dipole', 
+                       'polar_pkl': 'polar.pkl'}
+
+    for k, v in files_dict_keys.items():
+        files_dict_keys[k] = base_dir_loc + '/' + v
+
+    return files_dict_keys
+
 
 def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: bool) -> dict:
-
+    """
+    files_dict_keys = ['molden', 'out_file', 'cubic_file', 'quartic_file', 'dipole_file', 'polar_pkl']
+    """
     nModesStart = 6 if linear_molecule else 7
 
     results = {}
@@ -307,6 +325,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         if 'anharmonic_states' in requested_data:
             anharm_states_dict = dict(zip(vib_energy_levels_list, anharmonic_freqs))
             anharmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in anharm_states_dict.items()}
+            results['anharmonic_states'] = anharmonic_states
         
         if 'harmonic_states' or 'nc_sqrt_eigval' in requested_data:
             import numpy as np
@@ -317,6 +336,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
             fund_harmonic_energies_array = np.array(list(fundamentals_harmonic_int.values()))
             
             labelsModes_original = [i + nModesStart for i in list(fundamentals_harmonic_int)]
+            results['harmonic_states'] = harmonic_states
 
     if 'B' or 'coriolis' in requested_data:
         from .parseCFOUR_forWilson import parse_coriolis
@@ -324,7 +344,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
                                                                 num_modes,
                                                                 startmode=nModesStart)
         if 'B' in requested_data:
-            results['rotational_constant'] = rotational_constant
+            results['B'] = rotational_constant
         if 'coriolis' in requested_data:
             results['coriolis'] = coriolis_constant
 
@@ -335,7 +355,9 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
                             startmode=nModesStart, recipcm=False)
         cubic_cm_1 = getCubicPost(fundamentals_harmonic_int, cubic,
                                 startmode=nModesStart, recipcm=True)
-        
+        results['cff'] = cff_au
+        results['cff_rc'] = cubic_cm_1
+
     if 'qff' in requested_data:
         from .parseCFOUR_forWilson import pCubicORQuartic, getQuarticPost
         quartic = pCubicORQuartic(files_dict['quartic_file'])
@@ -343,7 +365,9 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
                                 startmode=nModesStart, recipcm=False)
         quartic_cm_1 = getQuarticPost(fundamentals_harmonic_int, quartic,
                                     startmode=nModesStart, recipcm=True)
-    
+        results['qff'] = qff_au
+        results['qff_rc'] = quartic_cm_1
+
     if 'dipgrad' or 'diphess' in requested_data:
         from .parseCFOUR_forWilson import getDipoleDers_anharm_au_simple
 
@@ -351,12 +375,23 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
                                             labels=labelsModes_original, # why
                                             nModesStart=nModesStart,
                                             fund_harmonic_energies_array=fund_harmonic_energies_array)
+        if 'dipgrad' in requested_data:
+            results['dipgrad'] = mu[0]
+        if 'diphess' in requested_data:
+            results['diphess'] = mu[1]
+
     if 'polgrad' or 'polhess' in requested_data:
         from .parseCFOUR_forWilson import getPolarDers_pkl_au_simple
 
         alpha = getPolarDers_pkl_au_simple(polar_pkl_file=files_dict['polar_pkl'], 
                                         fund_harmonic_energies_array=fund_harmonic_energies_array)
 
+        if 'polgrad' in requested_data:
+            results['polgrad'] = alpha[0]
+        if 'polhess' in requested_data:
+            results['polhess'] = alpha[1]        
+    
+    return results
 
         # units={
         #     "harmonic_states": "cm-1",
