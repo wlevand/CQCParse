@@ -167,7 +167,7 @@ class DataVault:
             (dataframe['Method'] == method) &
             (dataframe['Basis'] == basis)
         ]
-
+        print('narrow_df\n', narrow_df.columns)
         try:
             if narrow_df.empty:
                 raise AssertionError('No matching entry found for the given molecule, method, and basis.')
@@ -188,7 +188,27 @@ class DataVault:
             logger.error(f"AssertionError: {e}")
             raise e
 
-    
+    def make_data_input_by_index(self, db, index: int) -> dict:
+        
+        # db = self.read_csv_DB()
+        selected_row = db.iloc[index]
+        # ['Basis', 'Calc_Type', 'Conformer_Description', 'Conformer_ID',
+        #    'Full_Name', 'Method', 'Name', 'Status', 'cff', 'dipolex', 'dipoley',
+        #    'dipolez', 'file_location', 'file_location_pathtype', 'molden', 'out',
+        #    'polar_pkl', 'qff']
+
+        if selected_row['Method'] in ['CCSD(T)', 'CCSD']:
+            files_dict_keys = {'molden': selected_row['molden'], 
+                            'out_file': selected_row['out'], 
+                            'cubic_file': selected_row['cff'], 
+                            'quartic_file': selected_row['qff'], 
+                            'dipole_file': selected_row['dipolex'], 
+                            'polar_pkl': selected_row['polar_pkl']}
+            return files_dict_keys
+        
+        if selected_row['Method'] in ['B3LYP', 'CAM-B3LYP', 'LC-BLYP', 'PBE0']:
+            return selected_row['file_location']
+
     def _build_file_dict(self, source_program: str, row: pd.Series) -> dict:
         """
         Builds the file dictionary based on the source program and row data.
