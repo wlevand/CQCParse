@@ -188,7 +188,7 @@ class DataVault:
             logger.error(f"AssertionError: {e}")
             raise e
 
-    def make_data_input_by_index(self, db, index: int) -> dict:
+    def make_data_input_by_index(self, db, index: int) -> dict|str:
         
         # db = self.read_csv_DB()
         selected_row = db.iloc[index]
