@@ -244,6 +244,19 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
             else:
                 continue
 
+        if "Rotational Constants (in cm^-1)" in line:
+            # The Ae line is 3 lines after the header
+            ae_line = lines[i + 3]
+            be_line = lines[i + 4]
+            ce_line = lines[i + 5]
+            
+            # Extract the equilibrium values (first column after the label)
+            ae = float(ae_line.strip().split('=')[1].strip().split()[0])
+            be = float(be_line.strip().split('=')[1].strip().split()[0])
+            ce = float(ce_line.strip().split('=')[1].strip().split()[0])
+
+            rotational_constant = [ae, be, ce]
+
         rotconst_str = 'equilibrium (e), ground vibr.state (00), and 00 + centr. dist.(0)'
 
         if rotconst_str in line and len(rotational_constant)<3:
@@ -275,7 +288,7 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
                 next_line = lines[i+1]
                 if 'Equilibrium Geometry' not in next_line:
                     raise ValueError("Cannot get rotational constant at Equilibrium Geometry from file")
-                rot_vals = [float(i) for i in next_line.split()[2:]]
+                # rot_vals = [float(i) for i in next_line.split()[2:]]
                 break
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
