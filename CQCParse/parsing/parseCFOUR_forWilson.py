@@ -504,6 +504,11 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
     :return:  dmudqarray - first order derivatives of dipole moment, (3N-6, 3)
               dmudqdarray - second order derivatives of dipole moment, (3N-6, 3N-6, 3)
     """
+    last_part = filenamebase.split('/')[-1]
+
+    if last_part in ['dipolex', 'dipoley', 'dipolez']:
+        filenamebase = filenamebase[:-1]
+    
     dipx = pDipole(filenamebase+'x')
     dipy = pDipole(filenamebase+'y')
     dipz = pDipole(filenamebase+'z')
