@@ -252,6 +252,10 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
             labelsModes_original = [i + nModesStart for i in list(fundamentals_harmonic_int)]
             results['harmonic_states'] = harmonic_states
 
+            if 'nc_sqrt_eigval' in requested_data:
+                # results['nc_sqrt_eigval'] = {int(k[0]): v for k,v in fundamentals_harmonic_int.items()}
+                results['nc_sqrt_eigval'] = fundamentals_harmonic_int
+
     if 'B' or 'coriolis' in requested_data:
         from .parseCFOUR_forWilson import parse_coriolis
         rotational_constant, coriolis_constant = parse_coriolis(files_dict['out_file'],
