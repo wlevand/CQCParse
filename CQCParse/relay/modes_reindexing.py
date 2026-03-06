@@ -62,3 +62,39 @@ def validate_mapping(mapping: dict[int, int], nmodes: int):
     assert len(mapping) == nmodes, f"Expected {nmodes} entries, got {len(mapping)}"
     assert set(mapping.keys()) == set(range(1, nmodes + 1)), "A-indices not complete"
     assert set(mapping.values()) == set(range(1, nmodes + 1)), "H-indices not complete"
+
+
+def reindex_result_data(results_dict: dict):
+    """
+    results_dict is generally parse_gaussian16_output return dict;
+        or return of parse_from_source, when no reindexing was requested.
+        
+        Should contain 'modes_mapping' key and 'reindex_modes' key
+
+    """
+    if results_dict['reindex_modes']:
+        raise ValueError('Reindexing had been performed on this data')
+    
+    validate_mapping(results_dict['modes_mapping'], len(results_dict['normal_modes']))
+
+    perm = build_permutation(results_dict['modes_mapping'], nmodes=len(results_dict['normal_modes']))
+
+    for key in ['coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc']:
+        
+        if key == 'coriolis':
+            results_dict[key] = reindex_tensor(results_dict[key], perm, [1,2])
+        elif 'grad' in key:
+            results_dict[key] = reindex_tensor(results_dict[key], perm, [0])
+        elif 'hess' in key:
+            results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1])
+        elif 'cff' in key:
+            results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2])
+        elif 'qff' in key:
+            results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2,3])
+    
+    for key in ['anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval']:
+        results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
+
+    results_dict['reindex_modes'] = True
+    
+    return results_dict
