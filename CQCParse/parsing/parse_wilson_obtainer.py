@@ -44,6 +44,11 @@ def parse_from_source(requested_data: dict,
             for key in ['anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval']:
                 results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
 
+            results_dict['reindex_modes'] = True
+        else:
+            # to keep track of transformations
+            results_dict['reindex_modes'] = False
+
         return results_dict
     
     elif source_type == 'cfour':
