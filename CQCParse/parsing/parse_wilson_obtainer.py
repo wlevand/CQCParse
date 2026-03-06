@@ -189,6 +189,10 @@ def parse_gaussian16_output(requested_data: dict,
         quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy() # cm-1
         results['qff_rc'] = get_quartic_post(len_nmodes, quartic_rcm, reduced=False)
 
+    if 'modes_mapping' in requested_data:
+        from .parseGaussian_forWilson import parse_mode_mapping
+        results['modes_mapping'] = parse_mode_mapping(log_lines)
+
     return results
 
 

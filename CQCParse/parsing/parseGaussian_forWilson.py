@@ -1421,3 +1421,26 @@ def parse_anharmonic_x_matrix(file_lines):
     result['matrix_size'] = result['total_anharmonic'].shape
     
     return result
+
+def parse_mode_mapping(file_lines: list[str]) -> dict[int, int]:
+    """
+    Parse the A->H normal mode equivalency table from a full output file.
+
+    CFOUR numbering most likely matches H numbering
+    """
+    h_vals = []
+    a_vals = []
+    inside = False
+    for line in file_lines:
+        stripped = line.strip()
+        if "The connection between this new numbering" in stripped:
+            inside = True
+            continue
+        if inside:
+            if stripped.startswith("(H)"):
+                h_vals.extend(int(x) for x in stripped.split("|")[1:] if x.strip())
+            elif stripped.startswith("(A)"):
+                a_vals.extend(int(x) for x in stripped.split("|")[1:] if x.strip())
+            elif stripped.startswith("Normal modes will be READ"):
+                break
+    return dict(zip(a_vals, h_vals))
