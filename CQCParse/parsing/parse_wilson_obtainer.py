@@ -5,6 +5,7 @@ def parse_from_source(requested_data: dict,
                       base_file_loc: str,
                       lvl_theory: str = '',
                       basis_set: str = '',
+                      reindex_modes: bool = False,
                       linear: bool = False) -> dict[str, Any]:
     """
     VALUES MUST BE IN ATOMIC UNITS
@@ -12,6 +13,37 @@ def parse_from_source(requested_data: dict,
     if source_type == 'gaussian':
         results_dict = parse_gaussian16_output(requested_data=requested_data, 
                                                log_file=base_file_loc)
+        
+        # reindexing if requested
+        if reindex_modes:
+            from CQCParse.relay.modes_reindexing import reindex_tensor, build_permutation, validate_mapping, reindex_dict
+            """
+            'normal_modes' -- already in H numbering
+            'modes_mapping' -- contains mapping A to H
+            Need to reindex:
+             'anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval'  -- dicts
+             'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc' -- tensors
+            """
+            validate_mapping(results_dict['modes_mapping'], len(results_dict['normal_modes']))
+
+            perm = build_permutation(results_dict['modes_mapping'], nmodes=len(results_dict['normal_modes']))
+
+            for key in ['coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc']:
+                
+                if key == 'coriolis':
+                    results_dict[key] = reindex_tensor(results_dict[key], perm, [1,2])
+                elif 'grad' in key:
+                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0])
+                elif 'hess' in key:
+                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1])
+                elif 'cff' in key:
+                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2])
+                elif 'qff' in key:
+                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2,3])
+            
+            for key in ['anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval']:
+                results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
+
         return results_dict
     
     elif source_type == 'cfour':
