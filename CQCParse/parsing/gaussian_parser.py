@@ -92,8 +92,8 @@ class GaussianParser(Parser):
         alpha = getPolarDers_au(self._log_lines)
 
         cubic_df = parse_cubic_constants(self._log_lines)[0]
-        cubic_rcm = cubic_df[['I', 'J', 'K', 'FI(I,J,K)']].to_numpy()
-        cubic = cubic_df[['I', 'J', 'K', 'K(I,J,K)']].to_numpy()
+        cubic_rcm = cubic_df[['I', 'J', 'K', 'FI(I,J,K)']].to_numpy() # cm-1
+        cubic = cubic_df[['I', 'J', 'K', 'K(I,J,K)']].to_numpy() # [Hartree*amu(-3/2)*Bohr(-3)]
 
         quartic_df = parse_quartic_constants(self._log_lines)[0]
         quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy()

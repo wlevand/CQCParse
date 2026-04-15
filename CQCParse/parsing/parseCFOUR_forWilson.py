@@ -51,12 +51,12 @@ class CFOURdataParser:
 
     {'source': 'cfour', 'type': 'out',
     'files': {'mol_code': 'FORM', 'method': 'CCSDT', 'basis': 'cc_pVQZ',
-    'out': '/mnt/c/Users/vle014/OneDrive - UiT Office 365/Documents/files_fram/refinedc4/FORM/CCSDTcc_pVQZ/out',
-    'cubic': '/mnt/c/Users/vle014/OneDrive - UiT Office 365/Documents/files_fram/refinedc4/FORM/CCSDTcc_pVQZ/cubic',
-    'dipolexyz': '/mnt/c/Users/vle014/OneDrive - UiT Office 365/Documents/files_fram/refinedc4/FORM/CCSDTcc_pVQZ/dipole',
-    'polar': '/mnt/c/Users/vle014/OneDrive - UiT Office 365/Documents/files_fram/refinedc4/FORM/CCSDTcc_pVQZ/polar.pkl',
-    'out_anharm_final': '/mnt/c/Users/vle014/OneDrive - UiT Office 365/Documents/files_fram/refinedc4/FORM/CCSDTcc_pVQZ/out',
-    'polar_pkl': '/mnt/c/Users/vle014/OneDrive - UiT Office 365/Documents/files_fram/refinedc4/FORM/CCSDTcc_pVQZ/polar.pkl'
+    'out': 'out',
+    'cubic': 'cubic',
+    'dipolexyz': 'dipole',
+    'polar': 'polar.pkl',
+    'out_anharm_final': 'out',
+    'polar_pkl': 'polar.pkl'
     }}
     """
     def __init__(self, all_files_dict: dict = None):
@@ -66,9 +66,6 @@ class CFOURdataParser:
         else:
             self.all_files_dict = all_files_dict
 
-        # {'outfile_anharm_start', 'out_anharm_end', 'molden', 'dipolexyz',
-        #  'normco', 'quadrature', 'polar', 'dipder', 'dipol', 'cubic', 'fcmfinal'
-        #  ''}
         self.nModesStart = None
         
         files = self.all_files_dict.get('files')
@@ -124,16 +121,12 @@ class CFOURdataParser:
                                 getRotationMatrix, pTensor),
                                 pklPolder
         """
-        # {'outfile_anharm_start', 'out_anharm_final', 'molden', 'dipolexyz',
-        #  'normco', 'quadrature', 'polar', 'dipder', 'dipol', 'cubic', 'fcmfinal'
-        #  ''}
+
         self.nModesStart = 6 if linear_molecule else 7
 
         # geometry_data, atoms, normal_modes_dict
         d = pMOLDEN(self.all_files_dict['files']['molden'])
-        # self.get_normal_modes = {k-self.nModesStart: v.flatten()*bohr_in_angstroms for k, v in d[-1].items() if k>=self.nModesStart}
         self.normal_modes = {k-self.nModesStart: v.flatten() for k, v in d[-1].items() if k>=self.nModesStart}
-        # self.elements, self.coords = d[1], d[0]*bohr_in_angstroms
         self.elements, self.coords = d[1], d[0]
         self.number_atoms = len(d[1])
 
@@ -183,7 +176,7 @@ class CFOURdataParser:
         
 
 
-def parse_coriolis(file_path: str, nModes: int, startmode: int)-> [np.ndarray, np.ndarray]:
+def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarray, np.ndarray]:
     """
     lines: list[str]
 
@@ -252,7 +245,7 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> [np.ndarray, n
 
     return rotational_constant, coriolis_constant
 
-# used for things
+
 def parse_output_file(filepath: str):
     """
     Parsing the out file - output of the anharmonic parallel procedure
@@ -348,8 +341,6 @@ def get_detected_resonances_c4(filepath: str):
         file_content = file.read()
 
     if "Thresholds for removing resonance denominators:" in file_content:
-        # with open(filepath, 'r') as file:
-        #     file_lines = file.readlines()
         found_resonances_str = []
         for line in file_content:
             if 'Resonance between' in line and 'combination' in line:
@@ -504,13 +495,14 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
     :return:  dmudqarray - first order derivatives of dipole moment, (3N-6, 3)
               dmudqdarray - second order derivatives of dipole moment, (3N-6, 3N-6, 3)
     """
+    last_part = filenamebase.split('/')[-1]
+
+    if last_part in ['dipolex', 'dipoley', 'dipolez']:
+        filenamebase = filenamebase[:-1]
+    
     dipx = pDipole(filenamebase+'x')
     dipy = pDipole(filenamebase+'y')
     dipz = pDipole(filenamebase+'z')
-    # dipx
-    # {7: 0.0097191434, (7, 9): -0.0024929592, (7, 10): 0.0068563719,
-    # (7, 11): 0.0006583914, (9, 7): -0.0024929355,
-    # (11, 11, 7): -0.0004000706, (12, 12, 7): -0.0007561331}
 
     dq = len(labels)
     dmudq_array = np.zeros((dq, 3))
@@ -546,11 +538,32 @@ def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int, f
     firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
     w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
     matrix_2d = np.outer(w_h, w_h)
-    # prefac_3d = w_h[:, np.newaxis, np.newaxis] * w_h[np.newaxis, :, np.newaxis] * w_h[np.newaxis,
-    #                                                                                    np.newaxis, :]
+
     sqrtvec = 1. / np.sqrt(w_h)
     sqrtmat = 1. / np.sqrt(matrix_2d.T)
-    # sqrt3d = 1. / np.sqrt(prefac_3d.T)
+
+    firstder_mat = np.zeros_like(firstder)
+    for i in range(len(sqrtvec)):
+        for j in range(3):
+            firstder_mat[i, j] = firstder[i, j] / sqrtvec[i]
+
+    secder_mat = np.zeros_like(secder)
+    for i in range(len(sqrtvec)):
+        for j in range(len(sqrtvec)):
+            for k in range(3):
+                secder_mat[i, j, k] = secder[i, j, k] / sqrtmat[i, j]
+
+    return tuple([firstder_mat, secder_mat])
+
+
+def getDipoleDers_anharm_au_simple(filenamebase: str, labels: list, nModesStart: int, 
+                                   fund_harmonic_energies_array: list | np.ndarray) -> tuple:
+    firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
+    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
+    matrix_2d = np.outer(w_h, w_h)
+    
+    sqrtvec = 1. / np.sqrt(w_h)
+    sqrtmat = 1. / np.sqrt(matrix_2d.T)
 
     firstder_mat = np.zeros_like(firstder)
     for i in range(len(sqrtvec)):
@@ -592,9 +605,6 @@ def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
     sdpol = np.zeros_like(polhess)
     for i in range(len(sqrtvec)):
         for j in range(len(sqrtvec)):
-            # with open('./secPolder', 'a') as file1:
-            #     file1.write(f'\n=============================={i} {j}\n{sqrtmat[i, j]}\n')
-            #     file1.writelines(str(polhess[i, j, :, :]))
 
             for k in range(3):
                 for L in range(3):
@@ -602,6 +612,39 @@ def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
 
     return tuple([fdpol, sdpol])
 
+
+def getPolarDers_pkl_au_simple(polar_pkl_file: str, fund_harmonic_energies_array: np.ndarray | list):
+    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
+    matrix_2d = np.outer(w_h, w_h)
+    sqrtvec = 1. / np.sqrt(w_h)
+    sqrtmat = 1. / np.sqrt(matrix_2d.T)
+
+    with open(polar_pkl_file, 'rb') as file:
+        alpha = pickle.load(file)
+    polgrad = alpha[0]
+    polhess = alpha[1]
+
+    logger.debug('polgrad')
+    logger.debug(polgrad)
+
+    logger.debug('polhess')
+    logger.debug(polhess)
+
+    fdpol = np.zeros_like(polgrad)
+    for i in range(len(sqrtvec)):
+        for j in range(3):
+            for k in range(3):
+                fdpol[i, j, k] = polgrad[i, j, k] / sqrtvec[i]
+
+    sdpol = np.zeros_like(polhess)
+    for i in range(len(sqrtvec)):
+        for j in range(len(sqrtvec)):
+
+            for k in range(3):
+                for L in range(3):
+                    sdpol[i, j, k, L] = polhess[i, j, k, L] / sqrtmat[i, j]
+
+    return tuple([fdpol, sdpol])
 
 # used
 def getDisplacementsPolarData(polar_dir: str, raw: bool = False):
@@ -646,7 +689,6 @@ def getPolarDers(polar_dir: str):
     :param polar_dir: where optimization was done
     :return:
     """
-    # base_dir = 'equil/displacements'
 
     data = getDisplacementsPolarData(polar_dir)
     data['equil'] = pTensor(polar_dir + '/../anharm/POLAR')
@@ -748,8 +790,6 @@ def pklPoldata(polar_dir):
 # used for polarizability calculations (in pklDimless_normal_modes,)
 def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """Dimensionless normal coordinates are here, in QUADRATURE file"""
-    # with open(filepath, 'r') as file:
-    #     lines = file.readlines()
 
     current_frequency = None
     current_matrix = []
@@ -794,7 +834,6 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.nd
     # The last matrix read is the undisplaced matrix
     if current_matrix:
         undisplaced_matrix = current_matrix
-    # normal_coordinates = np.vstack(dqMat).T
 
     normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat))
     return np.array(undisplaced_matrix), freqs, normal_coordinates
