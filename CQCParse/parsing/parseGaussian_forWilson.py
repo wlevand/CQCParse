@@ -13,7 +13,6 @@
 from CQCParse.debug import debugfunc
 from scipy import constants
 import numpy as np
-# np.set_printoptions(linewidth=250, suppress=True, precision=3)
 import sys
 
 import logging
@@ -40,16 +39,6 @@ class GaussianDataParser(object):
             # will make self.all_files_dict and execute some logic
             self.addFilesDict(all_files_dict=all_files_dict)
         
-        # # 'log', 'fchk', 'com' - files types
-        # if 'log' in self.all_files_dict['files']:
-        #     # saving filename in 'fname' because 'log' will contain list of lines instead of the filename
-        #     self.all_files_dict['files']['fname'] = self.all_files_dict['files']['log']
-
-        # for filetype in self.all_files_dict['files']:
-        #     if filetype=='log':
-        #         with open(self.all_files_dict['files']['log'], 'r') as file:
-        #             self.all_files_dict['files']['log'] = [i.strip() for i in file.readlines()]
-
         self.nModesStart = None
 
         files = self.all_files_dict.get('files')
@@ -135,7 +124,6 @@ class GaussianDataParser(object):
                                 getRotationMatrix, pTensor),
                                 pklPolder
         """
-        # {'log', 'fchk', 'com'}
         self.nModesStart = 6 if linear_molecule else 7
 
         results_log = parse_frequencies(self.all_files_dict['files']['log'])
@@ -147,7 +135,6 @@ class GaussianDataParser(object):
                                                                                results_log['Fundamental Bands'][2])}
         self.fundamentals_harmonic_int = {int(k)-1: float(v) for k, v in zip(results_log['Fundamental Bands']['mode_a'],
                                                                              results_log['Fundamental Bands'][1])}
-        # logger.warning(f"self.fundamentals_anharmonic_int: {self.fundamentals_anharmonic_int}")
 
         self.nmodes = len(self.fundamentals_harmonic_int)
 
@@ -197,8 +184,6 @@ class GaussianDataParser(object):
 
         self.Xmatrices = parse_anharmonic_x_matrix(self.all_files_dict['files']['log'])
 
-        # modes = get_normal_modes(self.all_files_dict['files']['fname'], self.number_atoms)
-        # rmodes = reordered_modes(self.all_files_dict['files']['fname'])
         modes = get_normal_modes(self.all_files_dict['files']['fname'], self.number_atoms)
         rmodes = reordered_modes(self.all_files_dict['files']['fname'])
         self.normal_modes = {}
@@ -244,6 +229,19 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
             else:
                 continue
 
+        if "Rotational Constants (in cm^-1)" in line:
+            # The Ae line is 3 lines after the header
+            ae_line = lines[i + 3]
+            be_line = lines[i + 4]
+            ce_line = lines[i + 5]
+            
+            # Extract the equilibrium values (first column after the label)
+            ae = float(ae_line.strip().split('=')[1].strip().split()[0])
+            be = float(be_line.strip().split('=')[1].strip().split()[0])
+            ce = float(ce_line.strip().split('=')[1].strip().split()[0])
+
+            rotational_constant = [ae, be, ce]
+
         rotconst_str = 'equilibrium (e), ground vibr.state (00), and 00 + centr. dist.(0)'
 
         if rotconst_str in line and len(rotational_constant)<3:
@@ -275,7 +273,7 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
                 next_line = lines[i+1]
                 if 'Equilibrium Geometry' not in next_line:
                     raise ValueError("Cannot get rotational constant at Equilibrium Geometry from file")
-                rot_vals = [float(i) for i in next_line.split()[2:]]
+                # rot_vals = [float(i) for i in next_line.split()[2:]]
                 break
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
@@ -363,7 +361,6 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
                 if (current_section == 'Combination Bands' and '==========================' in line) or (current_section == 'Overtones' and 'Dipole strengths (DS) in' in line):
                     break
     
-    # print(results['Combination Bands'])
     print('\nresults', results)
 
     results_dataframes = {}
@@ -375,7 +372,6 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
             results_dataframes[section] = pd.DataFrame(data[2:-1])
         results_dataframes[section].dropna(axis = 0, how = 'all', inplace = True)
         
-        # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
 
         if target_line_anhram == primary_line:
             index_num = 0
@@ -387,9 +383,6 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
             # elif len(results_dataframes[section].columns) == 8:
             #     index_num = 1
 
-        # logger.warning(f"section: {section}")
-        # logger.warning(f"results_dataframes: {results_dataframes}")
-        # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
         try:
             print(results_dataframes[section])
             print('section', section)
@@ -409,8 +402,6 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
         results_dataframes[section].insert(2, 'n_a', sub_numbers)
         results_dataframes[section].drop(results_dataframes[section].columns[0], axis=1, inplace=True)
 
-
-
         if section=='Combination Bands':
 
             main_numbers_c = [int(i.split('(')[0]) if '(' in i else None for i in results_dataframes[section][2]]
@@ -424,9 +415,6 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
                     # Set column 2 to None
                     results_dataframes[section].loc[i, 2] = None
 
-            # logger.warning(f"Processing Combination Bands section: {section}")
-            # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
-
             main_numbers = [int(i.split('(')[0]) for i in results_dataframes[section][1]]
             sub_numbers = [int(i[:-1].split('(')[1]) for i in results_dataframes[section][1]]
 
@@ -434,11 +422,6 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
             results_dataframes[section].insert(4, 'n_b', sub_numbers)
             results_dataframes[section].drop(results_dataframes[section].columns[2], axis=1, inplace=True)
 
-            # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
-
-
-            # logger.warning(f"main_numbers: {main_numbers}")
-            # logger.warning(f"sub_numbers: {sub_numbers}")
             results_dataframes[section].insert(5, 'mode_c', main_numbers_c)
             results_dataframes[section].insert(6, 'n_c', sub_numbers_c)
             
@@ -447,9 +430,6 @@ def parse_frequencies(lines: list[str]) -> dict[str: pd.DataFrame]:
             pd.set_option('display.width', 1000)
          
             results_dataframes[section].drop(results_dataframes[section].columns[4], axis=1, inplace=True)
-            # logger.warning(f"results_dataframes[section]: \n{results_dataframes[section]}")
-
-    # logger.warning(f"results_dataframes: \n{results_dataframes}")
 
     return results_dataframes
 
@@ -568,7 +548,6 @@ def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = Fa
     """results is a DataFrame from parse_frequencies()"""
     results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
     results['Combination Bands']['n_c'] = results['Combination Bands']['n_c'].fillna(0)
-    # print(results['Combination Bands'])
 
     if anharmonic:
         results['Combination Bands']['mode_c'] = results['Combination Bands']['mode_c'].fillna(0)
@@ -593,7 +572,6 @@ def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = Fa
                 results['Combination Bands']['n_b'], results['Combination Bands']['n_c'])
         }
         allstates_anharm = {**funddict, **states, **combinationbands}
-        # allstates_anharm = {key: allstates_anharm[key] for key in sorted(allstates_anharm, key=allstates_anharm.get)}
         return allstates_anharm
 
     else:
@@ -601,9 +579,6 @@ def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = Fa
                      zip(results['Fundamental Bands']['mode_a'], results['Fundamental Bands'][1])}
         states1 = {tuple(sorted([int(t)-1] * int(n))): float(v) for t, v, n in
                    zip(results['Overtones']['mode_a'], results['Overtones'][1], results['Overtones']['n_a'])}
-        
-        # print(results['Combination Bands']['mode_a'], results['Combination Bands']['mode_b'],
-        #         results['Combination Bands']['mode_c'])
         
         combinationbands1 = {
             tuple(
@@ -621,19 +596,13 @@ def get_allStates_fromParsedResults(results: pd.DataFrame, anharmonic: bool = Fa
 
 def get_detected_resonances_g16(file_content: list[str]) -> list[str]:
 
-    # with open(filepath, 'r') as file:
-    #     file_content = file.read()
-
     if "Resonance Analysis" in file_content:
-        # with open(filepath, 'r') as file:
-        #     file_lines = file.readlines()
         file_lines = file_content
         found_resonances_str = []
         inFR = False
         for line in file_lines:
             if 'I      J  +   K' in line:
                 inFR = True
-                # col_names = line.strip().split()
                 found_resonances_str.append(line)
             if 'Active Fermi resonances' in line:
                 number_of_FR = int(line.strip().split()[0])
@@ -722,8 +691,6 @@ def getPolarDers_au(logfile: list[str]) -> tuple:
 
 # used in retrievedata.py
 def parse_cubic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:
-    # with open(file_path, 'r') as file:
-    #     lines = file.readlines()
 
     results = []
     start = False
@@ -788,10 +755,6 @@ def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
         j = int(fijk[1]) -1
         k = int(fijk[2]) -1
         d = np.float64(fijk[3])
-
-        # logger.warning(f"K3: {K3}")
-        # logger.warning(f"fijk: {fijk}, i: {i}, j: {j}, k: {k}, d: {d}")
-        # logger.warning(f"K3 shape: {K3.shape}")
 
         K3[i, j, k] = d
         K3[i, k, j] = d
@@ -1112,11 +1075,6 @@ def nm_matrix_check(referenceFile, currentFile, Na, phase_change=False):
             if phase_change:
                 ref *= -1
 
-            #if i==14 and j==12:  # i from ref ; j from curr
-                #print(ref)
-                #print(curr)
-
-
             mtx[i][j] = np.dot(ref.flatten(), currentNMs[j]) / \
                         np.linalg.norm(ref.flatten())/np.linalg.norm(currentNMs[j])
 
@@ -1141,8 +1099,6 @@ def nm_matrix_check(referenceFile, currentFile, Na, phase_change=False):
     else:
         print("Incomplete")   # if the order number was not identified for every normal mode
         print()
-        # df = pd.DataFrame(mtx)
-        # print(df)
         return mtx, new_new, False
 
 def reordered_modes(filepath):
@@ -1408,3 +1364,26 @@ def parse_anharmonic_x_matrix(file_lines):
     result['matrix_size'] = result['total_anharmonic'].shape
     
     return result
+
+def parse_mode_mapping(file_lines: list[str]) -> dict[int, int]:
+    """
+    Parse the A->H normal mode equivalency table from a full output file.
+
+    CFOUR numbering most likely matches H numbering
+    """
+    h_vals = []
+    a_vals = []
+    inside = False
+    for line in file_lines:
+        stripped = line.strip()
+        if "The connection between this new numbering" in stripped:
+            inside = True
+            continue
+        if inside:
+            if stripped.startswith("(H)"):
+                h_vals.extend(int(x) for x in stripped.split("|")[1:] if x.strip())
+            elif stripped.startswith("(A)"):
+                a_vals.extend(int(x) for x in stripped.split("|")[1:] if x.strip())
+            elif stripped.startswith("Normal modes will be READ"):
+                break
+    return dict(zip(a_vals, h_vals))
