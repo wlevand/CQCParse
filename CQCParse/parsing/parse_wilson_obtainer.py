@@ -3,6 +3,8 @@ from typing import Any
 def parse_from_source(requested_data: dict, 
                       source_type: str, 
                       base_file_loc: str,
+                      lvl_theory: str,
+                      basis_set: str,
                       reindex_modes: bool = False,
                       linear: bool = False) -> dict[str, Any]:
     """
