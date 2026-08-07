@@ -13,6 +13,7 @@ def parse_from_source(requested_data: dict,
     returns a dict like requested_data dict, with values as data parsed from outputs
     """
     if source_type == 'gaussian':
+
         results_dict = parse_gaussian16_output(requested_data=requested_data, 
                                                log_file=base_file_loc)
         
@@ -26,6 +27,7 @@ def parse_from_source(requested_data: dict,
              'anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval'  -- dicts
              'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc' -- tensors
             """
+            # results_dict needs to have `modes_mapping` key
             validate_mapping(results_dict['modes_mapping'], len(results_dict['normal_modes']))
 
             perm = build_permutation(results_dict['modes_mapping'], nmodes=len(results_dict['normal_modes']))
@@ -44,7 +46,8 @@ def parse_from_source(requested_data: dict,
                     results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2,3])
             
             for key in ['anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval']:
-                results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
+                if key in results_dict:
+                    results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
 
             results_dict['reindex_modes'] = True
         else:
@@ -88,7 +91,8 @@ def parse_gaussian16_output(requested_data: dict,
     with open(log_file, 'r') as file:
         log_lines = [i.strip() for i in file.readlines()]
 
-    if 'equilibrium_geometry' or 'atoms' in requested_data:
+    if any(k in requested_data for k in ('equilibrium_geometry', 'atoms')): 
+    
         from .parseGaussian_forWilson import get_equil_geo
         try:
             atoms, equilibrium_geometry = get_equil_geo(log_lines)
@@ -103,8 +107,15 @@ def parse_gaussian16_output(requested_data: dict,
             raise ValueError("smth went wrong")
 
     if 'normal_modes' in requested_data:
-        from .parseGaussian_forWilson import get_normal_modes
+        from .parseGaussian_forWilson import get_normal_modes, get_equil_geo
+
+        if 'atoms' not in results:
+            atoms, _ = get_equil_geo(log_lines)
+        else:
+            atoms = results['atoms']
+
         try:
+            # FIXME: `atoms` mayb not be defined at this point
             nmodes = get_normal_modes(filename=log_file, Na=len(atoms))
             nmodes = {i: nm for i, nm in enumerate(nmodes)}
             results['normal_modes'] = nmodes
@@ -113,7 +124,8 @@ def parse_gaussian16_output(requested_data: dict,
             print('Failed at "normal_modes" with:', e)
             raise ValueError("smth went wrong")
     
-    if 'anharmonic_states' or 'harmonic_states' or 'nc_sqrt_eigval' in requested_data:
+    if any(k in requested_data for k in ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval')): 
+    
         from .parseGaussian_forWilson import parse_frequencies
         try:
             from .parse_g16_freqs import parse_frequencies, get_allStates_from_parsed_freqs
@@ -135,7 +147,8 @@ def parse_gaussian16_output(requested_data: dict,
                 print('Failed at "anharmonic_states" with:', e)
                 raise ValueError("smth went wrong")
             
-        if 'harmonic_states' or 'nc_sqrt_eigval' in requested_data:
+        if any(k in requested_data for k in ('harmonic_states', 'nc_sqrt_eigval')): 
+        
             try:
                 harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
                 results['harmonic_states'] = harmonic_states
@@ -148,7 +161,8 @@ def parse_gaussian16_output(requested_data: dict,
                 print('Failed at "harmonic_states/nc_sqrt_eigval" with:', e)
                 raise ValueError("smth went wrong")
 
-    if 'B' or 'coriolis' in requested_data:
+    if any(k in requested_data for k in ('B', 'coriolis')): 
+        from .parseGaussian_forWilson import get_equil_geo
         linear = False
         if 'atoms' not in results:
             atoms, _ = get_equil_geo(log_lines)
@@ -166,7 +180,8 @@ def parse_gaussian16_output(requested_data: dict,
         if 'coriolis' in requested_data:
             results['coriolis'] = coriolis_constant
     
-    if 'dipgrad' or 'diphess' in requested_data:
+    if any(k in requested_data for k in ('dipgrad', 'diphess')):
+
         from .parseGaussian_forWilson import getDipDers_au
         mu = getDipDers_au(log_lines)
 
@@ -175,7 +190,8 @@ def parse_gaussian16_output(requested_data: dict,
         if 'diphess' in requested_data:
             results['diphess'] = mu[1]
                 
-    if 'polgrad' or 'polhess' in requested_data:
+    if any(k in requested_data for k in ('polgrad', 'polhess')):
+    
         from .parseGaussian_forWilson import getPolarDers_au
         alpha = getPolarDers_au(log_lines)
         
