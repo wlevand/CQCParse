@@ -1,11 +1,14 @@
 from CQCParse.parsing.gaussian_parser import GaussianParser, GaussianOutput
 from CQCParse.parsing.parseGaussian_forWilson import parse_coriolis
 from CQCParse import debug
+from CQCParse.utils import PKG_ROOT
+
+G16_DIR = PKG_ROOT + '/CQCParse/files_examples/dftGaussian'
 
 def test_GaussianDataParser():
     debug.level = 0
 
-    log_file = '/home/vlev/Wilson/tests/test_database/dftGaussian/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out'
+    log_file = G16_DIR + '/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out'
 
     parserGaussian = GaussianParser(GaussianOutput('ACAC', 'B3LYP', 'cc_pVQZ', 'gaussian', log_file))
     print('\n', [i for i in dir(parserGaussian) if not i.startswith('_')])
@@ -35,8 +38,7 @@ def test_GaussianDataParser():
 
 
 def test_parse_coriolis():
-    # fixme: copy this file to CQCParse repo
-    log_file = '/home/vlev/Wilson/tests/test_database/dftGaussian/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out'
+    log_file = G16_DIR + '/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out'
     with open(log_file, 'r') as file:
         log_lines = [i.strip() for i in file.readlines()]
     nmodes = 18
@@ -47,7 +49,7 @@ def test_parse_coriolis():
 
 def test_parse_mode_mapping():
     from CQCParse.parsing.parseGaussian_forWilson import parse_mode_mapping
-    log_file = '/home/vlev/wilson-suite/CQCParse/CQCParse/files_examples/dftGaussian/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out'
+    log_file = G16_DIR + '/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out'
     with open(log_file, 'r') as file:
         log_lines = [i.strip() for i in file.readlines()]
     
@@ -55,7 +57,7 @@ def test_parse_mode_mapping():
     print(r)
     assert r == {4: 1, 6: 2, 3: 3, 2: 4, 1: 5, 5: 6}
 
-    lfile = '/home/vlev/wilson-suite/CQCParse/CQCParse/files_examples/dftGaussian/ACDM/B3LYPcc_pVQZ/g16_b3lyp_corr_inputFull_3q.out'
+    lfile = G16_DIR + '/ACDM/B3LYPcc_pVQZ/g16_b3lyp_corr_inputFull_3q.out'
 
     with open(lfile, 'r') as file:
         log_lines_1 = [i.strip() for i in file.readlines()]
