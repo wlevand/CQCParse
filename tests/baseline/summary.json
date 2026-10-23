@@ -163,6 +163,33 @@
     },
     "errors": {}
   },
+  "g16_FORM_HF_cc-pVTZ": {
+    "source_type": "gaussian",
+    "file": "dftGaussian/FORM/HFcc_pVTZ/g16_inputFull_3q.out",
+    "lvl_theory": "HF",
+    "basis_set": "cc-pVTZ",
+    "returned": {
+      "equilibrium_geometry": "ndarray float64 (4, 3)",
+      "atoms": "list, 4 items",
+      "normal_modes": "dict, 6 entries of shape (12,)",
+      "anharmonic_states": "dict, 83 entries",
+      "harmonic_states": "dict, 83 entries",
+      "nc_sqrt_eigval": "dict, 6 entries",
+      "B": "ndarray float64 (3,)",
+      "coriolis": "ndarray float64 (3, 6, 6)",
+      "dipgrad": "ndarray float64 (6, 3)",
+      "diphess": "ndarray float64 (6, 6, 3)",
+      "polgrad": "ndarray float64 (6, 3, 3)",
+      "polhess": "ndarray float64 (6, 6, 3, 3)",
+      "cff": "ndarray float64 (6, 6, 6)",
+      "cff_rc": "ndarray float64 (6, 6, 6)",
+      "qff": "ndarray float64 (6, 6, 6, 6)",
+      "qff_rc": "ndarray float64 (6, 6, 6, 6)",
+      "modes_mapping": "dict, 6 entries",
+      "reindex_modes": "bool False"
+    },
+    "errors": {}
+  },
   "c4_FORM_CCSDT_cc-pVQZ": {
     "source_type": "cfour",
     "file": "refinedc4/CCSDTcc_pVQZ",
@@ -213,6 +240,31 @@
       "qff_rc": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
       "modes_mapping": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'"
     }
+  },
+  "c4_FORM_HF_cc-pVTZ": {
+    "source_type": "cfour",
+    "file": "refinedc4/HFcc_pVTZ",
+    "lvl_theory": "HF",
+    "basis_set": "cc-pVTZ",
+    "returned": {
+      "equilibrium_geometry": "ndarray float64 (4, 3)",
+      "atoms": "ndarray <U1 (4,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
+      "anharmonic_states": "dict, 83 entries",
+      "harmonic_states": "dict, 83 entries",
+      "nc_sqrt_eigval": "dict, 6 entries",
+      "B": "ndarray float64 (3,)",
+      "coriolis": "ndarray float64 (3, 6, 6)",
+      "cff": "ndarray float64 (6, 6, 6)",
+      "cff_rc": "ndarray float64 (6, 6, 6)",
+      "qff": "ndarray float64 (6, 6, 6, 6)",
+      "qff_rc": "ndarray float64 (6, 6, 6, 6)",
+      "dipgrad": "ndarray float64 (6, 3)",
+      "diphess": "ndarray float64 (6, 6, 3)",
+      "polgrad": "ndarray float64 (6, 3, 3)",
+      "polhess": "ndarray float64 (6, 6, 3, 3)"
+    },
+    "errors": {}
   },
   "c4_FORM_HF_cc-pVDZ": {
     "source_type": "cfour",

@@ -34,8 +34,10 @@ SOURCES = {
     'g16_FORM_B3LYP_cc-pVDZ':  ('gaussian', 'dftGaussian/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out', 'B3LYP', 'cc-pVDZ'),
     'g16_FORM_B3LYP_cc-pVQZ':  ('gaussian', 'dftGaussian/FORM/B3LYPcc_pVQZ/g16_inputFull_3q.out', 'B3LYP', 'cc-pVQZ'),
     'g16_FORM_HF_cc-pVQZ':     ('gaussian', 'dftGaussian/FORM/HFcc_pVQZ/g16_inputFull_3q.out', 'HF', 'cc-pVQZ'),
+    'g16_FORM_HF_cc-pVTZ':     ('gaussian', 'dftGaussian/FORM/HFcc_pVTZ/g16_inputFull_3q.out', 'HF', 'cc-pVTZ'),
     'c4_FORM_CCSDT_cc-pVQZ':   ('cfour', 'refinedc4/CCSDTcc_pVQZ', 'CCSD(T)', 'cc-pVQZ'),
     'c4_FORM_HF_cc-pVQZ':      ('cfour', 'refinedc4/HFcc_pVQZ', 'HF', 'cc-pVQZ'),
+    'c4_FORM_HF_cc-pVTZ':      ('cfour', 'refinedc4/HFcc_pVTZ', 'HF', 'cc-pVTZ'),
     'c4_FORM_HF_cc-pVDZ':      ('cfour', 'refinedc4/HFcc_pVDZ', 'HF', 'cc-pVDZ'),
 }
 

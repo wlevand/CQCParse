@@ -1,31 +1,60 @@
 CQCParse — TODO
 updated 2026-10-23, branch cleanup_claude (starts at main, 4e16cf4)
-CQCParse reads Gaussian 16 and CFOUR output files and returns one data dict. wilson reads it only through
-parse_from_source (CQCParse/parsing/parse_wilson_obtainer.py), called by wilson_data_obtainer.
-wilson's own list is in wilson_gv, branch rsp_eval_refactor: src/wilson_suite/wilson_system/todo.txt. Its items
-are named here with "wilson", e.g. wilson G8; there, CQCParse items are tagged [outside].
-Numbers below were measured in October 2026, with wilson_gv's rsp_eval_refactor branch as the caller.
+CQCParse reads Gaussian 16 and CFOUR output files and returns one dict of data.
+wilson (repo wilson_gv) gets the data only through parse_from_source (CQCParse/parsing/parse_wilson_obtainer.py).
+"wilson G8" = item G8 in wilson's own todo: wilson_gv, branch rsp_eval_refactor,
+src/wilson_suite/wilson_system/todo.txt. There, CQCParse items are tagged [outside].
+Numbers below were measured in October 2026.
 
-[wilson] = needs a change in wilson_gv too.
-[decide] = a physics choice (mode order, signs, axes). Make it and write it here before any code.
+Tags:
+    [wilson] = needs a change in wilson_gv too.
+    [decide] = a physics choice (mode order, signs, axes). Write the choice here before any code.
+
+
+What needs fixing, in order
+---------------------------
+Where things stand:
+    Gaussian reader: works for wilson today. All 7 Gaussian files pass wilson's checks; all 803 wilson tests pass.
+    CFOUR reader: wilson cannot use it yet (C1, C2, C3).
+    Normal modes: not ready (N). wilson does not ask for them today.
+
+One line per item. The full entry for each item is further down.
+
+Now, one small fix at a time. After each fix, run the tests and check the baseline (T2).
+    1. T4   New test: compare CFOUR and Gaussian results for the same molecule (formaldehyde, HF/cc-pVTZ).
+            Add HF/cc-pVQZ too once its MOLDEN file is found.
+    2. C1   CFOUR diphess: the two orders of a mode pair give different numbers. Fix: average them.
+            Blocks wilson G8. Fails in T3 now.
+    3. C2   CFOUR reads every file for every request. A folder with no MOLDEN file then fails on any request.
+            Blocks wilson G8. Fails in T3 now.
+    4. A1   cff_rc and qff_rc come back only when cff or qff is asked for. Blocks wilson S3.
+    5. A2   Gaussian crashes when B, coriolis, cff or qff is asked for without nc_sqrt_eigval.
+    6. A5   CFOUR returns no reindex_modes key. Gaussian does.
+    7. C3   CFOUR qff is about 570 times too large (wrong unit factor).
+    8. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
+
+Any time:
+    P1, P2  Two slow loops in the Gaussian reader, 2.2 s each.
+    L4      Small cleanups: dead files, unused functions, the user name in example files.
+
+Later:
+    L3      Rewrite the readers, CFOUR first. Only after all the fixes above: a rewrite now forces every [decide]
+            choice at once.
+    N1-N3   Normal modes: choose the mode order and the shape [decide], then fix the crashes. Before wilson G9.
+    A4      B for linear molecules: choose what B holds [decide]. Before wilson S3.
+    X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8.
+    A3      The names 'geo' and 'linear'. Only when wilson starts to read them.
+
+In wilson_gv, not in this repo:
+    L1      Delete two dead import lines. Needed now: wilson_gv fails to import with this branch.
+    L2      Fix or delete setup.sh.
 
 
 Tests (run 2026-10-23)
 ----------------------
-    pass 45, fail 0 (tests/, 45 tests, about 15 s; 9 are the baseline, T2). No CQCParse test imports wilson (T5).
+    pass 174, xfail 16, fail 0 (tests/, 190 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
+    xfail = a known failure, marked with its todo item (C1, C2). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
-
-
-Status (2026-10-23)
--------------------
-Gaussian: fits what wilson needs today. On rsp_eval_refactor, MolSystemData.load passes wilson's check_data_dict on
-all 7 Gaussian files (water, formaldehyde, CO, ACDM, FORM x2, ACAC); all 803 wilson tests pass.
-CFOUR: not usable by wilson yet (wilson G8): diphess is not symmetric (C1); HFcc_pVQZ has no MOLDEN file (C2);
-qff in au is wrong (C3).
-cff_rc and qff_rc cannot be asked for by name (A1; blocks wilson S3).
-Normal modes are not ready (N; wilson G9). wilson's load does not ask for them.
-Done on this branch: all tests pass (T1, T5); the legacy classes deleted (L1, CQCParse side).
-wilson_gv does not import with this branch until its next PR removes two dead import lines (L1).
 
 
 Rules
@@ -57,43 +86,17 @@ Rules
 - Physics choices are [decide] items. Write the choice here first, then code it.
 
 
-Order of work
--------------
-Fix first, rewrite later: most items are small fixes, and a rewrite now would force every [decide] choice at once.
-    first                   T3, T4
-    then                    C1, C2, A1, A2, A5, C3, C4 (each checked against T2)
-    any time                P1, P2, L4
-    after the fixes         L3 (rewrite: the CFOUR reader first, then Gaussian)
-    before wilson G9        N1 [decide] -> N2, N3
-    before wilson S3        A4 [decide], for linear molecules only
-    before wilson S8        X1 [decide]
-    next wilson PR          L1 (wilson side: needed now), L2
-    when wilson needs it    A3
-
-What unblocks wilson:
-    wilson G8   C1, C2 (and C3, if CFOUR qff is ever used)
-    wilson S3   A1 (and A4, for linear molecules)
-    wilson G9   N1, N2, N3
-    wilson S8   X1
-
-
 T. Tests and baseline
 ---------------------
-[ ] T3  Contract test, on every example file: the checks of wilson's check_data_dict, without importing wilson:
-            - nc_sqrt_eigval has keys 0 .. n-1
-            - every fundamental is in harmonic_states and anharmonic_states
-            - shapes: mode indices first, then x, y, z
-            - tensors symmetric in the mode indices (rtol 1e-12, atol 1e-18)
-            - the ground state, if there, is at 0
-        CFOUR diphess fails until C1: mark it xfail with the reason.
-[ ] T4  CFOUR vs Gaussian test: formaldehyde HF/cc-pVQZ in both (refinedc4/HFcc_pVQZ, dftGaussian/FORM/HFcc_pVQZ).
-        The only check here that does not assume CQCParse is right. Found by hand (October 2026):
+[ ] T4  CFOUR vs Gaussian test: formaldehyde HF/cc-pVTZ in both (refinedc4/HFcc_pVTZ, dftGaussian/FORM/HFcc_pVTZ).
+        The only check here that does not assume CQCParse is right.
+        Add HF/cc-pVQZ too once its CFOUR folder has a MOLDEN file.
+        Found by hand on HF/cc-pVQZ (October 2026):
             - harmonic frequencies agree to 0.1 cm-1, B to 1e-6
             - mode match: CFOUR's ascending order = Gaussian's H order (see N); modes 4 and 5 have the opposite
               sign (check whether 0- or 1-based); the y axis is flipped
             - after the match, dipgrad, polgrad, diphess, polhess, cff, cff_rc and qff_rc agree within 1.8e-4 of
               each tensor's largest value; qff does not (C3)
-        Needs C2, or call the CFOUR functions one by one (HFcc_pVQZ has no MOLDEN).
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
@@ -106,7 +109,7 @@ C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
         Fix: average the two orders; if the file has only one order, copy it to both. Unblocks wilson G8.
 [ ] C2  Always-true conditions. `if 'a' or 'b' in requested_data` is always True, so every call reads every file
         (parse_wilson_obtainer.py:278, 293, 302, 316, 346, 358). HFcc_pVQZ has no MOLDEN, so any request there
-        raises FileNotFoundError.
+        raises FileNotFoundError. Only MOLDEN is missing there; wilson's data needs none of it.
         Fix: any(k in requested_data for k in (...)), as in parse_gaussian16_output. Read MOLDEN only for
         equilibrium_geometry, atoms and normal_modes. Take the mode count for parse_coriolis (line 319, now from
         MOLDEN) from the harmonic frequencies. Every property that uses fundamentals_harmonic_int (lines 329-362)
@@ -215,6 +218,10 @@ L. Legacy code and the rewrite
             - README's "Key features" list is unfinished
             - parse_from_source requires lvl_theory and basis_set but does not use them (keep them: wilson passes
               them)
+            - example files hold the cluster user name and job paths: the 6 older Gaussian .out files, and
+              outfile0.out in refinedc4/CCSDTcc_pVQZ and refinedc4/HFcc_pVDZ. Replace the name with a placeholder
+              of the same length (as done for dftGaussian/FORM/HFcc_pVTZ), then check the baseline (T2).
+              Git history keeps the old text; removing it from there needs a history rewrite.
 
 
 Done
@@ -247,7 +254,8 @@ Done
         repo and checked absolute local paths). Gaussian case now B3LYP/cc-pVQZ (aug-cc-pVTZ is not in the repo).
         The test also checks that every path DataVault builds points at a real file.
     T2 (2026-10-23)  Baseline of parse_from_source: tests/test_baseline.py, data in tests/baseline/ (2.2 MB).
-        9 sources: the 6 Gaussian .out files and the 3 CFOUR folders in files_examples. Each is asked for every
+        9 sources: the 6 Gaussian .out files and the 3 CFOUR folders in files_examples (11 since the HF/cc-pVTZ
+        pair, see Examples below). Each is asked for every
         name a reader knows, in one request; names that fail are found one by one (with nc_sqrt_eigval,
         harmonic_states, anharmonic_states, as wilson asks) and their errors recorded.
         Saved: one <source>.npz (arrays; a dict as '<name>.keys' and '<name>.values') and summary.json (returned
@@ -257,3 +265,19 @@ Done
         `python tests/test_baseline.py` (rewrites only the .npz files whose arrays changed; about 90 s).
         Recorded today: normal_modes fails on ACAC and ACDM (N2); CO gives 0 normal modes and 2 values of B
         (N2, A4); every name fails on c4 HFcc_pVQZ, no MOLDEN (C2); CFOUR keys differ (A5).
+    T3 (2026-10-23)  Contract test: tests/test_contract.py. Runs wilson's data checks on every example source
+        (the baseline's list, T2), without importing wilson.
+        Result: 2 problems, both already in this list. Everything else passes, all Gaussian files included.
+            1. C1: diphess is not symmetric in CFOUR CCSDTcc_pVQZ, HFcc_pVTZ and HFcc_pVDZ.
+               Example: diphess[1,5,2] = 2.52302e-05, but diphess[5,1,2] = 2.52368e-05.
+            2. C2: CFOUR HFcc_pVQZ fails before any check runs. The folder has no MOLDEN file.
+        The 16 failing tests are marked xfail ("expected to fail"), so the test run stays green.
+        After C1 or C2 is fixed, its tests pass, and the run fails on purpose. Then delete the C1 or C2 line in
+        known_failures (tests/test_contract.py).
+        The checks: nc_sqrt_eigval has keys 0 .. n-1; every fundamental is in harmonic_states and
+        anharmonic_states; the ground state, if there, is at 0; each property has the shape (mode indices, then
+        x, y, z) and is symmetric in the mode indices (rtol 1e-12, atol 1e-18). Also cff_rc and qff_rc, which
+        wilson's own check skips.
+    Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
+        dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
+        contract test (T3).
