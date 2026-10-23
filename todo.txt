@@ -12,7 +12,7 @@ Numbers below were measured in October 2026, with wilson_gv's rsp_eval_refactor 
 
 Tests (run 2026-10-23)
 ----------------------
-    pass 36, fail 0 (tests/, 36 tests). No CQCParse test imports wilson (T5, see Done).
+    pass 45, fail 0 (tests/, 45 tests, about 15 s; 9 are the baseline, T2). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
 
@@ -60,8 +60,8 @@ Rules
 Order of work
 -------------
 Fix first, rewrite later: most items are small fixes, and a rewrite now would force every [decide] choice at once.
-    first                   T2 (baseline) -> T3, T4
-    then                    C1, C2, A1, A2, C3, C4 (each checked against T2)
+    first                   T3, T4
+    then                    C1, C2, A1, A2, A5, C3, C4 (each checked against T2)
     any time                P1, P2, L4
     after the fixes         L3 (rewrite: the CFOUR reader first, then Gaussian)
     before wilson G9        N1 [decide] -> N2, N3
@@ -79,12 +79,6 @@ What unblocks wilson:
 
 T. Tests and baseline
 ---------------------
-[ ] T2  Baseline: run the current parse_from_source on every example file with every property it can return, and
-        save each array (e.g. one .npz per file in tests/baseline/). Example files: 6 Gaussian .out (co, ACAC,
-        ACDM, FORM B3LYP cc-pVDZ, FORM B3LYP cc-pVQZ, FORM HF cc-pVQZ) and 3 CFOUR folders (refinedc4/CCSDTcc_pVQZ,
-        refinedc4/HFcc_pVQZ, refinedc4/HFcc_pVDZ). Where the current code fails (e.g. normal_modes on ACAC),
-        record the error.
-        The baseline holds today's bugs, so a difference is not an error by itself; each one needs a reason (Rules).
 [ ] T3  Contract test, on every example file: the checks of wilson's check_data_dict, without importing wilson:
             - nc_sqrt_eigval has keys 0 .. n-1
             - every fundamental is in harmonic_states and anharmonic_states
@@ -153,11 +147,15 @@ A. What parse_from_source returns
         takes 0 or 3 values and raises otherwise (vpt2.py:244-248). It matters in wilson S3 for linear molecules
         with 2 or more modes (CO has 1). Decide what B holds for a linear molecule, the same in both readers.
         Goes with C4.
+[ ] A5  Keys differ by reader (seen in tests/baseline/summary.json): the CFOUR reader returns no reindex_modes
+        (Gaussian always does; wilson's test_getting_data expects it) and no modes_mapping. Return reindex_modes
+        (False) from CFOUR too; modes_mapping: decide with N1.
 
 
 P. Speed
 --------
 A wilson load of ACDM takes about 5 s; about 90% of it is in two places. wilson's f2_speed.py measures this path.
+Here, ACDM is most of the baseline test's time (8.5 of 10 s, T2).
 [ ] P1  parse_section (parse_g16_freqs.py:41) checks for duplicates with `parsed not in result`, a list scan:
         2.2 s. Keep a set next to the list (the order stays).
 [ ] P2  getPolarDers_log (parseGaussian_forWilson.py:650-678) filters a pandas table inside a double loop: 2.2 s.
@@ -248,3 +246,14 @@ Done
     T1 (rest, 2026-10-23)  test_relay_data.py reads files_examples/calculations.csv (it read a CSV outside the
         repo and checked absolute local paths). Gaussian case now B3LYP/cc-pVQZ (aug-cc-pVTZ is not in the repo).
         The test also checks that every path DataVault builds points at a real file.
+    T2 (2026-10-23)  Baseline of parse_from_source: tests/test_baseline.py, data in tests/baseline/ (2.2 MB).
+        9 sources: the 6 Gaussian .out files and the 3 CFOUR folders in files_examples. Each is asked for every
+        name a reader knows, in one request; names that fail are found one by one (with nc_sqrt_eigval,
+        harmonic_states, anharmonic_states, as wilson asks) and their errors recorded.
+        Saved: one <source>.npz (arrays; a dict as '<name>.keys' and '<name>.values') and summary.json (returned
+        keys with type and shape, errors). The test compares to rtol 1e-12, atol 1e-18, and reports keys that
+        come or go, errors that come, and names that fail no more.
+        After a meant change: check each difference, give the reason in the commit message, then run
+        `python tests/test_baseline.py` (rewrites only the .npz files whose arrays changed; about 90 s).
+        Recorded today: normal_modes fails on ACAC and ACDM (N2); CO gives 0 normal modes and 2 values of B
+        (N2, A4); every name fails on c4 HFcc_pVQZ, no MOLDEN (C2); CFOUR keys differ (A5).
