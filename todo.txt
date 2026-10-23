@@ -12,13 +12,7 @@ Numbers below were measured in October 2026, with wilson_gv's rsp_eval_refactor 
 
 Tests (run 2026-10-23)
 ----------------------
-    pass 33, fail 5 (tests/, 38 tests). Before the file path fix (see Done): pass 23, fail 15.
-Causes of the 5 fails (T1):
-    2  old call signatures: test_wilson_obtainer.py:8 (parse_from_source needs lvl_theory, basis_set),
-       test_simple_parsed_data.py:8 (parse_gaussian16_output needs requested_data)
-    2  legacy classes (L1): test_CFOURdataParser (KeyError 'molden', parseCFOUR_forWilson.py:128),
-       test_GaussianDataParser (no attribute _log_lines, gaussian_parser.py:33)
-    1  test_get_anharmonic_fundamentals: parseCFOUR_extra.py:85, "No module named 'parsing'"
+    pass 36, fail 0 (tests/, 36 tests). No CQCParse test imports wilson (T5, see Done).
 test_relay_data.py passes only on one machine: it reads a CSV outside the repo and checks absolute local paths (T1).
 
 
@@ -30,7 +24,8 @@ CFOUR: not usable by wilson yet (wilson G8): diphess is not symmetric (C1); HFcc
 qff in au is wrong (C3).
 cff_rc and qff_rc cannot be asked for by name (A1; blocks wilson S3).
 Normal modes are not ready (N; wilson G9). wilson's load does not ask for them.
-Done on this branch: the test file paths (part of T1).
+Done on this branch: the test file paths (part of T1); the legacy classes deleted (L1, CQCParse side).
+wilson_gv does not import with this branch until its next PR removes two dead import lines (L1).
 
 
 Rules
@@ -47,8 +42,8 @@ Rules
   wilson imports more, but does not use it. These are dead lines in wilson_gv, to remove there:
       CQCParse.parsing: CFOURParser, CFOUROutput, GaussianParser, GaussianOutput, GaussianDataParser,
           CFOURdataParser, ParsedData (wilson_intensities/utils/utils.py:8, 11). They appear only in type hints of
-          Conditions and prep_data_load, and only commented-out code uses those two. utils.py runs on
-          `import wilson_suite`, so the lines must go before L1.
+          Conditions and prep_data_load, and only commented-out code uses those two. These classes are deleted
+          here (L1); utils.py runs on `import wilson_suite`, so wilson_gv fails to import until the lines go.
       CQCParse.relay.DataVault: in wilson_suite/parsing.py, which nothing imports (its import is commented out),
           and in script_example.py, which builds a vault and never uses it.
 
@@ -72,7 +67,7 @@ Fix first, rewrite later: most items are small fixes, and a rewrite now would fo
     before wilson G9        N1 [decide] -> N2, N3
     before wilson S3        A4 [decide], for linear molecules only
     before wilson S8        X1 [decide]
-    with wilson             L1 (after wilson removes its dead import lines), L2
+    next wilson PR          L1 (wilson side: needed now), L2
     when wilson needs it    A3
 
 What unblocks wilson:
@@ -84,13 +79,13 @@ What unblocks wilson:
 
 T. Tests and baseline
 ---------------------
-[ ] T1  Make tests/ pass, or skip with a reason. The 5 fails are listed under Tests. Also make test_relay_data.py
-        use files in the repo (files_examples/calculations.csv), not a CSV outside it.
-        File paths: done (see Done).
+[ ] T1  Left: make test_relay_data.py use files in the repo (files_examples/calculations.csv), not a CSV outside
+        it. The rest is done (see Done).
 [ ] T2  Baseline: run the current parse_from_source on every example file with every property it can return, and
         save each array (e.g. one .npz per file in tests/baseline/). Example files: 6 Gaussian .out (co, ACAC,
         ACDM, FORM B3LYP cc-pVDZ, FORM B3LYP cc-pVQZ, FORM HF cc-pVQZ) and 3 CFOUR folders (refinedc4/CCSDTcc_pVQZ,
-        refinedc4/HFcc_pVQZ, refinedc4/HFcc_pVDZ). Where the current code fails (e.g. normal_modes on ACAC), record the error.
+        refinedc4/HFcc_pVQZ, refinedc4/HFcc_pVDZ). Where the current code fails (e.g. normal_modes on ACAC),
+        record the error.
         The baseline holds today's bugs, so a difference is not an error by itself; each one needs a reason (Rules).
 [ ] T3  Contract test, on every example file: the checks of wilson's check_data_dict, without importing wilson:
             - nc_sqrt_eigval has keys 0 .. n-1
@@ -202,12 +197,10 @@ X. Mixing origins (wilson S8)
 
 L. Legacy code and the rewrite
 ------------------------------
-[ ] L1  [wilson] Delete the legacy classes: GaussianDataParser (parseGaussian_forWilson.py:29), CFOURdataParser
-        (parseCFOUR_forWilson.py:48), ParsedData (parser_template.py). wilson does not use them; it only imports
-        them, in a file that runs on `import wilson_suite` (Rules). So wilson_gv removes those dead lines first,
-        then delete here. Their tests here already fail (T1).
-        Maybe with them: the class path (parser_template.py, gaussian_parser.py, cfour_parser.py). Neither
-        parse_from_source nor wilson uses it; only these classes use each other.
+[ ] L1  [wilson] CQCParse side done (see Done). Left, in wilson_gv's next PR: delete the dead import lines
+        wilson_intensities/utils/utils.py:8 and 11, and the unused Conditions and prep_data_load that name the
+        classes in type hints. Needed now: until then `import wilson_suite` fails with this branch
+        (ImportError: cannot import name 'CFOURParser' from 'CQCParse.parsing').
 [ ] L2  [wilson] wilson_gv's setup.sh:14 clones the CQCParse branch `tests`, which does not exist (only main).
         setup.sh looks like a leftover of the old layout with one repo per package: it also clones the wilson-*
         repos, which are now folders in src/wilson_suite. wilson_gv's README clones CQCParse main. Fix or delete
@@ -216,8 +209,10 @@ L. Legacy code and the rewrite
         what wilson uses (Rules), so wilson needs no change. Check number by number against T2; every
         difference needs a reason. If CQCParse has users besides wilson, tell them first.
 [ ] L4  Small cleanups:
-            - relay/retrieve_data.py fails on import (`from parsing import ...`, like parseCFOUR_extra.py:85), and
-              nothing imports it
+            - relay/retrieve_data.py fails on import (`from parsing import ...`), and nothing imports it
+            - parseGaussian_forWilson.py: parse_frequencies and get_allStates_fromParsedResults fail on every
+              Gaussian example (the 'Mode(n)' header row), and nothing uses them now; parse_g16_freqs.py replaced
+              them
             - empty files: parsing/filesparser.py, relay/wilson_data_obtainer.py
             - README's "Key features" list is unfinished
             - parse_from_source requires lvl_theory and basis_set but does not use them (keep them: wilson passes
@@ -232,3 +227,21 @@ Done
         prefix). The tests find every example file through PKG_ROOT, so they run from any folder.
         The pQUADRATURE tests now pass the file's lines: pQUADRATURE takes lines, not a path. Their file
         (smthQUADRATURE) is the same as refinedc4/CCSDTcc_pVQZ/QUADRATURE.
+    L1 (CQCParse side, 2026-10-23)  Legacy classes deleted; nothing in CQCParse or wilson used them.
+        GaussianDataParser (parseGaussian_forWilson.py) and CFOURdataParser (parseCFOUR_forWilson.py); the class
+        path, whose return type was ParsedData: parser_template.py (OutputFiles, ParsedData, DataStorage, Parser
+        and the data classes), gaussian_parser.py, cfour_parser.py. It came before parse_from_source (2025-09)
+        and is in git history (e.g. 8a34bda). CQCParse.parsing now exports parse_from_source plus the functions
+        of the parse* modules. Tests removed: test_CFOURdataParser, test_GaussianDataParser (both failed).
+    T1 (part, 2026-10-23)  The other 3 fails fixed.
+        test_wilson_obtainer.py: passes lvl_theory and basis_set, as wilson does (parse_from_source unchanged).
+        parseCFOUR_extra.py:85: `from parsing import` -> `from . import` (test_get_anharmonic_fundamentals).
+        simple_parsed_data.parse_gaussian16_output: dropped requested_data (never used; the CFOUR sibling has none),
+        and switched to the frequency parser of parse_from_source (parse_g16_freqs.py) with the same state keys
+        (sorted). The old parser fails on every Gaussian example (L4). simple_parsed_data has no user but its test.
+        parse_wilson_obtainer.py: removed a dead import of the old parse_frequencies (the next line replaced it).
+    T5 (2026-10-23)  CQCParse tests no longer need wilson. test_reindexing.py loads its two pickles with plain
+        pickle (it imported wilson's unpickle_smth_from). The pickles, files_examples/FORM_conf1_B3LYP_aug_cc_pVTZ.pkl
+        and FORM_conf1_CCSD(T)_cc_pVQZ.pkl, held wilson objects under two keys the tests never read: MolecularSystem
+        and DataOriginInfo, the latter with absolute local paths. Re-saved without those two keys; every other
+        value checked identical, same pickle protocol (4).

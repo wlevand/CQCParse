@@ -82,7 +82,7 @@ def get_anharmonic_fundamentals(outfile: str, filetype: str = 'out') -> dict:
             and values are the corresponding anharmonically corrected frequencies
     """
     if filetype == 'out':
-        from parsing import parseCFOUR_forWilson
+        from . import parseCFOUR_forWilson
         things = parseCFOUR_forWilson.parse_output_file(outfile)
     elif filetype == 'pkl':
         with open(outfile, 'rb') as file:

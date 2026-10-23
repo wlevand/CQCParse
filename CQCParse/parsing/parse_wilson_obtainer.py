@@ -126,7 +126,6 @@ def parse_gaussian16_output(requested_data: dict,
     
     if any(k in requested_data for k in ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval')): 
     
-        from .parseGaussian_forWilson import parse_frequencies
         try:
             from .parse_g16_freqs import parse_frequencies, get_allStates_from_parsed_freqs
             results_log = parse_frequencies(lines=log_lines)

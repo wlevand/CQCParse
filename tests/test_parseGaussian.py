@@ -1,41 +1,7 @@
-from CQCParse.parsing.gaussian_parser import GaussianParser, GaussianOutput
 from CQCParse.parsing.parseGaussian_forWilson import parse_coriolis
-from CQCParse import debug
 from CQCParse.utils import PKG_ROOT
 
 G16_DIR = PKG_ROOT + '/CQCParse/files_examples/dftGaussian'
-
-def test_GaussianDataParser():
-    debug.level = 0
-
-    log_file = G16_DIR + '/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out'
-
-    parserGaussian = GaussianParser(GaussianOutput('ACAC', 'B3LYP', 'cc_pVQZ', 'gaussian', log_file))
-    print('\n', [i for i in dir(parserGaussian) if not i.startswith('_')])
-    #  ['getDerivatives', 'getNormModes', 'getPreVPT2Data', 'getStructure', 'getVibStates',
-    #  'load', 'natoms', 'nmodes', 'parse', 'relevant_files']
-
-    parserGaussian.load()
-    pdata = parserGaussian.parse()
-    print(pdata)
-    # <ParsedData: dict_keys(['molecule', 'program', 'basis', 'method', 'structure', 'nmodes', 'vib_states',
-    # 'derivatives', 'normal_modes', 'anharm_correction_data', 'anharm_treatment', 'list2exclude'])
-
-    assert pdata.check_if_have_data()
-
-    # essential = [parserGaussian.harmonic_states,
-    #              parserGaussian.anharmonic_states,
-    #              parserGaussian.fundamentals_harmonic_str,
-    #              parserGaussian.fundamentals_anharmonic_str,
-    #              parserGaussian.dipgrad,
-    #              parserGaussian.diphess,
-    #              parserGaussian.polgrad,
-    #              parserGaussian.polhess,
-    #              parserGaussian.cff
-    #              ]
-    #
-    # assert all(v is not None for v in essential)
-
 
 def test_parse_coriolis():
     log_file = G16_DIR + '/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out'

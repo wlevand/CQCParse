@@ -56,26 +56,26 @@ class ParsedDataSimple:
 
 
 
-def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str, 
-                            requested_data: list,
+def parse_gaussian16_output(molecule: str, level_of_theory: str, basis: str,
                             log_file: str) -> ParsedDataSimple:
-    from .parseGaussian_forWilson import get_allStates_fromParsedResults, get_equil_geo, get_normal_modes, \
-        parse_frequencies, getDipDers_au, getPolarDers_au, parse_cubic_constants, parse_quartic_constants, get_cubic_post, \
+    from .parseGaussian_forWilson import get_equil_geo, get_normal_modes, \
+        getDipDers_au, getPolarDers_au, parse_cubic_constants, parse_quartic_constants, get_cubic_post, \
         get_quartic_post, parse_coriolis
-    
+    from .parse_g16_freqs import parse_frequencies, get_allStates_from_parsed_freqs
+
     with open(log_file, 'r') as file:
         log_lines = [i.strip() for i in file.readlines()]
-    
+
     atoms, equilibrium_geometry = get_equil_geo(log_lines)
     nmodes = get_normal_modes(filename=log_file, Na=len(atoms))
     nmodes = {i: nm for i, nm in enumerate(nmodes)}
     results_log = parse_frequencies(lines=log_lines)
 
-    ah_sts = get_allStates_fromParsedResults(results_log, anharmonic=True)
-    h_sts = get_allStates_fromParsedResults(results_log, anharmonic=False)
+    # same frequency parser and state keys as parse_from_source
+    h_sts, ah_sts = get_allStates_from_parsed_freqs(results_log)
 
-    anharmonic_states = {tuple(str(i) for i in key): value for key, value in ah_sts.items()}
-    harmonic_states = {tuple(str(i) for i in key): value for key, value in h_sts.items()}
+    anharmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in ah_sts.items()}
+    harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
     
     rotational_constant, coriolis_constant = parse_coriolis(log_lines, len(nmodes))
     mu = getDipDers_au(log_lines)

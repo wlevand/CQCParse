@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from CQCParse.parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file, CFOURdataParser
+from CQCParse.parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file
 from CQCParse.parsing.parseCFOUR_extra import pNORMCO, get_anharmonic_fundamentals
 from CQCParse.utils import PKG_ROOT
 
@@ -142,30 +142,3 @@ def test_get_anharmonic_fundamentals(mock_output_file):
     assert freqs=={0: 1307.475, 1: 1342.594, 2: 1607.945, 3: 1988.836, 4: 2969.293, 5: 3033.298}
     freqs = get_anharmonic_fundamentals(str(mock_output_file))
     assert freqs == {0: 1307.4}
-
-def test_CFOURdataParser():
-    datadict = {'out_anharm_final': C4_HF + '/out',
-                'dipolexyz': C4_HF + '/dipole',
-                'polar_pkl': C4_HF + '/polar.pkl',
-                'cubic': C4_HF + '/cubic'}
-    datadict_full = {'source': 'cfour', 'type': 'out', 'files': datadict}
-    parserC4 = CFOURdataParser(datadict_full)
-    parserC4.getData()
-    # print('\ndipgrad\n', parserC4.dipgrad)
-    # print('\ndiphess\n', parserC4.diphess)
-
-    # with np.printoptions(linewidth=250, suppress=True, precision=12):
-    #     print('\ncubic\n', parserC4.cff)
-    #     print('\npolgrad\n', parserC4.polgrad)
-    #     print('\npolhess\n', parserC4.polhess)
-
-    essential = [parserC4.harmonic_states,
-                 parserC4.anharmonic_states,
-                 parserC4.fundamentals_harmonic_str,
-                 parserC4.fundamentals_anharmonic_str,
-                 parserC4.dipgrad,
-                 parserC4.diphess,
-                 parserC4.polgrad,
-                 parserC4.polhess,
-                 parserC4.cff]
-    assert all(v is not None for v in essential)

@@ -3,7 +3,17 @@ Claude Opus 4.6
 """
 
 from CQCParse.relay.modes_reindexing import build_permutation, reindex_tensor, clean_noise, reindex_dict
+from CQCParse.utils import PKG_ROOT
 import numpy as np
+import pickle
+
+EXAMPLES = PKG_ROOT + '/CQCParse/files_examples'
+
+
+def unpickle(filename):
+    with open(EXAMPLES + '/' + filename, 'rb') as file:
+        return pickle.load(file)
+
 
 def test_permutation_is_valid():
     """perm should be a proper permutation of 0..nmodes-1."""
@@ -205,10 +215,8 @@ def test_real_data():
     """
     comparing non-zero values patterns in tensors
     """
-    from wilson_suite.wilson_utils.serialization import unpickle_smth_from
-    # CQCParse/files_examples/FORM_conf1_B3LYP_aug_cc_pVTZ.pkl
-    unpickled_g16 = unpickle_smth_from('./CQCParse/files_examples/FORM_conf1_B3LYP_aug_cc_pVTZ.pkl')
-    unpickled_c4 = unpickle_smth_from('./CQCParse/files_examples/FORM_conf1_CCSD(T)_cc_pVQZ.pkl')
+    unpickled_g16 = unpickle('FORM_conf1_B3LYP_aug_cc_pVTZ.pkl')
+    unpickled_c4 = unpickle('FORM_conf1_CCSD(T)_cc_pVQZ.pkl')
     
     mapping = unpickled_g16['modes_mapping']
 
@@ -400,9 +408,7 @@ def test_reindex_dict():
 
 def test_real_dicts():
 
-    from wilson_suite.wilson_utils.serialization import unpickle_smth_from
-    # CQCParse/files_examples/FORM_conf1_B3LYP_aug_cc_pVTZ.pkl
-    unpickled_g16 = unpickle_smth_from('./CQCParse/files_examples/FORM_conf1_B3LYP_aug_cc_pVTZ.pkl')
+    unpickled_g16 = unpickle('FORM_conf1_B3LYP_aug_cc_pVTZ.pkl')
     
     mapping = unpickled_g16['modes_mapping']
     
