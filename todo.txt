@@ -13,7 +13,7 @@ Numbers below were measured in October 2026, with wilson_gv's rsp_eval_refactor 
 Tests (run 2026-10-23)
 ----------------------
     pass 36, fail 0 (tests/, 36 tests). No CQCParse test imports wilson (T5, see Done).
-test_relay_data.py passes only on one machine: it reads a CSV outside the repo and checks absolute local paths (T1).
+Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
 
 Status (2026-10-23)
@@ -24,7 +24,7 @@ CFOUR: not usable by wilson yet (wilson G8): diphess is not symmetric (C1); HFcc
 qff in au is wrong (C3).
 cff_rc and qff_rc cannot be asked for by name (A1; blocks wilson S3).
 Normal modes are not ready (N; wilson G9). wilson's load does not ask for them.
-Done on this branch: the test file paths (part of T1); the legacy classes deleted (L1, CQCParse side).
+Done on this branch: all tests pass (T1, T5); the legacy classes deleted (L1, CQCParse side).
 wilson_gv does not import with this branch until its next PR removes two dead import lines (L1).
 
 
@@ -60,7 +60,7 @@ Rules
 Order of work
 -------------
 Fix first, rewrite later: most items are small fixes, and a rewrite now would force every [decide] choice at once.
-    first                   T1 -> T2 (baseline) -> T3, T4
+    first                   T2 (baseline) -> T3, T4
     then                    C1, C2, A1, A2, C3, C4 (each checked against T2)
     any time                P1, P2, L4
     after the fixes         L3 (rewrite: the CFOUR reader first, then Gaussian)
@@ -79,8 +79,6 @@ What unblocks wilson:
 
 T. Tests and baseline
 ---------------------
-[ ] T1  Left: make test_relay_data.py use files in the repo (files_examples/calculations.csv), not a CSV outside
-        it. The rest is done (see Done).
 [ ] T2  Baseline: run the current parse_from_source on every example file with every property it can return, and
         save each array (e.g. one .npz per file in tests/baseline/). Example files: 6 Gaussian .out (co, ACAC,
         ACDM, FORM B3LYP cc-pVDZ, FORM B3LYP cc-pVQZ, FORM HF cc-pVQZ) and 3 CFOUR folders (refinedc4/CCSDTcc_pVQZ,
@@ -214,6 +212,8 @@ L. Legacy code and the rewrite
               Gaussian example (the 'Mode(n)' header row), and nothing uses them now; parse_g16_freqs.py replaced
               them
             - empty files: parsing/filesparser.py, relay/wilson_data_obtainer.py
+            - tests/test_comparing_software.py is all comments (213 lines): old code for the deleted classes, with
+              local paths in the comments
             - README's "Key features" list is unfinished
             - parse_from_source requires lvl_theory and basis_set but does not use them (keep them: wilson passes
               them)
@@ -245,3 +245,6 @@ Done
         and FORM_conf1_CCSD(T)_cc_pVQZ.pkl, held wilson objects under two keys the tests never read: MolecularSystem
         and DataOriginInfo, the latter with absolute local paths. Re-saved without those two keys; every other
         value checked identical, same pickle protocol (4).
+    T1 (rest, 2026-10-23)  test_relay_data.py reads files_examples/calculations.csv (it read a CSV outside the
+        repo and checked absolute local paths). Gaussian case now B3LYP/cc-pVQZ (aug-cc-pVTZ is not in the repo).
+        The test also checks that every path DataVault builds points at a real file.
