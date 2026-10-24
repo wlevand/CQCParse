@@ -292,8 +292,13 @@ def parse_quartic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:
 
     return df, units_lines
 
-# used in retrievedata.py
-def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
+def get_cubic_post(len_freq: int, cubic: np.ndarray):
+    """
+    Cubic force constants as a full tensor (n, n, n), every index order filled, modes 0 .. n-1 (Gaussian's are 1-based).
+    cubic: rows (I, J, K, value) from parse_cubic_constants; the tensor keeps the unit of the value column.
+    The reader passes column FI (cm-1, dimensionless normal coordinates; cff_rc) and converts that to atomic units
+    with CQCParse.utils.reduced_to_au (cff), which explains the conversion.
+    """
     K3 = np.zeros((len_freq, len_freq, len_freq), dtype=np.float64)
 
     for fijk in cubic:
@@ -309,18 +314,14 @@ def get_cubic_post(len_freq: int, cubic: np.ndarray, reduced: bool = True):
         K3[j, i, k] = d
         K3[j, k, i] = d
 
-    # from [Hartree*amu(-3/2)*Bohr(-3)] to [Hartree*m_e(-3/2)*Bohr(-3)]
-    if reduced:
-        from scipy import constants
-        # to go from amu to au mass unit (m_e)
-        amc_au = constants.physical_constants['atomic mass constant'][0] / \
-                 constants.physical_constants['atomic unit of mass'][0]
-
-        K3 = K3 / amc_au**1.5
-
     return K3
 
-def get_quartic_post(len_freq: int, quartic: np.ndarray, reduced: bool = True):
+def get_quartic_post(len_freq: int, quartic: np.ndarray):
+    """
+    Quartic force constants as a full tensor (n, n, n, n), every index order filled, modes 0 .. n-1.
+    quartic: rows (I, J, K, L, value) from parse_quartic_constants; the tensor keeps the unit of the value column.
+    The reader passes column FI (cm-1; qff_rc) and converts it with CQCParse.utils.reduced_to_au (qff).
+    """
     K4 = np.zeros((len_freq, len_freq, len_freq, len_freq), dtype=np.float64)
 
     for fijkl in quartic:
@@ -340,14 +341,6 @@ def get_quartic_post(len_freq: int, quartic: np.ndarray, reduced: bool = True):
 
         for idx in indices:
             K4[idx] = d
-
-    if reduced:
-        from scipy import constants
-        # to go from amu to au mass unit (m_e)
-        amc_au = constants.physical_constants['atomic mass constant'][0] / \
-                 constants.physical_constants['atomic unit of mass'][0]
-
-        K4 = K4 / amc_au**2
 
     return K4
 

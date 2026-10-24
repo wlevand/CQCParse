@@ -111,7 +111,10 @@ def parse_gaussian16_output(requested_data: dict,
         "qff_rc": "cm-1",
 
     cff and cff_rc come together: a request for either returns both. The same for qff and qff_rc.
-    Gaussian prints both units (columns K and FI), so both are Gaussian's own numbers.
+    cff_rc and qff_rc are Gaussian's column FI (cm-1, dimensionless normal coordinates). cff and qff are converted
+    from them with the harmonic frequencies (CQCParse.utils.reduced_to_au, which explains the formula), the same
+    way as in the CFOUR reader. They are not read from Gaussian's column K (atomic units, amu): K has only 5
+    decimals, so a small term keeps 1 or 2 digits there (up to 11% off in the example files), while FI keeps them.
 
     Linear molecules (for B and coriolis): decided from the file, from the number of atoms and of vibrational
     modes (is_linear).
@@ -169,6 +172,8 @@ def parse_gaussian16_output(requested_data: dict,
             harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
             fund_harm_dict = {k:v for k,v in harmonic_states.items() if len(k)==1}
             len_nmodes = len(fund_harm_dict)
+            # harmonic wavenumbers in mode order 0 .. n-1, for the conversion of cff and qff
+            harmonic_cm = [fund_harm_dict[(str(m),)] for m in range(len_nmodes)]
         except Exception as e:
             print('Failed at "parse_frequencies" with:', e)
             raise ValueError("smth went wrong in parse_frequencies() or get_allStates_from_parsed_freqs()")
@@ -225,28 +230,26 @@ def parse_gaussian16_output(requested_data: dict,
 
     if any(k in requested_data for k in ('cff', 'cff_rc')):
         from .parseGaussian_forWilson import parse_cubic_constants, get_cubic_post
+        from CQCParse.utils import reduced_to_au
         cubic_df = parse_cubic_constants(log_lines)[0]
-        selected_df1 = cubic_df[['I', 'J', 'K', 'K(I,J,K)']]
-        cubic = selected_df1.to_numpy()
-        
-        cff_au = get_cubic_post(len_nmodes, cubic)
-        results['cff'] = cff_au
-
         cubic_rcm = cubic_df[['I', 'J', 'K', 'FI(I,J,K)']].to_numpy() # cm-1
-        results['cff_rc'] = get_cubic_post(len_nmodes, cubic_rcm, reduced=False)
+        cff_rc = get_cubic_post(len_nmodes, cubic_rcm)
+
+        # from FI, not from column K (see docstring)
+        results['cff'] = reduced_to_au(cff_rc, harmonic_cm)
+        results['cff_rc'] = cff_rc
 
 
     if any(k in requested_data for k in ('qff', 'qff_rc')):
         from .parseGaussian_forWilson import parse_quartic_constants, get_quartic_post
+        from CQCParse.utils import reduced_to_au
         quartic_df = parse_quartic_constants(log_lines)[0]
-        selected_df2 = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']]
-        quartic = selected_df2.to_numpy()
-
-        qff_au = get_quartic_post(len_nmodes, quartic)
-        results['qff'] = qff_au
-
         quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy() # cm-1
-        results['qff_rc'] = get_quartic_post(len_nmodes, quartic_rcm, reduced=False)
+        qff_rc = get_quartic_post(len_nmodes, quartic_rcm)
+
+        # from FI, not from column K (see docstring)
+        results['qff'] = reduced_to_au(qff_rc, harmonic_cm)
+        results['qff_rc'] = qff_rc
 
     if 'modes_mapping' in requested_data:
         from .parseGaussian_forWilson import parse_mode_mapping
@@ -299,7 +302,8 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
 
     cff and cff_rc come together: a request for either returns both. The same for qff and qff_rc.
     CFOUR's cubic and quartic files are in cm-1, so cff_rc and qff_rc are CFOUR's own numbers; cff and qff are
-    converted from them.
+    converted from them with the harmonic frequencies (CQCParse.utils.reduced_to_au, which explains the formula),
+    the same way as in the Gaussian reader.
 
     AVERAGING: CFOUR lists some values twice, once per index order, from two numerical differentiations:
         diphess  every mode pair, e.g. (9,10) and (10,9) in the dipole(xyz) files
@@ -330,8 +334,9 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
         harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs))
         harmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in harm_states_dict.items()}
         fundamentals_harmonic_int = {int(k[0]):v for k,v in harmonic_states.items() if len(k)==1}
-        fund_harmonic_energies_array = np.array(list(fundamentals_harmonic_int.values()))
         num_modes = len(fundamentals_harmonic_int)
+        # harmonic wavenumbers in mode order 0 .. n-1, for the unit conversion of the properties
+        fund_harmonic_energies_array = np.array([fundamentals_harmonic_int[m] for m in range(num_modes)])
 
         labelsModes_original = [i + nModesStart for i in list(fundamentals_harmonic_int)]
 
@@ -373,22 +378,18 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
 
     if any(k in requested_data for k in ('cff', 'cff_rc')):
         from .parseCFOUR_forWilson import pCubicORQuartic, getCubicPost
+        from CQCParse.utils import reduced_to_au
         cubic = pCubicORQuartic(files_dict['cubic_file'])
-        cff_au = getCubicPost(fundamentals_harmonic_int, cubic,
-                            startmode=nModesStart, recipcm=False)
-        cubic_cm_1 = getCubicPost(fundamentals_harmonic_int, cubic,
-                                startmode=nModesStart, recipcm=True)
-        results['cff'] = cff_au
+        cubic_cm_1 = getCubicPost(fundamentals_harmonic_int, cubic, startmode=nModesStart)
+        results['cff'] = reduced_to_au(cubic_cm_1, fund_harmonic_energies_array)
         results['cff_rc'] = cubic_cm_1
 
     if any(k in requested_data for k in ('qff', 'qff_rc')):
         from .parseCFOUR_forWilson import pCubicORQuartic, getQuarticPost
+        from CQCParse.utils import reduced_to_au
         quartic = pCubicORQuartic(files_dict['quartic_file'])
-        qff_au = getQuarticPost(fundamentals_harmonic_int, quartic,
-                                startmode=nModesStart, recipcm=False)
-        quartic_cm_1 = getQuarticPost(fundamentals_harmonic_int, quartic,
-                                    startmode=nModesStart, recipcm=True)
-        results['qff'] = qff_au
+        quartic_cm_1 = getQuarticPost(fundamentals_harmonic_int, quartic, startmode=nModesStart)
+        results['qff'] = reduced_to_au(quartic_cm_1, fund_harmonic_energies_array)
         results['qff_rc'] = quartic_cm_1
 
     if any(k in requested_data for k in ('dipgrad', 'diphess')):

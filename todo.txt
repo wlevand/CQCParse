@@ -16,24 +16,22 @@ What needs fixing, in order
 Where things stand:
     Gaussian reader: works for wilson today. All 7 Gaussian files pass wilson's checks; all 803 wilson tests pass.
     CFOUR reader: all 4 CFOUR folders pass wilson's checks (T3). C1 and C2, which blocked wilson G8, are fixed.
-        qff is still wrong (C3).
+        C3 is fixed too: CFOUR and Gaussian force constants agree for formaldehyde (tests/test_force_constants.py).
     Normal modes: not ready (N). wilson does not ask for them today.
 
 One line per item. The full entry for each item is further down.
 
 Now, one small fix at a time. After each fix, run the tests and check the baseline (T2).
-    1. T4   New test: compare CFOUR and Gaussian results for the same molecule (formaldehyde, HF/cc-pVTZ).
-            Add HF/cc-pVQZ too once its MOLDEN file is found.
-    2. C3   CFOUR qff is about 570 times too large (wrong unit factor).
-    3. R1   Gaussian cff and qff in au come from a column with 5 decimals: small terms keep 1-2 digits, up to
-            11% off. Fix: convert from the cm-1 column, as CFOUR does. Do with C3 (same conversion).
-    4. A6   Gaussian equilibrium_geometry and atoms come back empty for ACAC and ACDM. This also makes
+    1. T4   New test: compare CFOUR and Gaussian results for the same molecule (formaldehyde HF/cc-pVTZ and
+            HF/cc-pVQZ). The force constants are done (C3); left: the other properties, with signs and axes.
+    2. A6   Gaussian equilibrium_geometry and atoms come back empty for ACAC and ACDM. This also makes
             normal_modes crash there (N2).
-    5. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
+    3. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
             a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
 
 Any time:
     P2      A slow loop in the Gaussian reader, 2.2 s.
+    L6      Dead parsing/mockparser.py, and stale "# used in retrievedata.py" comments.
 
 Later:
     L3      Rewrite the readers, CFOUR first. Only after all the fixes above: a rewrite now forces every [decide]
@@ -50,7 +48,7 @@ In wilson_gv, not in this repo:
 
 Tests (run 2026-10-24)
 ----------------------
-    pass 225, xfail 0, fail 0 (tests/, 225 tests, about 5 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 248, xfail 0, fail 0 (tests/, 248 tests, about 5 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
@@ -88,24 +86,24 @@ T. Tests and baseline
 ---------------------
 [ ] T4  CFOUR vs Gaussian test: formaldehyde HF/cc-pVTZ in both (refinedc4/HFcc_pVTZ, dftGaussian/FORM/HFcc_pVTZ).
         The only check here that does not assume CQCParse is right.
-        Add HF/cc-pVQZ too once its CFOUR folder has a MOLDEN file.
+        HF/cc-pVQZ works too since C2 (all but the geometry and normal modes, which need MOLDEN).
+        Done for the force constants (C3): test_cfour_matches_gaussian (tests/test_force_constants.py), cff,
+        cff_rc, qff, qff_rc in both basis sets. Modes matched by harmonic frequency, absolute values compared.
+        Measured: within 2.1e-4 of each tensor's largest term, except qff_rc HF/cc-pVQZ at 7.5e-4. That is one
+        small term, (4,4,5,6) in Gaussian's numbering: 2.83 cm-1 in Gaussian, -2.40 in CFOUR, already so in the
+        two programs' files (a numerical difference between the programs, not a parser bug).
+        Left: dipgrad, diphess, polgrad, polhess, B, frequencies and states. These need the signs and the axes:
         Found by hand on HF/cc-pVQZ (October 2026):
             - harmonic frequencies agree to 0.1 cm-1, B to 1e-6
             - mode match: CFOUR's ascending order = Gaussian's H order (see N); modes 4 and 5 have the opposite
               sign (check whether 0- or 1-based); the y axis is flipped
-            - after the match, dipgrad, polgrad, diphess, polhess, cff, cff_rc and qff_rc agree within 1.8e-4 of
-              each tensor's largest value; qff does not (C3)
+            - after the match, dipgrad, polgrad, diphess, polhess agree within 1.8e-4 of each tensor's largest
+              value (the hand check said the same of qff_rc, but the test above measures 7.5e-4)
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
 -------------------------------------------------------------
-[ ] C3  qff in au is 320-800x too large (median 568), against Gaussian formaldehyde (T4). getQuarticPost
-        (parseCFOUR_forWilson.py:315-355) only divides by the mass factor; getCubicPost (252-313) also multiplies
-        by sqrt(w_i w_j w_k) and divides by the unit factor. qff_rc is right. No EVV term uses qff; wilson S3 uses
-        qff_rc.
-        Fix: convert as getCubicPost does (4 frequencies, the quartic factor), or stop returning CFOUR qff.
-        The formula is confirmed against Gaussian's own K column (R1).
-        Prefer the fix: both readers then return the same keys (Rules). Check with T4.
+None open (C1-C4 done).
 
 
 A. What parse_from_source returns
@@ -143,26 +141,10 @@ are here. How many digits each value the readers use has in the file:
         harmonic and anharmonic energies: 3 decimals (cm-1). B: 7 decimals. Fine.
         dipgrad, diphess, polgrad, polhess: 6 significant digits (D format). Fine.
         cff_rc, qff_rc: column FI, 5 decimals, on values at least 300x larger than in column K. Fine.
-        cff, qff (au): column K, 5 decimals. Not fine for small terms (R1).
+        cff, qff (au): converted from FI since R1. Column K (5 decimals) was not fine for small terms.
         coriolis: the short list, 5 decimals (R3).
         Small force constants are not in the file at all (R2).
     CFOUR: force constants and dipole derivatives with 10 decimals, harmonic frequencies with 6. Fine.
-[ ] R1  Gaussian cff and qff in au come from column K (Hartree amu^(-n/2) Bohr^(-n)), printed with 5 decimals.
-        A small term keeps 1 or 2 digits: formaldehyde HF/cc-pVTZ term (3,1,1) prints K = 0.00017, FI = 0.39917 cm-1.
-        Measured against the same constants converted from FI and the harmonic frequencies:
-            - the gap is always within K's rounding step (half the last decimal: 6.4e-11 au cubic, 1.5e-12 au
-              quartic). So rounding is the only cause. The gap is at most 6.5e-6 of the largest term.
-            - per term: formaldehyde up to 1.5% (cff) and 1.3% (qff), median about 1e-4.
-              ACAC: up to 11%; 68 of 600 cubic and 209 of 1579 quartic terms off by more than 1%.
-              ACDM: up to 11%; 720 of 3611 cubic and 2524 of 9900 quartic terms off by more than 1%.
-        The effect on wilson's results is not measured. Check which wilson terms use cff and qff in au.
-        Fix: compute cff and qff from FI and the harmonic frequencies, as the CFOUR reader does for cff
-        (getCubicPost). Then both readers convert the same way. The check above also confirms the quartic
-        conversion against Gaussian's own K column (getCubicPost's formula with 4 frequencies and (a*b)^4): use it
-        for C3 too.
-        Add a test: the FI-based and the K-based values agree within K's rounding step. The test pins the
-        conversion for cubic and quartic.
-        Moves Gaussian cff and qff in the baseline (T2), each term by at most the rounding step.
 [ ] R2  [decide] Gaussian leaves out every force constant with |K| < 3.71e-5 (Hartree amu^(-n/2) Bohr^(-n)). The
         cut-off is Gaussian's default, listed in each .out file under "Cut-offs for the present calculation",
         "Tolerances on Data", 3rd and 4th derivs. The smallest printed |K| is 4.0e-5 in every file, so the cut is on
@@ -246,6 +228,10 @@ L. Legacy code and the rewrite
         If a typed API is wanted (the idea of the deleted simple_parsed_data, L5): make it a thin wrapper over
         parse_from_source, e.g. a frozen dataclass with ParsedData.from_source(...), the same key names and
         units as the dict, plus program, lvl_theory and basis_set. No second copy of the readers.
+[ ] L6  Small dead code, found in C3/R1:
+            - parsing/mockparser.py (643 lines, class MockParser): fails on import (`from parsing import ...`),
+              nothing imports it. It also calls get_cubic_post(..., reduced=False), an argument C3/R1 removed.
+            - parseGaussian_forWilson.py: several "# used in retrievedata.py" comments; retrieve_data.py is gone (L4).
 
 
 Done
@@ -411,6 +397,35 @@ Done
               (a typed result object) is kept as a note in L3.
             - parseGaussian_forWilson.parse_rot_const: an empty stub (returned None).
         Tests: 227 -> 225 (the 2 tests of simple_parsed_data).
+    C3 + R1 (2026-10-24)  One conversion of the force constants to atomic units, used by both readers:
+        CQCParse.utils.reduced_to_au. Its docstring derives the formula, with a worked example. In short:
+            the programs print phi, the force constants in dimensionless normal coordinates q, in cm-1;
+            cff and qff are K, the plain derivatives in mass-weighted normal coordinates Q (wilson's contract);
+            q_i = Q_i sqrt(w_i / hbar), so every index brings one factor sqrt(w_i / hbar). In atomic units:
+                K_ij... = (phi_ij... / Eh) * sqrt(nu_i / Eh) * sqrt(nu_j / Eh) * ...
+            with phi and the harmonic wavenumbers nu in cm-1 and Eh = 219474.63 cm-1 (1 Hartree).
+        - C3, CFOUR qff: getQuarticPost only divided by (m_u/m_e)^2 and never applied the frequency factors, so
+          qff was 320-350x too large (largest term). The right formula already sat in an orphan copy,
+          parseCFOUR_extra.getQuarticPost (no caller; deleted). It also shadowed parseCFOUR_forWilson.getQuarticPost
+          in the CQCParse.parsing namespace, through the star imports.
+        - R1, Gaussian cff and qff: converted from column FI now, no longer read from column K (5 decimals only, so
+          small terms kept 1-2 digits, up to 11% off). Each term moves by at most K's rounding step: up to
+          5.6e-6 of the largest term.
+        - CFOUR cff: the same formula as before (getCubicPost's, with the constants a, b and Fact3R), now written
+          once; moves by 6.6e-13 of the largest term (rounding of the physical constants).
+        - getCubicPost, getQuarticPost (CFOUR) and get_cubic_post, get_quartic_post (Gaussian) now only build the
+          full tensor in the file's unit (cm-1, = cff_rc, qff_rc); their recipcm and reduced arguments are gone.
+          cff_rc and qff_rc unchanged.
+        - CFOUR: the harmonic wavenumbers for all unit conversions are now taken in mode order 0 .. n-1 (they were
+          in the file's order, the same in all examples).
+        Checks, new tests/test_force_constants.py:
+            - test_reduced_to_au_example: the docstring's worked example.
+            - test_matches_gaussian_column_k: on all 7 Gaussian files, cff and qff agree with Gaussian's own
+              column K within its rounding. An independent check of the formula, cubic and quartic.
+            - test_cfour_matches_gaussian: formaldehyde HF/cc-pVTZ and HF/cc-pVQZ, CFOUR vs Gaussian, within 1e-3
+              of the largest term (see T4). With the old code, CFOUR qff was 319x the largest term off.
+        Baseline rewritten: Gaussian cff, qff (all 7) and CFOUR qff (all 4) changed as above; nothing else.
+        Tests: 225 -> 248.
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).

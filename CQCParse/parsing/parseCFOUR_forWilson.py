@@ -249,75 +249,36 @@ def pCubicORQuartic(filepath: str):
     return np.array(alllines)
 
 # used
-def getCubicPost(freq: dict, cubic: np.ndarray, startmode, recipcm: bool = False):
-    """ Derives cubic and quartic anharmonic constants.
-        It takes reduced values [cm-1] from gaussian output
-        and transforms it to :
-          * cubic   force constants : [Hartree*amu(-3/2)*Bohr(-3)]
-          * quartic force constants : [Hartree*amu(-2  )*Bohr(-4)]
+def getCubicPost(freq: dict, cubic: np.ndarray, startmode):
+    """ Cubic force constants as a full tensor (n, n, n), every index order filled, modes 0 .. n-1.
+        In the file's own unit: cm-1, in dimensionless normal coordinates (cff_rc). For atomic units (cff):
+        CQCParse.utils.reduced_to_au, which explains the conversion.
+        freq: one entry per vibrational mode (only its length is used); startmode: CFOUR's number of the first
+        vibration (7, or 6 for a linear molecule).
     """
-    if recipcm:
+    n = len(freq)
+    K3 = np.zeros((n, n, n), dtype=np.float64)
 
-        n = len(freq)
-        K3 = np.zeros((n, n, n), dtype=np.float64)
+    for fijk in cubic:
+        i = int(fijk[0]) - startmode
+        j = int(fijk[1]) - startmode
+        k = int(fijk[2]) - startmode
+        d = np.float64(fijk[3])
 
-        for fijk in cubic:
-            i = int(fijk[0]) - startmode
-            j = int(fijk[1]) - startmode
-            k = int(fijk[2]) - startmode
-            d = np.float64(fijk[3])
+        K3[i, j, k] = d
+        K3[i, k, j] = d
+        K3[k, j, i] = d
+        K3[k, i, j] = d
+        K3[j, i, k] = d
+        K3[j, k, i] = d
 
-            K3[i, j, k] = d
-            K3[i, k, j] = d
-            K3[k, j, i] = d
-            K3[k, i, j] = d
-            K3[j, i, k] = d
-            K3[j, k, i] = d
+    return K3
 
-        return K3
-
-    else:
-        n = len(freq)
-        K3 = np.zeros((n, n, n), dtype=np.float64)
-
-        for fijk in cubic:
-
-            i = int(fijk[0]) - startmode
-            j = int(fijk[1]) - startmode
-            k = int(fijk[2]) - startmode
-            d = np.float64(fijk[3])
-
-            d *= np.sqrt(freq[i] * freq[j] * freq[k])
-
-            from scipy import constants
-            a = np.sqrt(constants.h / constants.c / constants.physical_constants['unified atomic mass unit'][0] / 100)
-            b = 10 ** 10 / 2 / np.pi / constants.physical_constants['Bohr radius'][0] / 10 ** 10
-            Fact3R = (constants.physical_constants['hartree-joule relationship'][
-                          0] / constants.h / constants.c / 100) * (a * b) ** 3
-
-            d /= Fact3R
-
-            K3[i, j, k] = d
-            K3[i, k, j] = d
-            K3[k, j, i] = d
-            K3[k, i, j] = d
-            K3[j, i, k] = d
-            K3[j, k, i] = d
-
-        from scipy import constants
-        # to go from amu to au mass unit (m_e)
-        amc_au = constants.physical_constants['atomic mass constant'][0] / \
-                 constants.physical_constants['atomic unit of mass'][0]
-        # to Wilson units
-        K3 /= amc_au ** 1.5
-        return K3
-
-def getQuarticPost(freq: dict, quartic: np.ndarray, startmode, recipcm: bool = False):
-    """ Derives cubic and quartic anharmonic constants.
-        It takes reduced values [cm-1] from gaussian output
-        and transforms it to :
-          * cubic   force constants : [Hartree*amu(-3/2)*Bohr(-3)]
-          * quartic force constants : [Hartree*amu(-2  )*Bohr(-4)]
+def getQuarticPost(freq: dict, quartic: np.ndarray, startmode):
+    """ Quartic force constants as a full tensor (n, n, n, n), every index order filled, modes 0 .. n-1.
+        In the file's own unit: cm-1, in dimensionless normal coordinates (qff_rc). For atomic units (qff):
+        CQCParse.utils.reduced_to_au, which explains the conversion.
+        freq, startmode: as in getCubicPost.
 
         AVERAGING: the CFOUR quartic file lists some index sets more than once. The (i,i,j,j) terms come from two
         numerical differentiations, e.g. (12,12,7,7) -331.4924 and (7,7,12,12) -331.5419 cm-1 (CCSDTcc_pVQZ), and
@@ -344,13 +305,6 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, startmode, recipcm: bool = F
 
         for idx in indices:
             K4[idx] = d
-
-    if not recipcm:
-        from scipy import constants
-        # to go from amu to au mass unit (m_e)
-        amc_au = constants.physical_constants['atomic mass constant'][0] / \
-                 constants.physical_constants['atomic unit of mass'][0]
-        K4 = K4 / amc_au ** 2
 
     return K4
 
