@@ -28,7 +28,8 @@ Now, one small fix at a time. After each fix, run the tests and check the baseli
     3. C3   CFOUR qff is about 570 times too large (wrong unit factor).
     4. R1   Gaussian cff and qff in au come from a column with 5 decimals: small terms keep 1-2 digits, up to
             11% off. Fix: convert from the cm-1 column, as CFOUR does. Do with C3 (same conversion).
-    5. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
+    5. A6   Gaussian equilibrium_geometry and atoms come back empty for ACAC and ACDM. This also makes
+            normal_modes crash there (N2).
     6. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
             a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
 
@@ -51,7 +52,7 @@ In wilson_gv, not in this repo:
 
 Tests (run 2026-10-24)
 ----------------------
-    pass 218, xfail 0, fail 0 (tests/, 218 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 226, xfail 0, fail 0 (tests/, 226 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
@@ -101,17 +102,12 @@ T. Tests and baseline
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
 -------------------------------------------------------------
 [ ] C3  qff in au is 320-800x too large (median 568), against Gaussian formaldehyde (T4). getQuarticPost
-        (parseCFOUR_forWilson.py:301-341) only divides by the mass factor; getCubicPost (238-299) also multiplies
+        (parseCFOUR_forWilson.py:315-355) only divides by the mass factor; getCubicPost (252-313) also multiplies
         by sqrt(w_i w_j w_k) and divides by the unit factor. qff_rc is right. No EVV term uses qff; wilson S3 uses
         qff_rc.
         Fix: convert as getCubicPost does (4 frequencies, the quartic factor), or stop returning CFOUR qff.
         The formula is confirmed against Gaussian's own K column (R1).
         Prefer the fix: both readers then return the same keys (Rules). Check with T4.
-[ ] C4  linear: wilson never passes linear (DataOriginInfo has no such field), so CFOUR always takes mode 7 as the
-        first vibration (parse_wilson_obtainer.py:288). For a linear molecule it is 6, and every mode number is
-        off by one. The Gaussian reader decides linear itself, but only as "2 atoms" (line 177), which misses
-        linear molecules with 3 or more atoms (e.g. CO2).
-        Fix: decide it from the file in both readers (e.g. number of vibrational modes = 3N-5).
 
 
 A. What parse_from_source returns
@@ -121,14 +117,27 @@ A. What parse_from_source returns
         always False in MolSystemData. Nothing reads these fields today (system_data.py:235-236), so this waits
         until something does.
         Also: the geometry unit differs by reader (docstrings: Gaussian angstrom, CFOUR Bohr).
-        Choose then: CQCParse returns 'geo' and 'linear', or wilson maps the names. Goes with C4.
+        Choose then: CQCParse returns 'geo' and 'linear', or wilson maps the names. Both readers decide linear
+        already (is_linear, since C4), so returning it is a small change. Gaussian geometry: fix A6 first.
 [ ] A4  [decide] B for linear molecules. The Gaussian reader returns 2 values for CO. wilson's vpt2.coriolis_term
         takes 0 or 3 values and raises otherwise (vpt2.py:244-248). It matters in wilson S3 for linear molecules
         with 2 or more modes (CO has 1). Decide what B holds for a linear molecule, the same in both readers.
-        Goes with C4.
+        Both readers know whether the molecule is linear since C4.
 [ ] A5  Keys differ by reader (seen in tests/baseline/summary.json): the CFOUR reader returns no reindex_modes
         (Gaussian always does; wilson's test_getting_data expects it) and no modes_mapping. Return reindex_modes
         (False) from CFOUR too; modes_mapping: decide with N1.
+[ ] A6  Gaussian equilibrium_geometry and atoms are empty for ACAC and ACDM (shape (0,) and 0 atoms, already so in
+        the baseline, T2). get_equil_geo (parseGaussian_forWilson.py:960) takes the first "Standard orientation"
+        after "Optimization completed.", and these two files have none there:
+            - ACAC: the only "Standard orientation" (line 201) comes before "Optimization completed." (line 22703).
+            - ACDM: the file is a Freq job only; its only "Standard orientation" (line 250) comes before
+              "Optimization completed." (line 98997).
+        Silent: no error, just empty arrays. The 5 other files are fine. Found with C4, which first used the atom
+        count from get_equil_geo (now from the NAtoms= line, parse_Na).
+        Fix: find where these two files hold the optimized geometry, and read it from there; check that the atom
+        count matches parse_Na. Then N2's crash on ACAC and ACDM goes too (checked: with the NAtoms count,
+        get_normal_modes reads 18 and 42 modes).
+        Also: get_equil_geo knows only H, C, N and O (dictelem); any other element raises KeyError.
 
 
 R. Precision of the numbers in the files
@@ -190,7 +199,7 @@ A wilson load of ACDM takes about 5 s; about 90% of it is in two places. wilson'
 Here, ACDM is most of the baseline test's time (8.5 of 10 s, T2).
 [ ] P1  parse_section (parse_g16_freqs.py:41) checks for duplicates with `parsed not in result`, a list scan:
         2.2 s. Keep a set next to the list (the order stays).
-[ ] P2  getPolarDers_log (parseGaussian_forWilson.py:486-514) filters a pandas table inside a double loop: 2.2 s.
+[ ] P2  getPolarDers_log (parseGaussian_forWilson.py:478-506) filters a pandas table inside a double loop: 2.2 s.
         Build the arrays with numpy indexing.
 
 
@@ -206,7 +215,10 @@ B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order.
         stretch (2879 cm-1). wilson cannot ask for reindex_modes (no field in DataOriginInfo).
         Ways: normal_modes in A order like the rest; everything in H order; a DataOriginInfo field [wilson].
 [ ] N2  Failures: ACAC and ACDM raise "cannot reshape ... into shape (0,3,3)"; CO returns 0 modes
-        (get_normal_modes, parseGaussian_forWilson.py:828).
+        (get_normal_modes, parseGaussian_forWilson.py:820).
+        Cause for ACAC and ACDM: get_equil_geo finds 0 atoms there (A6), and get_normal_modes reshapes with it.
+        With the atom count from parse_Na, get_normal_modes reads 18 and 42 modes. CO: another cause (1 mode;
+        get_normal_modes reshapes in blocks of 3 modes).
 [ ] N3  One shape for both readers. Now a dict {mode: vector}: Gaussian keys 0 .. n-1 and flat vectors (3 x atoms);
         CFOUR keys from 7 (7-12 for formaldehyde) and vectors of shape (atoms, 3). wilson's MolSystemData.eigenvecs
         is typed as a numpy array, but stores the dict as it comes (from_datadict, system_data.py:308).
@@ -360,6 +372,26 @@ Done
         names and the 4 force-constant names, each asked for alone, give the same value as asked for with BASE;
         formaldehyde HF/cc-pVTZ in both readers. On the old code, the 6 Gaussian cases of A2 fail. Baseline
         unchanged. A request for B alone now reads the frequency section too (2.2 s for ACDM, P1).
+    C4 (2026-10-24)  Both readers decide from the file whether the molecule is linear, with one rule:
+        is_linear(n_atoms, n_vib) in parse_wilson_obtainer.py, 3N-5 vibrational modes (3N-6: nonlinear; any other
+        count raises ValueError).
+            - CFOUR: CFOUR numbers all 3N modes, translations and rotations first. 3N comes from the out file
+              (count_normal_coordinates: the "Normal coordinate <k>" headers), n_vib from its fundamentals. The
+              first vibration is 3N - n_vib + 1: 7 if nonlinear, 6 if linear (it was always 7). The reader checks
+              that the fundamentals are exactly modes 3N - n_vib + 1 .. 3N. normal_modes now reads the out file
+              too, to keep 5 or 6 MOLDEN vibrations out (pMOLDEN's linear; it was always 6).
+            - Gaussian (B, coriolis): N from the NAtoms= line (parse_Na, rewritten; it was unused), n_vib from
+              the harmonic fundamentals. It was "2 atoms", which missed CO2 and other linear molecules with 3+ atoms.
+              N first came from get_equil_geo, which gives 0 atoms for ACAC and ACDM: found A6.
+            - parse_coriolis (CFOUR) skips the translation and rotation pairs (mode < first vibration). They
+              landed at negative indices; harmless so far (all zero, overwritten later), but fragile.
+            - parse_from_source's linear argument: ignored now, kept so that old calls still work; passing it
+              gives a DeprecationWarning. parse_cfour_output lost its linear_molecule argument (no other caller).
+        New tests (tests/test_wilson_obtainer.py): test_is_linear (CO, CO2, C2H2, H2O, formaldehyde, a wrong count);
+        test_cfour_linear_mode_numbers, on a small made-up CFOUR out file for a linear triatomic (no real linear
+        example with 3+ atoms in the repo; the old code numbers its modes -1 .. 2); test_linear_argument_ignored.
+        Baseline unchanged: all example molecules are nonlinear except CO, which stays linear.
+        Not changed: simple_parsed_data.parse_cfour_output still takes linear_molecule (no user but its test, L4).
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).

@@ -1,17 +1,36 @@
 from typing import Any
 
-def parse_from_source(requested_data: dict, 
-                      source_type: str, 
+
+def is_linear(n_atoms: int, n_vib: int) -> bool:
+    """A molecule of n_atoms atoms is linear if it has 3N-5 vibrational modes, nonlinear if 3N-6."""
+    if n_vib == 3 * n_atoms - 5:
+        return True
+    if n_vib == 3 * n_atoms - 6:
+        return False
+    raise ValueError(f'{n_vib} vibrational modes for {n_atoms} atoms: expected {3 * n_atoms - 6} (nonlinear) '
+                     f'or {3 * n_atoms - 5} (linear)')
+
+
+def parse_from_source(requested_data: dict,
+                      source_type: str,
                       base_file_loc: str,
                       lvl_theory: str,
                       basis_set: str,
                       reindex_modes: bool = False,
-                      linear: bool = False) -> dict[str, Any]:
+                      linear: bool | None = None) -> dict[str, Any]:
     """
     VALUES MUST BE IN ATOMIC UNITS
 
     returns a dict like requested_data dict, with values as data parsed from outputs
+
+    linear: ignored, kept so that old calls still work (passing it gives a DeprecationWarning). Both readers decide
+        from the file whether the molecule is linear (is_linear: 3N-5 vibrational modes).
     """
+    if linear is not None:
+        import warnings
+        warnings.warn("parse_from_source: 'linear' is ignored, the readers decide it from the file",
+                      DeprecationWarning, stacklevel=2)
+
     if source_type == 'gaussian':
 
         results_dict = parse_gaussian16_output(requested_data=requested_data, 
@@ -64,8 +83,7 @@ def parse_from_source(requested_data: dict,
         
         # todo: finish parse_cfour_output
         results_dict = parse_cfour_output(requested_data=requested_data,
-                                          files_dict=files_dict,
-                                          linear_molecule=linear)
+                                          files_dict=files_dict)
         return results_dict
 
 
@@ -88,6 +106,9 @@ def parse_gaussian16_output(requested_data: dict,
 
     cff and cff_rc come together: a request for either returns both. The same for qff and qff_rc.
     Gaussian prints both units (columns K and FI), so both are Gaussian's own numbers.
+
+    Linear molecules (for B and coriolis): decided from the file, from the number of atoms and of vibrational
+    modes (is_linear).
     """
     results = {}
 
@@ -166,17 +187,9 @@ def parse_gaussian16_output(requested_data: dict,
                 raise ValueError("smth went wrong")
 
     if any(k in requested_data for k in ('B', 'coriolis')): 
-        from .parseGaussian_forWilson import get_equil_geo
-        linear = False
-        if 'atoms' not in results:
-            atoms, _ = get_equil_geo(log_lines)
-        else:
-            atoms = results['atoms']
+        from .parseGaussian_forWilson import parse_Na, parse_coriolis
+        linear = is_linear(parse_Na(log_lines), len_nmodes)
 
-        if len(atoms)==2:
-            linear = True
-
-        from .parseGaussian_forWilson import parse_coriolis
         rotational_constant, coriolis_constant = parse_coriolis(log_lines, len_nmodes, linear)
         
         if 'B' in requested_data:
@@ -253,9 +266,13 @@ def make_cfour_files_dict(base_dir_loc):
     return files_dict_keys
 
 
-def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: bool) -> dict:
+def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
     """
     files_dict_keys = ['molden', 'out_file', 'cubic_file', 'quartic_file', 'dipole_file', 'polar_pkl']
+
+    Mode numbers: CFOUR numbers all 3N modes; the first 6 (5 for a linear molecule) are translations and
+    rotations. The out file gives 3N and the vibrational modes, so the reader decides linear itself (is_linear)
+    and returns the vibrations as modes 0 .. n-1.
 
     Units:
         "harmonic_states": "cm-1",
@@ -284,31 +301,25 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
     The two differ slightly (up to ~1e-3 of the value in the example files). The reader returns their mean, in
     every index order. See getDipoleDers_anharm and getQuarticPost.
     """
-    # CFOUR has all 3*N normal modes, first 5 or 6 are rotational and translational
-    nModesStart = 6 if linear_molecule else 7
-
     results = {}
 
-    if any(k in requested_data for k in ('equilibrium_geometry', 'atoms', 'normal_modes')):
-        from .parseCFOUR_forWilson import pMOLDEN
-        coords, atoms, normal_modes_dict = pMOLDEN(files_dict['molden'])
-
-        if 'equilibrium_geometry' in requested_data:
-            results['equilibrium_geometry'] = coords
-
-        if 'atoms' in requested_data:
-            results['atoms'] = atoms
-
-        if 'normal_modes' in requested_data:
-            results['normal_modes'] = normal_modes_dict
-
-    # the harmonic frequencies give the mode count and the unit conversion of the properties
-    needs_out_file = ('anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
+    # the out file gives the mode numbers (and linear), the mode count and the harmonic frequencies for the unit
+    # conversion of the properties
+    needs_out_file = ('anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval', 'normal_modes', 'B', 'coriolis',
                       'cff', 'cff_rc', 'qff', 'qff_rc', 'dipgrad', 'diphess', 'polgrad', 'polhess')
     if any(k in requested_data for k in needs_out_file):
         import numpy as np
-        from .parseCFOUR_forWilson import parse_output_file
+        from .parseCFOUR_forWilson import parse_output_file, count_normal_coordinates
         vib_energy_levels_list, _, anharmonic_freqs, _, harmonic_freqs = parse_output_file(files_dict['out_file'])
+
+        # CFOUR mode numbers of the vibrations: 3N - n_vib + 1 .. 3N, i.e. from 7 (nonlinear) or 6 (linear)
+        n_all_modes = count_normal_coordinates(files_dict['out_file'])
+        fundamentals_original = sorted(k[0] for k in vib_energy_levels_list if len(k) == 1)
+        linear = is_linear(n_all_modes // 3, len(fundamentals_original))
+        nModesStart = n_all_modes - len(fundamentals_original) + 1
+        if fundamentals_original != list(range(nModesStart, n_all_modes + 1)):
+            raise ValueError(f'CFOUR fundamentals are modes {fundamentals_original}, '
+                             f'expected {nModesStart} .. {n_all_modes} of {n_all_modes} normal coordinates')
 
         harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs))
         harmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in harm_states_dict.items()}
@@ -328,6 +339,21 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
 
             if 'nc_sqrt_eigval' in requested_data:
                 results['nc_sqrt_eigval'] = fundamentals_harmonic_int
+
+    if any(k in requested_data for k in ('equilibrium_geometry', 'atoms', 'normal_modes')):
+        from .parseCFOUR_forWilson import pMOLDEN
+        # linear (from the out file, read above for normal_modes) changes only which MOLDEN vibrations are kept
+        coords, atoms, normal_modes_dict = pMOLDEN(files_dict['molden'],
+                                                   linear=linear if 'normal_modes' in requested_data else False)
+
+        if 'equilibrium_geometry' in requested_data:
+            results['equilibrium_geometry'] = coords
+
+        if 'atoms' in requested_data:
+            results['atoms'] = atoms
+
+        if 'normal_modes' in requested_data:
+            results['normal_modes'] = normal_modes_dict
 
     if any(k in requested_data for k in ('B', 'coriolis')):
         from .parseCFOUR_forWilson import parse_coriolis

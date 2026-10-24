@@ -93,9 +93,10 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
     if len(rotational_constant)>3:
         rotational_constant = rotational_constant[-3:]
 
-    corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
-                                          tuple(item for item in corYtuples if item[0] !=0. ),
-                                          tuple(item for item in corZtuples if item[0] !=0. ))
+    # vibrations only: a translation or rotation (mode < startmode) would land at a negative index
+    corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if min(item[:2]) >= startmode),
+                                          tuple(item for item in corYtuples if min(item[:2]) >= startmode),
+                                          tuple(item for item in corZtuples if min(item[:2]) >= startmode))
 
     corX, corY, corZ = np.zeros((nModes, nModes)), np.zeros((nModes, nModes)), np.zeros((nModes, nModes))
 
@@ -113,6 +114,19 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
     coriolis_constant = np.array([corX, corY, corZ])
 
     return rotational_constant, coriolis_constant
+
+
+def count_normal_coordinates(filepath: str) -> int:
+    """
+    Number of normal coordinates in the out file: 3N for N atoms, translations and rotations included
+    (section "Normal coordinates for reference point", one "Normal coordinate <k>" header per mode)
+    """
+    import re
+    with open(filepath, 'r') as file:
+        labels = {int(m.group(1)) for m in re.finditer(r'^\s*Normal coordinate\s+(\d+)\s*$', file.read(), re.M)}
+    if not labels:
+        raise ValueError(f'No "Normal coordinate" sections in {filepath}')
+    return len(labels)
 
 
 def parse_output_file(filepath: str):

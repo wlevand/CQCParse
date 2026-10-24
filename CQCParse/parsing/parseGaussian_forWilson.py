@@ -10,7 +10,6 @@
 #     - .fchk --- formcheck (generated from checkpoint file)
 """
 
-from CQCParse.debug import debugfunc
 from scipy import constants
 import numpy as np
 import sys
@@ -136,19 +135,12 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
 def parse_rot_const(lines, linear_molecule: bool = False):
     return
 
-def parse_Na(lines: list[str]):
-
-    ind = 0
-
-    Na = 0
+def parse_Na(lines: list[str]) -> int:
+    """Number of atoms, from the first 'NAtoms=' line (Gaussian prints one in every job step)"""
     for line in lines:
-        ind += 1
-        if 'Distance matrix (angstroms):' in line:
-            Na = int(lines[ind-3].split()[0])
-            break
-    if Na == 0:
-        debugfunc('Warning: Number of atoms not found in output', 'parseGaussian_forWilson.parse_Na')
-    return Na
+        if 'NAtoms=' in line:
+            return int(line.split('NAtoms=')[1].split()[0])
+    raise ValueError('No "NAtoms=" line in the Gaussian output')
 
 
 # used in retrievedata.py
