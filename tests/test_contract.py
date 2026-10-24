@@ -37,8 +37,6 @@ def result(source):
 
 def known_failures(source, name=None):
     reasons = []
-    if source == 'c4_FORM_HF_cc-pVQZ':
-        reasons.append('todo C2: HFcc_pVQZ has no MOLDEN file, so every request raises FileNotFoundError')
     if SOURCES[source][0] == 'cfour' and name == 'diphess':
         reasons.append('todo C1: CFOUR diphess is not symmetric (each order of a mode pair read on its own)')
     return [pytest.mark.xfail(reason='; '.join(reasons), strict=True)] if reasons else []

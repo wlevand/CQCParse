@@ -220,25 +220,25 @@
     "file": "refinedc4/HFcc_pVQZ",
     "lvl_theory": "HF",
     "basis_set": "cc-pVQZ",
-    "returned": {},
+    "returned": {
+      "anharmonic_states": "dict, 83 entries",
+      "harmonic_states": "dict, 83 entries",
+      "nc_sqrt_eigval": "dict, 6 entries",
+      "B": "ndarray float64 (3,)",
+      "coriolis": "ndarray float64 (3, 6, 6)",
+      "cff": "ndarray float64 (6, 6, 6)",
+      "cff_rc": "ndarray float64 (6, 6, 6)",
+      "qff": "ndarray float64 (6, 6, 6, 6)",
+      "qff_rc": "ndarray float64 (6, 6, 6, 6)",
+      "dipgrad": "ndarray float64 (6, 3)",
+      "diphess": "ndarray float64 (6, 6, 3)",
+      "polgrad": "ndarray float64 (6, 3, 3)",
+      "polhess": "ndarray float64 (6, 6, 3, 3)"
+    },
     "errors": {
       "equilibrium_geometry": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
       "atoms": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "normal_modes": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "harmonic_states": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "anharmonic_states": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "nc_sqrt_eigval": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "B": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "coriolis": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "dipgrad": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "diphess": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "polgrad": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "polhess": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "cff": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "cff_rc": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "qff": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "qff_rc": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
-      "modes_mapping": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'"
+      "normal_modes": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'"
     }
   },
   "c4_FORM_HF_cc-pVTZ": {

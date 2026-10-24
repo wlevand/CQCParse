@@ -274,11 +274,10 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
 
     results = {}
 
-    if 'equilibrium_geometry' or 'atoms' or 'normal_modes' in requested_data:
+    if any(k in requested_data for k in ('equilibrium_geometry', 'atoms', 'normal_modes')):
         from .parseCFOUR_forWilson import pMOLDEN
         coords, atoms, normal_modes_dict = pMOLDEN(files_dict['molden'])
-        num_modes = len(normal_modes_dict)
-    
+
         if 'equilibrium_geometry' in requested_data:
             results['equilibrium_geometry'] = coords
 
@@ -288,31 +287,34 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         if 'normal_modes' in requested_data:
             results['normal_modes'] = normal_modes_dict
 
-    
-    if 'anharmonic_states' or 'harmonic_states' or 'nc_sqrt_eigval' in requested_data:
+    # the harmonic frequencies give the mode count and the unit conversion of the properties
+    needs_out_file = ('anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
+                      'cff', 'qff', 'dipgrad', 'diphess', 'polgrad', 'polhess')
+    if any(k in requested_data for k in needs_out_file):
+        import numpy as np
         from .parseCFOUR_forWilson import parse_output_file
         vib_energy_levels_list, _, anharmonic_freqs, _, harmonic_freqs = parse_output_file(files_dict['out_file'])
+
+        harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs))
+        harmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in harm_states_dict.items()}
+        fundamentals_harmonic_int = {int(k[0]):v for k,v in harmonic_states.items() if len(k)==1}
+        fund_harmonic_energies_array = np.array(list(fundamentals_harmonic_int.values()))
+        num_modes = len(fundamentals_harmonic_int)
+
+        labelsModes_original = [i + nModesStart for i in list(fundamentals_harmonic_int)]
 
         if 'anharmonic_states' in requested_data:
             anharm_states_dict = dict(zip(vib_energy_levels_list, anharmonic_freqs))
             anharmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in anharm_states_dict.items()}
             results['anharmonic_states'] = anharmonic_states
-        
-        if 'harmonic_states' or 'nc_sqrt_eigval' in requested_data:
-            import numpy as np
 
-            harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs))
-            harmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in harm_states_dict.items()}
-            fundamentals_harmonic_int = {int(k[0]):v for k,v in harmonic_states.items() if len(k)==1}
-            fund_harmonic_energies_array = np.array(list(fundamentals_harmonic_int.values()))
-            
-            labelsModes_original = [i + nModesStart for i in list(fundamentals_harmonic_int)]
+        if any(k in requested_data for k in ('harmonic_states', 'nc_sqrt_eigval')):
             results['harmonic_states'] = harmonic_states
 
             if 'nc_sqrt_eigval' in requested_data:
                 results['nc_sqrt_eigval'] = fundamentals_harmonic_int
 
-    if 'B' or 'coriolis' in requested_data:
+    if any(k in requested_data for k in ('B', 'coriolis')):
         from .parseCFOUR_forWilson import parse_coriolis
         rotational_constant, coriolis_constant = parse_coriolis(files_dict['out_file'],
                                                                 num_modes,
@@ -342,7 +344,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         results['qff'] = qff_au
         results['qff_rc'] = quartic_cm_1
 
-    if 'dipgrad' or 'diphess' in requested_data:
+    if any(k in requested_data for k in ('dipgrad', 'diphess')):
         from .parseCFOUR_forWilson import getDipoleDers_anharm_au_simple
 
         mu = getDipoleDers_anharm_au_simple(filenamebase=files_dict['dipole_file'], 
@@ -354,7 +356,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         if 'diphess' in requested_data:
             results['diphess'] = mu[1]
 
-    if 'polgrad' or 'polhess' in requested_data:
+    if any(k in requested_data for k in ('polgrad', 'polhess')):
         from .parseCFOUR_forWilson import getPolarDers_pkl_au_simple
 
         alpha = getPolarDers_pkl_au_simple(polar_pkl_file=files_dict['polar_pkl'], 
