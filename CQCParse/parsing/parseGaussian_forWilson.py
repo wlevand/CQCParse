@@ -132,9 +132,6 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
 
     return rotational_constant, coriolis_constant
 
-def parse_rot_const(lines, linear_molecule: bool = False):
-    return
-
 def parse_Na(lines: list[str]) -> int:
     """Number of atoms, from the first 'NAtoms=' line (Gaussian prints one in every job step)"""
     for line in lines:
