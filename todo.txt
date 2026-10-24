@@ -1,5 +1,5 @@
 CQCParse — TODO
-updated 2026-10-24, branch cleanup_claude (starts at main, 4e16cf4)
+updated 2026-10-25, branch cleanup_claude (starts at main, 4e16cf4)
 CQCParse reads Gaussian 16 and CFOUR output files and returns one dict of data.
 wilson (repo wilson_gv) gets the data only through parse_from_source (CQCParse/parsing/parse_wilson_obtainer.py).
 "wilson G8" = item G8 in wilson's own todo: wilson_gv, branch rsp_eval_refactor,
@@ -13,33 +13,51 @@ Tags:
 
 What needs fixing, in order
 ---------------------------
-Where things stand:
-    Gaussian reader: works for wilson today. All 7 Gaussian files pass wilson's checks; all 803 wilson tests pass.
-    CFOUR reader: all 4 CFOUR folders pass wilson's checks (T3). C1 and C2, which blocked wilson G8, are fixed.
-        C3 is fixed too: CFOUR and Gaussian force constants agree for formaldehyde (tests/test_force_constants.py).
+Where things stand (reviewed 2026-10-25 against wilson_gv's code and tests):
+    Both readers pass wilson's data checks on all 11 example sources (T3). All known wrong numbers are fixed.
+    wilson cannot use this branch yet: `import wilson_suite` fails (L1), and 13 of wilson's reference tests fail
+        because R1 moved Gaussian cff (by up to 1.1e-4 of a spectrum's largest amplitude; T6).
+    Least checked: the unit conversions of dipgrad, diphess, polgrad, polhess. wilson's EVV terms are built from
+        them, and no automatic test checks them (T4, R4).
     Normal modes: not ready (N). wilson does not ask for them today.
+
+What wilson reads (wilson_gv, checked 2026-10-25), to weigh each item:
+    EVV terms: dipgrad, diphess, polgrad, polhess, cff, in au (e.g. polgrad * dipgrad * dipgrad * cff).
+    VPT2: cff_rc and qff_rc in cm-1, B, and coriolis only as zeta^2 (vpt2.coriolis_term), so its sign does not
+        matter there.
+    Not read: qff in au, the geometry, atoms, normal_modes (one wilson test pins normal_modes, see N).
 
 One line per item. The full entry for each item is further down.
 
-Now, one small fix at a time. After each fix, run the tests and check the baseline (T2).
-    1. T4   New test: compare CFOUR and Gaussian results for the same molecule (formaldehyde HF/cc-pVTZ and
-            HF/cc-pVQZ). The force constants are done (C3); left: the other properties, with signs and axes.
-    2. A6   Gaussian equilibrium_geometry and atoms come back empty for ACAC and ACDM. This also makes
-            normal_modes crash there (N2).
-    3. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
-            a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
+Now, in this order. After each change that moves a number: CQCParse's tests, the baseline (T2), and wilson's tests
+(T6).
+    1. L1, T6  [wilson] In wilson_gv: delete two dead import lines (L1), then update the 13 reference values that
+            R1 moved (T6). Until both are done, wilson cannot use this branch.
+    2. T4   CFOUR vs Gaussian test for the rest: dipgrad, diphess, polgrad, polhess, B, frequencies, states.
+            The force constants are done (C3). Needs the mode signs and the axes.
+    3. R4   Write out the unit conversion of dipgrad, diphess, polgrad, polhess, as reduced_to_au does for the
+            force constants. Do with T4, which checks it.
+    4. R5   Say where CFOUR's polar.pkl comes from: built outside the reader, from runs not in the repo.
+    5. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
+            cut-off and measure what changes. Then decide.
+    6. A6   Gaussian geometry is empty for ACAC and ACDM, silently. First: raise an error instead. Then the fix.
+    7. N1   First: say in parse_from_source's docstring that normal_modes is in another mode order (H) than the
+            rest (A). The choice itself waits for wilson G9.
 
-Later:
-    L3      Rewrite the readers, CFOUR first. Only after all the fixes above: a rewrite now forces every [decide]
-            choice at once.
+Later, when wilson needs it:
     N1-N3   Normal modes: choose the mode order and the shape [decide], then fix the crashes. Before wilson G9.
-    A4      B for linear molecules: choose what B holds [decide]. Before wilson S3.
-    X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8.
+    X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8: without them, mixed data
+            gives wrong numbers with no error. T4's mode matching is the start.
+    A4      B for linear molecules: choose what B holds [decide]. Only for linear molecules with 2+ modes; wilson
+            then raises a loud error, so nothing goes wrong silently.
     A3      The names 'geo' and 'linear'. Only when wilson starts to read them.
 
 In wilson_gv, not in this repo:
-    L1      Delete two dead import lines. Needed now: wilson_gv fails to import with this branch.
-    L2      Fix or delete setup.sh.
+    L1, T6  See "Now", item 1.
+    L2      Fix or delete setup.sh. Housekeeping.
+
+Dropped (2026-10-25, see Done): R3 (Coriolis digits: negligible for wilson) and L3 (the rewrite: no gain for wilson
+or the numbers now; do targeted cleanups such as R4 instead).
 
 
 Tests (run 2026-10-24)
@@ -47,6 +65,9 @@ Tests (run 2026-10-24)
     pass 248, xfail 0, fail 0 (tests/, 248 tests, about 3 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
+wilson's tests with this branch (run 2026-10-25, T6): 963 pass, 30 fail, 1 collection error.
+    17 fail and the collection error happen with CQCParse main too: wilson's own (term derivation tests,
+    fixtures.py calls make_impulsive_gaussian_pulse with cf_uv). 13 fail because of R1 (T6).
 
 
 Rules
@@ -74,7 +95,8 @@ Rules
 - Both readers return the same keys, shapes and units for the same request.
 - Parser bugs are silent: a wrong unit factor still gives the right shape (C3 passed every shape and symmetry
   check). So any change that moves a number in the baseline (T2) needs a reason in the commit message, e.g.
-  "qff changed: C3 fixed".
+  "qff changed: C3 fixed". Run wilson's tests too (T6): wilson's reference tests compare at 1e-11, so they show
+  what the change does to wilson's results, and wilson's reference values may need the same reason.
 - Physics choices are [decide] items. Write the choice here first, then code it.
 
 
@@ -95,6 +117,27 @@ T. Tests and baseline
               sign (check whether 0- or 1-based); the y axis is flipped
             - after the match, dipgrad, polgrad, diphess, polhess agree within 1.8e-4 of each tensor's largest
               value (the hand check said the same of qff_rc, but the test above measures 7.5e-4)
+        Why it matters: it is the only check of the dipole and polarizability unit conversions (R4), and wilson's
+        EVV terms are built from these four. The matching code (modes, signs, axes) is also the start of X1.
+[ ] T6  [wilson] Run wilson's tests after every change that moves a number. How, until L1 is done (wilson_gv's
+        environment uses this working copy): give CQCParse.parsing stand-ins for the 7 deleted class names in
+        memory, then run pytest on wilson_gv/src, e.g.
+            python -c "import sys, CQCParse.parsing as p; [setattr(p, n, type(n, (), {})) for n in ('CFOURParser',
+            'CFOUROutput', 'GaussianParser', 'GaussianOutput', 'GaussianDataParser', 'CFOURdataParser',
+            'ParsedData')]; import pytest; sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', 'src']))"
+        To compare with an older CQCParse: unpack it (git archive <commit>) to a folder outside both repos and put
+        that folder first on PYTHONPATH.
+        Now (2026-10-25): 13 tests fail because of R1, all in wilson_intensities/refac_rsp_eval/tests:
+        test_evv_reference (6), test_grid_reference (2), test_hand_calculation (3), test_pipeline (2). With
+        CQCParse just before C3 + R1 (f5ad81e), all 740 tests there pass. Their molecules (formaldehyde, water,
+        CO) are Gaussian data, so the cause is R1: cff from column FI, not from the 5-decimal column K.
+        Size: EVV coefficients move by up to 3e-5 relative; spectra by 1.4e-6 to 1.1e-4 of the largest amplitude.
+        CO by 5.9e-6, exactly its column-K rounding. The new numbers are the more precise ones.
+        Fix, in wilson_gv (refac_rsp_eval/tests): rerun make_evv_reference.py (writes evv_reference.json, which
+        test_hand_calculation and test_pipeline also read) and
+        `python -m wilson_suite.wilson_intensities.refac_rsp_eval.tests.test_grid_reference` (writes
+        grid_reference.npz). Check the diff, rerun the 13 tests, commit with the reason
+        "CQCParse R1: Gaussian cff from column FI".
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
@@ -123,6 +166,8 @@ A. What parse_from_source returns
               "Optimization completed." (line 98997).
         Silent: no error, just empty arrays. The 5 other files are fine. Found with C4, which first used the atom
         count from get_equil_geo (now from the NAtoms= line, parse_Na).
+        For wilson: none (it does not read the geometry). For any other user: wrong data with no error.
+        First step: raise an error when get_equil_geo finds no atoms (or a count other than parse_Na's).
         Fix: find where these two files hold the optimized geometry, and read it from there; check that the atom
         count matches parse_Na. Then N2's crash on ACAC and ACDM goes too (checked: with the NAtoms count,
         get_normal_modes reads 18 and 42 modes).
@@ -138,7 +183,7 @@ are here. How many digits each value the readers use has in the file:
         dipgrad, diphess, polgrad, polhess: 6 significant digits (D format). Fine.
         cff_rc, qff_rc: column FI, 5 decimals, on values at least 300x larger than in column K. Fine.
         cff, qff (au): converted from FI since R1. Column K (5 decimals) was not fine for small terms.
-        coriolis: the short list, 5 decimals (R3).
+        coriolis: the short list, 5 decimals (R3, dropped: negligible for wilson).
         Small force constants are not in the file at all (R2).
     CFOUR: force constants and dipole derivatives with 10 decimals, harmonic frequencies with 6. Fine.
 [ ] R2  [decide] Gaussian leaves out every force constant with |K| < 3.71e-5 (Hartree amu^(-n/2) Bohr^(-n)). The
@@ -160,10 +205,27 @@ are here. How many digits each value the readers use has in the file:
         ReadAnharm option in the Gaussian manual) and rerun; or accept the cut, and say so next to the data (e.g.
         return the cut-off in the dict). CFOUR: not known whether it leaves out small terms; for formaldehyde it
         lists the same 22 cubic and 45 quartic index sets as Gaussian.
-[ ] R3  Gaussian coriolis comes from the short list "CORIOLIS COUPLINGS": 5 decimals, only |zeta| > 1e-3 (the
-        default "Coriolis Couplings" cut-off). The full matrices in the same file ("Coriolis Couplings along the X
-        axis") have 6 significant digits. The gap is at most 5e-6. No value between 0 and 1e-3 is missing in any of
-        the 7 files. Low priority: read the full matrices in the rewrite (L3).
+        For wilson: cff feeds the EVV terms, cff_rc and qff_rc the VPT2. No effect on wilson's test molecules
+        (formaldehyde loses nothing); possibly the largest remaining error for large, floppy molecules.
+        First step: rerun ACAC with a lower cut-off; compare cff, qff and the VPT2 energies (and wilson's results)
+        with the present run. Only then choose a way.
+[ ] R4  Write out the unit conversions of dipgrad, diphess, polgrad, polhess, as reduced_to_au does for the force
+        constants. Now:
+            - Gaussian (getDipDers_au, getPolarDers_au): the dipole values in Debye -> au (in parse_dipole_moment),
+              then / sqrt(m_u/m_e) for each mode index; the polarizability values are already in au. This assumes
+              the file's derivatives are per mass-weighted normal coordinate in amu^(1/2) Bohr; the file says only
+              "Unit of the property: Debye" (a.u. for the polarizability). Confirm, and write it down.
+            - CFOUR (getDipoleDers_anharm_au_simple, getPolarDers_pkl_au_simple): the reader takes the dipole files
+              and polar.pkl as derivatives in dimensionless normal coordinates q, in au; each mode index gets a
+              factor sqrt(w_i) (w in Hartree, convNu2Ene). The same per-index factor as in reduced_to_au, written a
+              second time, without a docstring. Could become one shared function.
+        T4 checks the result (the hand check: within 1.8e-4).
+[ ] R5  CFOUR polgrad and polhess come from polar.pkl, built outside the reader by getPolarDers /
+        getDisplacementsPolarData (parseCFOUR_forWilson.py) from POLAR files of displaced runs, rotated back with
+        each run's OMAT matrix; finite differences with step 0.01 (first: (p - n)/0.02; second: (pp - pn - np +
+        nn)/(4 * 0.01^2); diagonal: (p - 2 eq + n)/0.01^2). The displaced runs are not in the repo, so nobody can
+        rebuild or check polar.pkl from here. Write this down next to the reader (docstring), with the step and
+        the formulas, and say which folders a user must have to rebuild it.
 
 
 P. Speed
@@ -184,6 +246,8 @@ B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order.
         A order. Formaldehyde: normal_modes[0] is the out-of-plane mode (1203 cm-1); nc_sqrt_eigval[0] is the C-H
         stretch (2879 cm-1). wilson cannot ask for reindex_modes (no field in DataOriginInfo).
         Ways: normal_modes in A order like the rest; everything in H order; a DataOriginInfo field [wilson].
+        First step, now: say in parse_from_source's docstring that Gaussian normal_modes is in H order while every
+        other mode index is in A order, so nobody combines them by index without modes_mapping.
         Also decide here: modes_mapping is Gaussian only (CFOUR has one mode order), the last key the two readers
         do not share (A5).
 [ ] N2  Failures: ACAC and ACDM raise "cannot reshape ... into shape (0,3,3)"; CO returns 0 modes
@@ -217,12 +281,6 @@ L. Legacy code and the rewrite
         setup.sh looks like a leftover of the old layout with one repo per package: it also clones the wilson-*
         repos, which are now folders in src/wilson_suite. wilson_gv's README clones CQCParse main. Fix or delete
         setup.sh.
-[ ] L3  Rewrite one reader at a time, after T2-T4 and the C and A fixes. CFOUR first: smaller, more bugs. Keep
-        what wilson uses (Rules), so wilson needs no change. Check number by number against T2; every
-        difference needs a reason. If CQCParse has users besides wilson, tell them first.
-        If a typed API is wanted (the idea of the deleted simple_parsed_data, L5): make it a thin wrapper over
-        parse_from_source, e.g. a frozen dataclass with ParsedData.from_source(...), the same key names and
-        units as the dict, plus program, lvl_theory and basis_set. No second copy of the readers.
 
 
 Done
@@ -385,7 +443,7 @@ Done
               readers (ParsedDataSimple, a frozen dataclass), from before parse_from_source. It had none of the C2,
               C4 and A6 fixes and failed on 4 of the 11 examples (CO, ACAC, ACDM, CFOUR HFcc_pVQZ). Its cff was
               in cm-1 and cff_au in au: the opposite of parse_from_source's cff (au) and cff_rc (cm-1). The idea
-              (a typed result object) is kept as a note in L3.
+              (a typed result object) was kept as a note in L3 (dropped since; the note is in L3's Done entry).
             - parseGaussian_forWilson.parse_rot_const: an empty stub (returned None).
         Tests: 227 -> 225 (the 2 tests of simple_parsed_data).
     C3 + R1 (2026-10-24)  One conversion of the force constants to atomic units, used by both readers:
@@ -429,6 +487,25 @@ Done
         2.2 s above was on another machine), almost all of it now parse_polarizability (the text). Output checked
         identical (shapes, dtype, every value) on all 7 Gaussian files. Baseline unchanged.
         The test run: about 5 s -> 3 s.
+    Review (2026-10-25)  The plan, checked against what wilson_gv reads (see "What wilson reads") and against a
+        run of wilson's tests with this branch (T6). Changes to the plan:
+            - new: T6 (run wilson's tests; 13 fail because of R1), R4 (unit conversions of the dipole and
+              polarizability derivatives), R5 (where polar.pkl comes from); a rule to run wilson's tests after any
+              change that moves a number.
+            - first steps added: R2 (one test rerun before deciding), A6 (raise an error, not empty arrays), N1
+              (a docstring note now).
+            - reordered by what wilson needs now and by numerical risk; X1 and A4 say why they can wait.
+            - dropped: R3 and L3 (below).
+            - "all 803 wilson tests pass" was out of date: wilson now has about 1000 tests (see Tests).
+    R3 (dropped, 2026-10-25)  Gaussian coriolis from the short list, 5 decimals (full matrices: 6 significant
+        digits; gap at most 5e-6, nothing missing). wilson uses coriolis only as zeta^2 * B (vpt2.coriolis_term):
+        negligible. Read the full matrices only if a reader is rewritten anyway.
+    L3 (dropped, 2026-10-25)  The rewrite of both readers. No gain for wilson and no number to fix: the tests (T2,
+        T3, test_force_constants) pin the results, and the known bugs are fixed one by one. It would make the code
+        cleaner, at the risk of new bugs. Instead: targeted cleanups with a clear gain, e.g. R4.
+        Kept from it: if a typed API is wanted (the idea of the deleted simple_parsed_data, L5), make it a thin
+        wrapper over parse_from_source, e.g. a frozen dataclass with ParsedData.from_source(...), the same key
+        names and units as the dict, plus program, lvl_theory and basis_set. No second copy of the readers.
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).
