@@ -28,7 +28,11 @@ Now, one small fix at a time. After each fix, run the tests and check the baseli
             nc_sqrt_eigval.
     3. A5   CFOUR returns no reindex_modes key. Gaussian does.
     4. C3   CFOUR qff is about 570 times too large (wrong unit factor).
-    5. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
+    5. R1   Gaussian cff and qff in au come from a column with 5 decimals: small terms keep 1-2 digits, up to
+            11% off. Fix: convert from the cm-1 column, as CFOUR does. Do with C3 (same conversion).
+    6. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
+    7. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
+            a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
 
 Any time:
     P1, P2  Two slow loops in the Gaussian reader, 2.2 s each.
@@ -103,6 +107,7 @@ C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
         by sqrt(w_i w_j w_k) and divides by the unit factor. qff_rc is right. No EVV term uses qff; wilson S3 uses
         qff_rc.
         Fix: convert as getCubicPost does (4 frequencies, the quartic factor), or stop returning CFOUR qff.
+        The formula is confirmed against Gaussian's own K column (R1).
         Prefer the fix: both readers then return the same keys (Rules). Check with T4.
 [ ] C4  linear: wilson never passes linear (DataOriginInfo has no such field), so CFOUR always takes mode 7 as the
         first vibration (parse_wilson_obtainer.py:286). For a linear molecule it is 6, and every mode number is
@@ -131,6 +136,59 @@ A. What parse_from_source returns
 [ ] A5  Keys differ by reader (seen in tests/baseline/summary.json): the CFOUR reader returns no reindex_modes
         (Gaussian always does; wilson's test_getting_data expects it) and no modes_mapping. Return reindex_modes
         (False) from CFOUR too; modes_mapping: decide with N1.
+
+
+R. Precision of the numbers in the files
+----------------------------------------
+Checked 2026-10-24 on the 7 Gaussian files and the 4 CFOUR folders. The check scripts were one-off; the numbers
+are here. How many digits each value the readers use has in the file:
+    Gaussian:
+        harmonic and anharmonic energies: 3 decimals (cm-1). B: 7 decimals. Fine.
+        dipgrad, diphess, polgrad, polhess: 6 significant digits (D format). Fine.
+        cff_rc, qff_rc: column FI, 5 decimals, on values at least 300x larger than in column K. Fine.
+        cff, qff (au): column K, 5 decimals. Not fine for small terms (R1).
+        coriolis: the short list, 5 decimals (R3).
+        Small force constants are not in the file at all (R2).
+    CFOUR: force constants and dipole derivatives with 10 decimals, harmonic frequencies with 6. Fine.
+[ ] R1  Gaussian cff and qff in au come from column K (Hartree amu^(-n/2) Bohr^(-n)), printed with 5 decimals.
+        A small term keeps 1 or 2 digits: formaldehyde HF/cc-pVTZ term (3,1,1) prints K = 0.00017, FI = 0.39917 cm-1.
+        Measured against the same constants converted from FI and the harmonic frequencies:
+            - the gap is always within K's rounding step (half the last decimal: 6.4e-11 au cubic, 1.5e-12 au
+              quartic). So rounding is the only cause. The gap is at most 6.5e-6 of the largest term.
+            - per term: formaldehyde up to 1.5% (cff) and 1.3% (qff), median about 1e-4.
+              ACAC: up to 11%; 68 of 600 cubic and 209 of 1579 quartic terms off by more than 1%.
+              ACDM: up to 11%; 720 of 3611 cubic and 2524 of 9900 quartic terms off by more than 1%.
+        The effect on wilson's results is not measured. Check which wilson terms use cff and qff in au.
+        Fix: compute cff and qff from FI and the harmonic frequencies, as the CFOUR reader does for cff
+        (getCubicPost). Then both readers convert the same way. The check above also confirms the quartic
+        conversion against Gaussian's own K column (getCubicPost's formula with 4 frequencies and (a*b)^4): use it
+        for C3 too.
+        Add a test: the FI-based and the K-based values agree within K's rounding step. The test pins the
+        conversion for cubic and quartic.
+        Moves Gaussian cff and qff in the baseline (T2), each term by at most the rounding step.
+[ ] R2  [decide] Gaussian leaves out every force constant with |K| < 3.71e-5 (Hartree amu^(-n/2) Bohr^(-n)). The
+        cut-off is Gaussian's default, listed in each .out file under "Cut-offs for the present calculation",
+        "Tolerances on Data", 3rd and 4th derivs. The smallest printed |K| is 4.0e-5 in every file, so the cut is on
+        K. The reader gets 0 for a missing term, in cff and cff_rc alike. Gaussian's own VPT2 probably leaves the
+        terms out too (to check).
+        Quartic terms with 4 different indices are never computed, by Gaussian or CFOUR; VPT2 does not need them.
+        The counts below leave them out.
+            - formaldehyde: 22 of 56 cubic and 45 of 111 quartic terms printed. These are exactly the terms that
+              C2v symmetry allows, so nothing nonzero is missing.
+            - ACAC (lowest mode 75 cm-1): 540 of 1140 cubic and 1346 of 2925 quartic terms not printed.
+              ACDM (lowest mode 46 cm-1): 9633 of 13244 cubic and 27165 of 37065 quartic terms not printed.
+              Some are zero by symmetry; how many is not known.
+        Why it matters: the cut is on K, but FI = K * (unit factor) / sqrt(w_i w_j w_k) grows for low-frequency
+        modes. A term just under the cut could be up to 16 cm-1 in FI (ACAC cubic), 9 (ACAC quartic), 34 (ACDM
+        cubic), 52 (ACDM quartic). Those are upper bounds; the median bound is 0.1-0.4 cm-1.
+        Not a parser bug: the numbers are not in the file. Ways: lower the cut-off in the Gaussian input (find the
+        ReadAnharm option in the Gaussian manual) and rerun; or accept the cut, and say so next to the data (e.g.
+        return the cut-off in the dict). CFOUR: not known whether it leaves out small terms; for formaldehyde it
+        lists the same 22 cubic and 45 quartic index sets as Gaussian.
+[ ] R3  Gaussian coriolis comes from the short list "CORIOLIS COUPLINGS": 5 decimals, only |zeta| > 1e-3 (the
+        default "Coriolis Couplings" cut-off). The full matrices in the same file ("Coriolis Couplings along the X
+        axis") have 6 significant digits. The gap is at most 5e-6. No value between 0 and 1e-3 is missing in any of
+        the 7 files. Low priority: read the full matrices in the rewrite (L3).
 
 
 P. Speed
