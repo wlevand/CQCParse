@@ -304,16 +304,22 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, startmode, recipcm: bool = F
         and transforms it to :
           * cubic   force constants : [Hartree*amu(-3/2)*Bohr(-3)]
           * quartic force constants : [Hartree*amu(-2  )*Bohr(-4)]
+
+        AVERAGING: the CFOUR quartic file lists some index sets more than once. The (i,i,j,j) terms come from two
+        numerical differentiations, e.g. (12,12,7,7) -331.4924 and (7,7,12,12) -331.5419 cm-1 (CCSDTcc_pVQZ), and
+        differ by up to ~1e-3 of the value. Every order of an index set gets the mean of all its lines.
     """
     n = len(freq)
     K4 = np.zeros((n, n, n, n), dtype=np.float64)
 
+    # mean of the lines of one index set (see docstring)
+    values = {}
     for fijkl in quartic:
-        i = int(fijkl[0]) - startmode
-        j = int(fijkl[1]) - startmode
-        k = int(fijkl[2]) - startmode
-        L = int(fijkl[3]) - startmode
-        d = np.float64(fijkl[4])
+        ijkl = tuple(sorted(int(m) - startmode for m in fijkl[:4]))
+        values.setdefault(ijkl, []).append(np.float64(fijkl[4]))
+
+    for (i, j, k, L), vals in values.items():
+        d = np.mean(vals)
 
         indices = [(i, j, k, L), (i, j, L, k), (i, k, j, L), (i, k, L, j),
                    (i, L, j, k), (i, L, k, j), (j, i, k, L), (j, i, L, k),
@@ -358,11 +364,17 @@ def pDipole(filenamebase: str):
 def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
     """
     Getting dipole moment derivatives tensors
+
+    AVERAGING: the dipole(xyz) files list the second derivative d2mu/dQi dQj of each mode pair twice, in both
+    orders, e.g. (9,10) and (10,9). The two come from two numerical differentiations and differ slightly (up to
+    ~1e-3 of the value in the example files). Both slots [i, j] and [j, i] get the mean of the two. If only one
+    order is listed, it goes to both slots.
+
     :param nModesStart:
     :param labels:
     :param filenamebase: basename for dipole(xyz) files, e.g, 'dipole'
-    :return:  dmudqarray - first order derivatives of dipole moment, (3N-6, 3)
-              dmudqdarray - second order derivatives of dipole moment, (3N-6, 3N-6, 3)
+    :return:  first derivatives of the dipole moment, dmu/dQi, shape (3N-6, 3)
+              second derivatives of the dipole moment, d2mu/dQi dQj, shape (3N-6, 3N-6, 3), symmetric in i, j
     """
     last_part = filenamebase.split('/')[-1]
 
@@ -386,20 +398,15 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
             if L in dipz:
                 dmudq_array[L-nModesStart, 2] = dipz[L]
 
-    for L in dipx:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 0)] = dipx[L]
-
-    for L in dipy:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 1)] = dipy[L]
-
-    for L in dipz:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 2)] = dipz[L]
+    # mean of the two orders of a pair (see docstring)
+    for xyz, dip in enumerate((dipx, dipy, dipz)):
+        for L in dip:
+            if not isinstance(L, int):
+                if len(L) == 2:
+                    i, j = L[0] - nModesStart, L[1] - nModesStart
+                    val = (dip[L] + dip.get((L[1], L[0]), dip[L])) / 2
+                    dmudqdq_array[i, j, xyz] = val
+                    dmudqdq_array[j, i, xyz] = val
 
     return dmudq_array, dmudqdq_array
 

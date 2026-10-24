@@ -15,7 +15,8 @@ What needs fixing, in order
 ---------------------------
 Where things stand:
     Gaussian reader: works for wilson today. All 7 Gaussian files pass wilson's checks; all 803 wilson tests pass.
-    CFOUR reader: wilson cannot use it yet (C1, C3).
+    CFOUR reader: all 4 CFOUR folders pass wilson's checks (T3). C1 and C2, which blocked wilson G8, are fixed.
+        qff is still wrong (C3).
     Normal modes: not ready (N). wilson does not ask for them today.
 
 One line per item. The full entry for each item is further down.
@@ -23,13 +24,11 @@ One line per item. The full entry for each item is further down.
 Now, one small fix at a time. After each fix, run the tests and check the baseline (T2).
     1. T4   New test: compare CFOUR and Gaussian results for the same molecule (formaldehyde, HF/cc-pVTZ).
             Add HF/cc-pVQZ too once its MOLDEN file is found.
-    2. C1   CFOUR diphess, and the (i,i,j,j) quartic terms: the two orders of a mode pair give different
-            numbers. Fix: average them. Blocks wilson G8. diphess fails in T3 now.
-    3. A1   cff_rc and qff_rc come back only when cff or qff is asked for. Blocks wilson S3.
-    4. A2   Gaussian crashes when B, coriolis, cff or qff is asked for without nc_sqrt_eigval.
-    5. A5   CFOUR returns no reindex_modes key. Gaussian does.
-    6. C3   CFOUR qff is about 570 times too large (wrong unit factor).
-    7. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
+    2. A1   cff_rc and qff_rc come back only when cff or qff is asked for. Blocks wilson S3.
+    3. A2   Gaussian crashes when B, coriolis, cff or qff is asked for without nc_sqrt_eigval.
+    4. A5   CFOUR returns no reindex_modes key. Gaussian does.
+    5. C3   CFOUR qff is about 570 times too large (wrong unit factor).
+    6. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
 
 Any time:
     P1, P2  Two slow loops in the Gaussian reader, 2.2 s each.
@@ -50,8 +49,8 @@ In wilson_gv, not in this repo:
 
 Tests (run 2026-10-24)
 ----------------------
-    pass 186, xfail 4, fail 0 (tests/, 190 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
-    xfail = a known failure, marked with its todo item (C1). No CQCParse test imports wilson (T5).
+    pass 190, xfail 0, fail 0 (tests/, 190 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
+    xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
 
@@ -99,38 +98,14 @@ T. Tests and baseline
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
 -------------------------------------------------------------
-[ ] C1  diphess is not symmetric. CFOUR's dipole files list both orders of a mode pair, from numerical
-        derivatives: CCSDTcc_pVQZ/dipolez lines 8 and 10, (9,10) -0.0025711085 and (10,9) -0.0025712225.
-        getDipoleDers_anharm (parseCFOUR_forWilson.py:389-402) copies each line into its own slot. wilson's check
-        then fails: diphess[1,5,2] = 2.52302e-05 vs diphess[5,1,2] = 2.52368e-05. The Gaussian reader writes one
-        value to both slots (parseGaussian_forWilson.py:466-467).
-        Checked 2026-10-24, every example file:
-            - Gaussian prints one order only: dipole and polarizability P2 (i >= j), cubic (I >= J >= K), quartic
-              (I >= J >= K >= L), Coriolis (lower triangle). The reader copies it to every order, so there is no
-              second number to compare.
-            - CFOUR dipolex/y/z: all 13 nonzero mode pairs (3 in x, 6 in y, 4 in z) are listed in both orders, in
-              all 4 folders. 3rd derivatives: each once (the reader skips them). The two orders differ by up to
-              1.2e-3 of the value, 3.1e-5 of the largest 2nd derivative (largest at (8,12) z in every folder).
-              That is 6x smaller than the CFOUR-Gaussian difference in T4 (1.8e-4).
-            - CFOUR quartic: the same problem, hidden. 39 index sets are listed twice. 23 pairs are equal. 16
-              differ: the 15 (i,i,j,j) terms, which come from two numerical routes, and (10,11,7,7) at 1e-10.
-              E.g. CCSDTcc_pVQZ (12,12,7,7) -331.4924 and (7,7,12,12) -331.5419 cm-1. Up to 8.4e-4 of the value,
-              8.1e-5 of the largest quartic term. getQuarticPost (parseCFOUR_forWilson.py:301-335) writes each line
-              to all 24 orders, so the later line wins: qff and qff_rc pass the symmetry check, but hold one of the
-              two numbers instead of their average.
-            - CFOUR cubic: each set once. coriolis file: both orders, opposite signs, exact (the reader reads the
-              out file, one order). polar.pkl: polhess symmetric in the modes (getPolarDers builds it so); in x, y, z
-              up to 1e-6 apart in CCSDTcc_pVQZ, 1e-14 in the HF folders (wilson does not check x, y, z).
-        Fix: average the two orders; if the file has only one order, copy it to both. The same for the quartic
-        (i,i,j,j) terms. Unblocks wilson G8.
 [ ] C3  qff in au is 320-800x too large (median 568), against Gaussian formaldehyde (T4). getQuarticPost
-        (parseCFOUR_forWilson.py:301-335) only divides by the mass factor; getCubicPost (238-299) also multiplies
+        (parseCFOUR_forWilson.py:301-341) only divides by the mass factor; getCubicPost (238-299) also multiplies
         by sqrt(w_i w_j w_k) and divides by the unit factor. qff_rc is right. No EVV term uses qff; wilson S3 uses
         qff_rc.
         Fix: convert as getCubicPost does (4 frequencies, the quartic factor), or stop returning CFOUR qff.
         Prefer the fix: both readers then return the same keys (Rules). Check with T4.
 [ ] C4  linear: wilson never passes linear (DataOriginInfo has no such field), so CFOUR always takes mode 7 as the
-        first vibration (parse_wilson_obtainer.py:273). For a linear molecule it is 6, and every mode number is
+        first vibration (parse_wilson_obtainer.py:279). For a linear molecule it is 6, and every mode number is
         off by one. The Gaussian reader decides linear itself, but only as "2 atoms" (line 172), which misses
         linear molecules with 3 or more atoms (e.g. CO2).
         Fix: decide it from the file in both readers (e.g. number of vibrational modes = 3N-5).
@@ -139,7 +114,7 @@ C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
 A. What parse_from_source returns
 ---------------------------------
 [ ] A1  cff_rc and qff_rc by name. Both readers compute them only inside `if 'cff'` / `if 'qff'`
-        (parse_wilson_obtainer.py:202-225, 327-345). A request for ['cff_rc', 'qff_rc'] returns neither, and
+        (parse_wilson_obtainer.py:202-225, 333-351). A request for ['cff_rc', 'qff_rc'] returns neither, and
         wilson's fill_from keeps only requested names, so wilson S3 cannot get them.
         Fix: compute them also when 'cff_rc' or 'qff_rc' is asked for. Keep returning them next to cff and qff:
         wilson's test_getting_data expects that (test_wilson_data_obtainer.py:104).
@@ -297,6 +272,28 @@ Done
         rewritten, only c4_FORM_HF_cc-pVQZ changed); its contract tests pass, diphess still fails on C1.
         harmonic_states now comes back only when harmonic_states or nc_sqrt_eigval is asked for (it came back on
         every CFOUR request), as in the Gaussian reader.
+    C1 (2026-10-24)  The CFOUR reader averages values that its files list twice, once per index order. Both come
+        from numerical derivatives and differ slightly. Before, each line went to its own slot (diphess was not
+        symmetric, so wilson's check failed), or the later line overwrote the earlier one (qff, qff_rc).
+            - diphess: the dipolex/y/z files list all 13 nonzero mode pairs (3 in x, 6 in y, 4 in z) in both
+              orders, e.g. CCSDTcc_pVQZ/dipolez (9,10) -0.0025711085 and (10,9) -0.0025712225. Gap up to 1.2e-3 of
+              the value, 3.1e-5 of the largest 2nd derivative. getDipoleDers_anharm now writes the mean to [i, j]
+              and [j, i]; a pair listed in one order only goes to both.
+            - qff, qff_rc: the quartic file lists 39 index sets twice. 23 are equal; 16 differ: the 15 (i,i,j,j)
+              terms, from two numerical routes, and (10,11,7,7) at 1e-10. E.g. CCSDTcc_pVQZ (12,12,7,7) -331.4924
+              and (7,7,12,12) -331.5419 cm-1. Gap up to 8.4e-4 of the value, 8.1e-5 of the largest term.
+              getQuarticPost now writes the mean of an index set's lines to all 24 orders.
+            Both gaps are smaller than the CFOUR-Gaussian difference in T4 (1.8e-4 of the largest value).
+            The docstrings of getDipoleDers_anharm, getQuarticPost and parse_cfour_output say so (AVERAGING).
+        Baseline rewritten for the 4 CFOUR sources. Only diphess, qff and qff_rc changed, each value by half its
+        gap: at most 3.3e-9 au (diphess), 7.5e-9 au (qff), 0.025 cm-1 (qff_rc). All contract tests pass; the C1
+        line in known_failures is gone.
+        Checked, nothing to change: Gaussian prints one order only (dipole and polarizability P2 i >= j, cubic
+        I >= J >= K, quartic I >= J >= K >= L, Coriolis lower triangle), so its reader has nothing to average.
+        CFOUR cubic and 3rd dipole derivatives: each set once. CFOUR coriolis file: both orders, exactly opposite
+        signs (the reader reads the out file, one order). polar.pkl: polhess symmetric in the modes (getPolarDers
+        builds it so); in x, y, z up to 1e-6 apart in CCSDTcc_pVQZ, 1e-14 in the HF folders (wilson does not
+        check x, y, z).
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).

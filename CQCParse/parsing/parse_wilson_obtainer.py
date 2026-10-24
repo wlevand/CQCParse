@@ -268,6 +268,12 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         "qff": "cm-1",
         "cff_au": "Ha*m_e(-3/2)*a0(-3)", # a.u.
         "qff_au": "Ha*m_e(-2)*a0(-4)", # a.u.
+
+    AVERAGING: CFOUR lists some values twice, once per index order, from two numerical differentiations:
+        diphess  every mode pair, e.g. (9,10) and (10,9) in the dipole(xyz) files
+        qff, qff_rc  the (i,i,j,j) terms, e.g. (12,12,7,7) and (7,7,12,12) in the quartic file
+    The two differ slightly (up to ~1e-3 of the value in the example files). The reader returns their mean, in
+    every index order. See getDipoleDers_anharm and getQuarticPost.
     """
     # CFOUR has all 3*N normal modes, first 5 or 6 are rotational and translational
     nModesStart = 6 if linear_molecule else 7

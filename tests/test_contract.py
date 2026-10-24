@@ -36,9 +36,7 @@ def result(source):
 
 
 def known_failures(source, name=None):
-    reasons = []
-    if SOURCES[source][0] == 'cfour' and name == 'diphess':
-        reasons.append('todo C1: CFOUR diphess is not symmetric (each order of a mode pair read on its own)')
+    reasons = []    # none now; add one as: if <source, name match>: reasons.append('todo <item>: <why>')
     return [pytest.mark.xfail(reason='; '.join(reasons), strict=True)] if reasons else []
 
 
