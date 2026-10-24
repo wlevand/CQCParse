@@ -1,16 +1,27 @@
+import numpy as np
 import pytest
 
 from CQCParse.parsing.parse_wilson_obtainer import parse_cfour_output, parse_gaussian16_output, parse_from_source
 from CQCParse.utils import PKG_ROOT
 from tests.test_baseline import BASE, parse
 
+FORM_PAIR = ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ']
 
-@pytest.mark.parametrize('source', ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ'])
+
+@pytest.mark.parametrize('source', FORM_PAIR)
 @pytest.mark.parametrize('name, partner', [('cff', 'cff_rc'), ('cff_rc', 'cff'), ('qff', 'qff_rc'), ('qff_rc', 'qff')])
 def test_force_constants_by_name(source, name, partner):
     """A request for the force constants in one unit returns both units (todo A1), asked for as wilson asks."""
     result = parse(source, BASE + [name])
     assert name in result and partner in result, f'{name} asked for, returned {sorted(result)}'
+
+
+@pytest.mark.parametrize('source', FORM_PAIR)
+@pytest.mark.parametrize('name', ['B', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess',
+                                  'cff', 'cff_rc', 'qff', 'qff_rc'])
+def test_name_alone(source, name):
+    """A name asked for on its own gives the same value as asked for with BASE, as wilson asks (todo A2)."""
+    np.testing.assert_array_equal(parse(source, [name])[name], parse(source, BASE + [name])[name])
 
 
 def test_parse_from_source_cfour():

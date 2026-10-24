@@ -122,20 +122,26 @@ def parse_gaussian16_output(requested_data: dict,
             nmodes = get_normal_modes(filename=log_file, Na=len(atoms))
             nmodes = {i: nm for i, nm in enumerate(nmodes)}
             results['normal_modes'] = nmodes
-            len_nmodes = len(nmodes)
         except Exception as e:
             print('Failed at "normal_modes" with:', e)
             raise ValueError("smth went wrong")
-    
-    if any(k in requested_data for k in ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval')): 
-    
+
+    # the harmonic fundamentals give the mode count (len_nmodes), the same as in nc_sqrt_eigval
+    needs_freqs = ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
+                   'cff', 'cff_rc', 'qff', 'qff_rc')
+    if any(k in requested_data for k in needs_freqs):
+
         try:
             from .parse_g16_freqs import parse_frequencies, get_allStates_from_parsed_freqs
             results_log = parse_frequencies(lines=log_lines)
             h_sts, ah_sts = get_allStates_from_parsed_freqs(results_log)
-            
+
             if not results_log:
                 raise ValueError("result of parse_frequencies() is empty")
+
+            harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
+            fund_harm_dict = {k:v for k,v in harmonic_states.items() if len(k)==1}
+            len_nmodes = len(fund_harm_dict)
         except Exception as e:
             print('Failed at "parse_frequencies" with:', e)
             raise ValueError("smth went wrong in parse_frequencies() or get_allStates_from_parsed_freqs()")
@@ -144,18 +150,14 @@ def parse_gaussian16_output(requested_data: dict,
             try:
                 anharmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in ah_sts.items()}
                 results['anharmonic_states'] = anharmonic_states
-                len_nmodes = len([i for i in anharmonic_states if len(i)==1])
             except Exception as e:
                 print('Failed at "anharmonic_states" with:', e)
                 raise ValueError("smth went wrong")
-            
-        if any(k in requested_data for k in ('harmonic_states', 'nc_sqrt_eigval')): 
-        
+
+        if any(k in requested_data for k in ('harmonic_states', 'nc_sqrt_eigval')):
+
             try:
-                harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
                 results['harmonic_states'] = harmonic_states
-                fund_harm_dict = {k:v for k,v in harmonic_states.items() if len(k)==1}
-                len_nmodes = len(fund_harm_dict)
 
                 if 'nc_sqrt_eigval' in requested_data:
                     results['nc_sqrt_eigval'] = {int(k[0]): v for k,v in fund_harm_dict.items()}

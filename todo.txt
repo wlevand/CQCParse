@@ -24,14 +24,12 @@ One line per item. The full entry for each item is further down.
 Now, one small fix at a time. After each fix, run the tests and check the baseline (T2).
     1. T4   New test: compare CFOUR and Gaussian results for the same molecule (formaldehyde, HF/cc-pVTZ).
             Add HF/cc-pVQZ too once its MOLDEN file is found.
-    2. A2   Gaussian crashes when B, coriolis, cff or qff (or cff_rc, qff_rc) is asked for without
-            nc_sqrt_eigval.
-    3. A5   CFOUR returns no reindex_modes key. Gaussian does.
-    4. C3   CFOUR qff is about 570 times too large (wrong unit factor).
-    5. R1   Gaussian cff and qff in au come from a column with 5 decimals: small terms keep 1-2 digits, up to
+    2. A5   CFOUR returns no reindex_modes key. Gaussian does.
+    3. C3   CFOUR qff is about 570 times too large (wrong unit factor).
+    4. R1   Gaussian cff and qff in au come from a column with 5 decimals: small terms keep 1-2 digits, up to
             11% off. Fix: convert from the cm-1 column, as CFOUR does. Do with C3 (same conversion).
-    6. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
-    7. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
+    5. C4   Linear molecules: CFOUR numbers the modes off by one. Gaussian misses linear molecules with 3+ atoms.
+    6. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
             a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
 
 Any time:
@@ -53,7 +51,7 @@ In wilson_gv, not in this repo:
 
 Tests (run 2026-10-24)
 ----------------------
-    pass 198, xfail 0, fail 0 (tests/, 198 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 218, xfail 0, fail 0 (tests/, 218 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
@@ -110,19 +108,14 @@ C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
         The formula is confirmed against Gaussian's own K column (R1).
         Prefer the fix: both readers then return the same keys (Rules). Check with T4.
 [ ] C4  linear: wilson never passes linear (DataOriginInfo has no such field), so CFOUR always takes mode 7 as the
-        first vibration (parse_wilson_obtainer.py:286). For a linear molecule it is 6, and every mode number is
-        off by one. The Gaussian reader decides linear itself, but only as "2 atoms" (line 175), which misses
+        first vibration (parse_wilson_obtainer.py:288). For a linear molecule it is 6, and every mode number is
+        off by one. The Gaussian reader decides linear itself, but only as "2 atoms" (line 177), which misses
         linear molecules with 3 or more atoms (e.g. CO2).
         Fix: decide it from the file in both readers (e.g. number of vibrational modes = 3N-5).
 
 
 A. What parse_from_source returns
 ---------------------------------
-[ ] A2  Gaussian: B, coriolis, cff, cff_rc, qff or qff_rc without nc_sqrt_eigval (or harmonic_states,
-        anharmonic_states, normal_modes) in the same request raises UnboundLocalError: len_nmodes is set only in
-        those branches (used at parse_wilson_obtainer.py:178, 211, 224). wilson's load always asks for nc_sqrt_eigval, so wilson
-        is not hit today; it comes back with wilson S8 (X1).
-        Fix: get the mode count once, before the property branches.
 [ ] A3  [wilson] geo and linear. wilson's from_datadict reads 'geo' and 'linear' (system_data.py:303-314);
         CQCParse returns 'equilibrium_geometry' and 'atoms', and no 'linear'. So natoms is always 0 and linear
         always False in MolSystemData. Nothing reads these fields today (system_data.py:235-236), so this waits
@@ -225,9 +218,9 @@ X. Mixing origins (wilson S8)
 [ ] X1  [decide] Rules for data from two origins in one run: the mode order (reindexing), the sign of each mode,
         the axis orientation. CFOUR and Gaussian formaldehyde differ in all three (T4). Inside one origin they do
         not matter.
-        Two old problems come back with wilson S8: A2 (the crash), and the overwrite in wilson
-        (wilson_data_obtainer.py:45, dict.update: a second origin's keys replace the first's, e.g. cff_rc,
-        reindex_modes) [wilson].
+        An old problem comes back with wilson S8: the overwrite in wilson (wilson_data_obtainer.py:45,
+        dict.update: a second origin's keys replace the first's, e.g. cff_rc, reindex_modes) [wilson]. The other
+        one, the crash of A2, is fixed.
 
 
 L. Legacy code and the rewrite
@@ -355,8 +348,18 @@ Done
         Why here (of wilson S3's three ways): the unit conversion stays in one place. Unblocks wilson S3.
         New test: test_force_constants_by_name (tests/test_wilson_obtainer.py), each of the 4 names asked for
         with BASE, as wilson asks, on the formaldehyde HF/cc-pVTZ pair. Baseline unchanged (it asks for cff and
-        qff already). In Gaussian, cff_rc or qff_rc without nc_sqrt_eigval still crashes (A2).
+        qff already). In Gaussian, cff_rc or qff_rc without nc_sqrt_eigval still crashed then (A2, fixed since).
         Also fixed: the CFOUR docstring gave cff and qff in cm-1 and named cff_au, qff_au, keys that do not exist.
+    A2 (2026-10-24)  Gaussian: B, coriolis, cff, cff_rc, qff or qff_rc asked for without nc_sqrt_eigval,
+        harmonic_states, anharmonic_states or normal_modes raised UnboundLocalError: len_nmodes was set only in
+        those branches. Now the frequency section is read once, before the property branches, for any name that
+        needs it, and len_nmodes is the number of harmonic fundamentals: the same count as nc_sqrt_eigval, so the
+        tensor shapes always match it. Before, the count came from whichever branch ran last (normal_modes,
+        anharmonic_states or harmonic_states). Same layout as the CFOUR reader since C2.
+        New test: test_name_alone (tests/test_wilson_obtainer.py). B, coriolis, the 4 dipole and polarizability
+        names and the 4 force-constant names, each asked for alone, give the same value as asked for with BASE;
+        formaldehyde HF/cc-pVTZ in both readers. On the old code, the 6 Gaussian cases of A2 fail. Baseline
+        unchanged. A request for B alone now reads the frequency section too (2.2 s for ACDM, P1).
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).
