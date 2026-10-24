@@ -36,9 +36,11 @@ def parse_freq_line(line: str):
 
 def parse_section(lines):
     result = []
+    seen = set()    # for the duplicate check: a scan of result each time took 2 s on ACDM (14189 states)
     for line in lines:
         parsed = parse_freq_line(line)
-        if parsed is not None and parsed not in result:
+        if parsed is not None and parsed not in seen:
+            seen.add(parsed)
             result.append(parsed)
     return result
 

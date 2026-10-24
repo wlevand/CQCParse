@@ -33,7 +33,7 @@ Now, one small fix at a time. After each fix, run the tests and check the baseli
             a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
 
 Any time:
-    P1, P2  Two slow loops in the Gaussian reader, 2.2 s each.
+    P2      A slow loop in the Gaussian reader, 2.2 s.
     L4      Small cleanups: dead files, unused functions, the user name in example files.
 
 Later:
@@ -51,7 +51,7 @@ In wilson_gv, not in this repo:
 
 Tests (run 2026-10-24)
 ----------------------
-    pass 227, xfail 0, fail 0 (tests/, 227 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 227, xfail 0, fail 0 (tests/, 227 tests, about 5 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
@@ -191,10 +191,8 @@ are here. How many digits each value the readers use has in the file:
 
 P. Speed
 --------
-A wilson load of ACDM takes about 5 s; about 90% of it is in two places. wilson's f2_speed.py measures this path.
-Here, ACDM is most of the baseline test's time (8.5 of 10 s, T2).
-[ ] P1  parse_section (parse_g16_freqs.py:41) checks for duplicates with `parsed not in result`, a list scan:
-        2.2 s. Keep a set next to the list (the order stays).
+A wilson load of ACDM took about 5 s; about 90% of it was in two places (P1, done, and P2). wilson's f2_speed.py
+measures this path. Here, ACDM was most of the baseline test's time (8.5 of 10 s, T2).
 [ ] P2  getPolarDers_log (parseGaussian_forWilson.py:478-506) filters a pandas table inside a double loop: 2.2 s.
         Build the arrays with numpy indexing.
 
@@ -255,6 +253,7 @@ L. Legacy code and the rewrite
             - tests/test_comparing_software.py is all comments (213 lines): old code for the deleted classes, with
               local paths in the comments
             - README's "Key features" list is unfinished
+            - parse_g16_freqs.extract_sections prints 'HELLO' on every Gaussian frequency read (a debug line)
             - parse_from_source requires lvl_theory and basis_set but does not use them (keep them: wilson passes
               them)
             - example files hold the cluster user name and job paths: the 6 older Gaussian .out files, and
@@ -400,6 +399,11 @@ Done
         Baseline rewritten for the 4 CFOUR sources: reindex_modes added, no value changed. (summary.json also
         lists equilibrium_geometry, atoms and normal_modes later for CFOUR: since C4 the reader reads MOLDEN after
         the out file.)
+    P1 (2026-10-24)  parse_section (parse_g16_freqs.py) checked for duplicates with `parsed not in result`, a scan
+        of the list for every line. Now a set next to the list; the list and its order stay the same.
+        parse_frequencies on ACDM (14189 states): 1.93 s -> 0.10 s. The others were already fast (ACAC 0.03 s,
+        formaldehyde 0.01 s). Output checked identical, same order, on all 7 Gaussian files. Baseline unchanged.
+        The test run: about 10 s -> 5 s.
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).
