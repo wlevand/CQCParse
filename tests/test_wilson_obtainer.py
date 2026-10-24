@@ -4,9 +4,16 @@ import pytest
 from CQCParse.parsing.parse_wilson_obtainer import (parse_cfour_output, parse_gaussian16_output, parse_from_source,
                                                     is_linear)
 from CQCParse.utils import PKG_ROOT
-from tests.test_baseline import BASE, parse
+from tests.test_baseline import ALL_NAMES, BASE, parse
 
 FORM_PAIR = ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ']
+
+
+def test_same_keys():
+    """Both readers return the same keys for the same request (todo Rules, A5). modes_mapping: Gaussian only (N1)."""
+    names = [n for n in ALL_NAMES if n != 'modes_mapping']
+    g16, c4 = (set(parse(source, names)) for source in FORM_PAIR)
+    assert g16 == c4, f'Gaussian only: {sorted(g16 - c4)}; CFOUR only: {sorted(c4 - g16)}'
 
 
 @pytest.mark.parametrize('source', FORM_PAIR)

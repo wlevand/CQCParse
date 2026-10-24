@@ -23,6 +23,9 @@ def parse_from_source(requested_data: dict,
 
     returns a dict like requested_data dict, with values as data parsed from outputs
 
+    reindex_modes: Gaussian only, renumbers the modes from Gaussian's A order to its H order. The result's
+        'reindex_modes' says whether that was done. CFOUR has one mode order: its data is never reindexed, and its
+        'reindex_modes' is always False.
     linear: ignored, kept so that old calls still work (passing it gives a DeprecationWarning). Both readers decide
         from the file whether the molecule is linear (is_linear: 3N-5 vibrational modes).
     """
@@ -84,6 +87,8 @@ def parse_from_source(requested_data: dict,
         # todo: finish parse_cfour_output
         results_dict = parse_cfour_output(requested_data=requested_data,
                                           files_dict=files_dict)
+        # as for Gaussian, to keep track of transformations (none for CFOUR)
+        results_dict['reindex_modes'] = False
         return results_dict
 
 

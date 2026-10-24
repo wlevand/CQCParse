@@ -24,13 +24,12 @@ One line per item. The full entry for each item is further down.
 Now, one small fix at a time. After each fix, run the tests and check the baseline (T2).
     1. T4   New test: compare CFOUR and Gaussian results for the same molecule (formaldehyde, HF/cc-pVTZ).
             Add HF/cc-pVQZ too once its MOLDEN file is found.
-    2. A5   CFOUR returns no reindex_modes key. Gaussian does.
-    3. C3   CFOUR qff is about 570 times too large (wrong unit factor).
-    4. R1   Gaussian cff and qff in au come from a column with 5 decimals: small terms keep 1-2 digits, up to
+    2. C3   CFOUR qff is about 570 times too large (wrong unit factor).
+    3. R1   Gaussian cff and qff in au come from a column with 5 decimals: small terms keep 1-2 digits, up to
             11% off. Fix: convert from the cm-1 column, as CFOUR does. Do with C3 (same conversion).
-    5. A6   Gaussian equilibrium_geometry and atoms come back empty for ACAC and ACDM. This also makes
+    4. A6   Gaussian equilibrium_geometry and atoms come back empty for ACAC and ACDM. This also makes
             normal_modes crash there (N2).
-    6. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
+    5. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
             a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
 
 Any time:
@@ -52,7 +51,7 @@ In wilson_gv, not in this repo:
 
 Tests (run 2026-10-24)
 ----------------------
-    pass 226, xfail 0, fail 0 (tests/, 226 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 227, xfail 0, fail 0 (tests/, 227 tests, about 13 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
@@ -123,9 +122,6 @@ A. What parse_from_source returns
         takes 0 or 3 values and raises otherwise (vpt2.py:244-248). It matters in wilson S3 for linear molecules
         with 2 or more modes (CO has 1). Decide what B holds for a linear molecule, the same in both readers.
         Both readers know whether the molecule is linear since C4.
-[ ] A5  Keys differ by reader (seen in tests/baseline/summary.json): the CFOUR reader returns no reindex_modes
-        (Gaussian always does; wilson's test_getting_data expects it) and no modes_mapping. Return reindex_modes
-        (False) from CFOUR too; modes_mapping: decide with N1.
 [ ] A6  Gaussian equilibrium_geometry and atoms are empty for ACAC and ACDM (shape (0,) and 0 atoms, already so in
         the baseline, T2). get_equil_geo (parseGaussian_forWilson.py:960) takes the first "Standard orientation"
         after "Optimization completed.", and these two files have none there:
@@ -214,6 +210,8 @@ B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order.
         A order. Formaldehyde: normal_modes[0] is the out-of-plane mode (1203 cm-1); nc_sqrt_eigval[0] is the C-H
         stretch (2879 cm-1). wilson cannot ask for reindex_modes (no field in DataOriginInfo).
         Ways: normal_modes in A order like the rest; everything in H order; a DataOriginInfo field [wilson].
+        Also decide here: modes_mapping is Gaussian only (CFOUR has one mode order), the last key the two readers
+        do not share (A5).
 [ ] N2  Failures: ACAC and ACDM raise "cannot reshape ... into shape (0,3,3)"; CO returns 0 modes
         (get_normal_modes, parseGaussian_forWilson.py:820).
         Cause for ACAC and ACDM: get_equil_geo finds 0 atoms there (A6), and get_normal_modes reshapes with it.
@@ -392,6 +390,16 @@ Done
         example with 3+ atoms in the repo; the old code numbers its modes -1 .. 2); test_linear_argument_ignored.
         Baseline unchanged: all example molecules are nonlinear except CO, which stays linear.
         Not changed: simple_parsed_data.parse_cfour_output still takes linear_molecule (no user but its test, L4).
+    A5 (2026-10-24)  CFOUR returns reindex_modes too, always False: CFOUR has one mode order, so its data is never
+        reindexed (a reindex_modes=True passed with CFOUR stays ignored, as before). Gaussian always returned it,
+        and wilson's test_getting_data expects it. parse_from_source's docstring says so. modes_mapping stays
+        Gaussian only: decide with N1.
+        New test: test_same_keys (tests/test_wilson_obtainer.py), the formaldehyde HF/cc-pVTZ pair asked for
+        every name but modes_mapping returns the same keys in both readers (Rules). It fails on the old code
+        (Gaussian only: reindex_modes).
+        Baseline rewritten for the 4 CFOUR sources: reindex_modes added, no value changed. (summary.json also
+        lists equilibrium_geometry, atoms and normal_modes later for CFOUR: since C4 the reader reads MOLDEN after
+        the out file.)
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).

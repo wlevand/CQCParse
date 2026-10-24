@@ -196,12 +196,12 @@
     "lvl_theory": "CCSD(T)",
     "basis_set": "cc-pVQZ",
     "returned": {
-      "equilibrium_geometry": "ndarray float64 (4, 3)",
-      "atoms": "ndarray <U1 (4,)",
-      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "anharmonic_states": "dict, 83 entries",
       "harmonic_states": "dict, 83 entries",
       "nc_sqrt_eigval": "dict, 6 entries",
+      "equilibrium_geometry": "ndarray float64 (4, 3)",
+      "atoms": "ndarray <U1 (4,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "B": "ndarray float64 (3,)",
       "coriolis": "ndarray float64 (3, 6, 6)",
       "cff": "ndarray float64 (6, 6, 6)",
@@ -211,7 +211,8 @@
       "dipgrad": "ndarray float64 (6, 3)",
       "diphess": "ndarray float64 (6, 6, 3)",
       "polgrad": "ndarray float64 (6, 3, 3)",
-      "polhess": "ndarray float64 (6, 6, 3, 3)"
+      "polhess": "ndarray float64 (6, 6, 3, 3)",
+      "reindex_modes": "bool False"
     },
     "errors": {}
   },
@@ -233,7 +234,8 @@
       "dipgrad": "ndarray float64 (6, 3)",
       "diphess": "ndarray float64 (6, 6, 3)",
       "polgrad": "ndarray float64 (6, 3, 3)",
-      "polhess": "ndarray float64 (6, 6, 3, 3)"
+      "polhess": "ndarray float64 (6, 6, 3, 3)",
+      "reindex_modes": "bool False"
     },
     "errors": {
       "equilibrium_geometry": "FileNotFoundError: [Errno 2] No such file or directory: '<PKG_ROOT>/CQCParse/files_examples/refinedc4/HFcc_pVQZ/MOLDEN'",
@@ -247,12 +249,12 @@
     "lvl_theory": "HF",
     "basis_set": "cc-pVTZ",
     "returned": {
-      "equilibrium_geometry": "ndarray float64 (4, 3)",
-      "atoms": "ndarray <U1 (4,)",
-      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "anharmonic_states": "dict, 83 entries",
       "harmonic_states": "dict, 83 entries",
       "nc_sqrt_eigval": "dict, 6 entries",
+      "equilibrium_geometry": "ndarray float64 (4, 3)",
+      "atoms": "ndarray <U1 (4,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "B": "ndarray float64 (3,)",
       "coriolis": "ndarray float64 (3, 6, 6)",
       "cff": "ndarray float64 (6, 6, 6)",
@@ -262,7 +264,8 @@
       "dipgrad": "ndarray float64 (6, 3)",
       "diphess": "ndarray float64 (6, 6, 3)",
       "polgrad": "ndarray float64 (6, 3, 3)",
-      "polhess": "ndarray float64 (6, 6, 3, 3)"
+      "polhess": "ndarray float64 (6, 6, 3, 3)",
+      "reindex_modes": "bool False"
     },
     "errors": {}
   },
@@ -272,12 +275,12 @@
     "lvl_theory": "HF",
     "basis_set": "cc-pVDZ",
     "returned": {
-      "equilibrium_geometry": "ndarray float64 (4, 3)",
-      "atoms": "ndarray <U1 (4,)",
-      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "anharmonic_states": "dict, 83 entries",
       "harmonic_states": "dict, 83 entries",
       "nc_sqrt_eigval": "dict, 6 entries",
+      "equilibrium_geometry": "ndarray float64 (4, 3)",
+      "atoms": "ndarray <U1 (4,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "B": "ndarray float64 (3,)",
       "coriolis": "ndarray float64 (3, 6, 6)",
       "cff": "ndarray float64 (6, 6, 6)",
@@ -287,7 +290,8 @@
       "dipgrad": "ndarray float64 (6, 3)",
       "diphess": "ndarray float64 (6, 6, 3)",
       "polgrad": "ndarray float64 (6, 3, 3)",
-      "polhess": "ndarray float64 (6, 6, 3, 3)"
+      "polhess": "ndarray float64 (6, 6, 3, 3)",
+      "reindex_modes": "bool False"
     },
     "errors": {}
   }
