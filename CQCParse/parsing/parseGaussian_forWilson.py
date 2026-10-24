@@ -199,27 +199,35 @@ def getPolarDers_log(logfile: list[str]) -> tuple:
     Return: tuple[np.ndarray - shape(NM, 3, 3), np.ndarray - shape(NM, NM, 3, 3)]
     """
     pol = parse_polarizability(logfile)
-    shpNM = int(pol.loc[pol[0] == 'P1', 1].max())
-    p1_3d = np.zeros((shpNM, 3, 3))
-    for i in pol.loc[pol[0] == 'P1', 1].unique():
-        # in the rows with the current 'i' value and 'P' is 'P1', select columns 5, 6, and 7
-        xyz = pol.loc[(pol[0] == 'P1') & (pol[1] == i), [5, 6, 7]].values
-        p1_3d[int(i) - 1] = xyz
+    # columns: 0 P, 1 i, 2 j, 3 k, 4 component (X, Y, Z), 5-7 the X, Y, Z values; one row per component, so each
+    # mode (P1) or mode pair (P2) has 3 rows. One pass over the rows: a pandas filter per mode pair took over 1 s on
+    # ACDM (42 modes)
+    kind = pol[0].to_numpy()
+    modes_i, modes_j = pol[1].to_numpy(), pol[2].to_numpy()
+    values = pol[[5, 6, 7]].to_numpy(dtype=np.float64)
 
-    nm_i = int(pol.loc[pol[0] == 'P2', 1].max())
-    nm_j = int(pol.loc[pol[0] == 'P2', 2].max())
+    def rows_by_modes(p, n_modes):
+        rows = {}
+        for idx in np.flatnonzero(kind == p):
+            key = (int(modes_i[idx]),) if n_modes == 1 else (int(modes_i[idx]), int(modes_j[idx]))
+            rows.setdefault(key, []).append(values[idx])
+        return rows
+
+    p1 = rows_by_modes('P1', 1)
+    shpNM = max(i for i, in p1)
+    p1_3d = np.zeros((shpNM, 3, 3))
+    for (i,), xyz in p1.items():
+        p1_3d[i - 1] = xyz
+
+    p2 = rows_by_modes('P2', 2)
+    nm_i = max(i for i, _ in p2)
+    nm_j = max(j for _, j in p2)
 
     p2_4d = np.zeros((nm_i, nm_j, 3, 3))
-
-    for i in pol.loc[pol[0] == 'P2', 1].unique():
-        for j in pol.loc[pol[0] == 'P2', 2].unique():
-            # in the rows with the current 'i' and 'j' values and 'P' is 'P2', select columns 5, 6, and 7
-            xyz = pol.loc[(pol[0] == 'P2') & (pol[1] == i) & (pol[2] == j), [5, 6, 7]].values
-            # if 'xyz' is not empty
-            if xyz.shape[0] != 0:
-                # xyz is a 2D array
-                p2_4d[int(i) - 1, int(j) - 1] = xyz
-                p2_4d[int(j) - 1, int(i) - 1] = xyz
+    # Gaussian prints each pair once (i >= j): it goes to both orders
+    for (i, j), xyz in p2.items():
+        p2_4d[i - 1, j - 1] = xyz
+        p2_4d[j - 1, i - 1] = xyz
 
     return tuple([p1_3d, p2_4d])
 

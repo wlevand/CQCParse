@@ -29,9 +29,6 @@ Now, one small fix at a time. After each fix, run the tests and check the baseli
     3. R2   [decide] Gaussian leaves out force constants below a cut-off. For molecules with low-frequency modes
             a missing term could be tens of cm-1. Not in the file, so not a parser fix: the Gaussian input.
 
-Any time:
-    P2      A slow loop in the Gaussian reader, 2.2 s.
-
 Later:
     L3      Rewrite the readers, CFOUR first. Only after all the fixes above: a rewrite now forces every [decide]
             choice at once.
@@ -47,7 +44,7 @@ In wilson_gv, not in this repo:
 
 Tests (run 2026-10-24)
 ----------------------
-    pass 248, xfail 0, fail 0 (tests/, 248 tests, about 5 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 248, xfail 0, fail 0 (tests/, 248 tests, about 3 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 
@@ -171,10 +168,9 @@ are here. How many digits each value the readers use has in the file:
 
 P. Speed
 --------
-A wilson load of ACDM took about 5 s; about 90% of it was in two places (P1, done, and P2). wilson's f2_speed.py
-measures this path. Here, ACDM was most of the baseline test's time (8.5 of 10 s, T2).
-[ ] P2  getPolarDers_log (parseGaussian_forWilson.py:478-506) filters a pandas table inside a double loop: 2.2 s.
-        Build the arrays with numpy indexing.
+A wilson load of ACDM took about 5 s; about 90% of it was in two places, P1 and P2, both done. wilson's
+f2_speed.py measures this path. Here, ACDM was most of the baseline test's time (8.5 of 10 s, T2).
+None open.
 
 
 N. Normal modes (wilson G9)
@@ -427,6 +423,12 @@ Done
             - parseGaussian_forWilson.py: the three "# used in retrievedata.py" comments (retrieve_data.py is gone,
               L4) now name the real callers: parse_gaussian16_output, getDipDers_log, getPolarDers_log.
         Not checked: the "# used" / "# not used" comments in parseCFOUR_forWilson.py.
+    P2 (2026-10-24)  getPolarDers_log (parseGaussian_forWilson.py) filtered the pandas table once per mode pair,
+        in a double loop (42 x 42 filters on ACDM). Now one pass over the rows: each mode (P1) or mode pair (P2)
+        collects its 3 rows (X, Y, Z), then goes into the array. ACDM: 1.28 s -> 0.05 s (measured here; the
+        2.2 s above was on another machine), almost all of it now parse_polarizability (the text). Output checked
+        identical (shapes, dtype, every value) on all 7 Gaussian files. Baseline unchanged.
+        The test run: about 5 s -> 3 s.
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).
