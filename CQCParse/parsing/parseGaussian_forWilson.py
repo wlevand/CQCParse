@@ -235,7 +235,7 @@ def getPolarDers_au(logfile: list[str]) -> tuple:
 
     return tuple([fdpol, sdpol])
 
-# used in retrievedata.py
+# used in parse_gaussian16_output
 def parse_cubic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:
 
     results = []
@@ -344,7 +344,7 @@ def get_quartic_post(len_freq: int, quartic: np.ndarray):
 
     return K4
 
-# used in retrievedata.py
+# used in getDipDers_log
 def parse_dipole_moment(lines: list[str]) -> tuple[pd.DataFrame, str]:
 
     results = []
@@ -387,7 +387,7 @@ def parse_dipole_moment(lines: list[str]) -> tuple[pd.DataFrame, str]:
 
     return df, units_line
 
-# used in retrievedata.py
+# used in getPolarDers_log
 def parse_polarizability(lines: list[str]) -> pd.DataFrame:
 
     results = []

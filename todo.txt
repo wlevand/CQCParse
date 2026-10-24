@@ -31,7 +31,6 @@ Now, one small fix at a time. After each fix, run the tests and check the baseli
 
 Any time:
     P2      A slow loop in the Gaussian reader, 2.2 s.
-    L6      Dead parsing/mockparser.py, and stale "# used in retrievedata.py" comments.
 
 Later:
     L3      Rewrite the readers, CFOUR first. Only after all the fixes above: a rewrite now forces every [decide]
@@ -228,10 +227,6 @@ L. Legacy code and the rewrite
         If a typed API is wanted (the idea of the deleted simple_parsed_data, L5): make it a thin wrapper over
         parse_from_source, e.g. a frozen dataclass with ParsedData.from_source(...), the same key names and
         units as the dict, plus program, lvl_theory and basis_set. No second copy of the readers.
-[ ] L6  Small dead code, found in C3/R1:
-            - parsing/mockparser.py (643 lines, class MockParser): fails on import (`from parsing import ...`),
-              nothing imports it. It also calls get_cubic_post(..., reduced=False), an argument C3/R1 removed.
-            - parseGaussian_forWilson.py: several "# used in retrievedata.py" comments; retrieve_data.py is gone (L4).
 
 
 Done
@@ -426,6 +421,12 @@ Done
               of the largest term (see T4). With the old code, CFOUR qff was 319x the largest term off.
         Baseline rewritten: Gaussian cff, qff (all 7) and CFOUR qff (all 4) changed as above; nothing else.
         Tests: 225 -> 248.
+    L6 (2026-10-24)  Small dead code, found in C3/R1. Tests and baseline unchanged.
+            - deleted parsing/mockparser.py (643 lines, class MockParser): it failed on import (`from parsing
+              import ...`), nothing imported it, and it called get_cubic_post with an argument C3/R1 removed.
+            - parseGaussian_forWilson.py: the three "# used in retrievedata.py" comments (retrieve_data.py is gone,
+              L4) now name the real callers: parse_gaussian16_output, getDipDers_log, getPolarDers_log.
+        Not checked: the "# used" / "# not used" comments in parseCFOUR_forWilson.py.
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).
