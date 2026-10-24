@@ -58,7 +58,6 @@ def extract_sections(lines):
             current = line_strip
             continue
         if 'Dipole strengths (DS) in 10^-40 esu^2.cm^2' in line_strip:
-            print('HELLO')
             return sections
 
         if current:

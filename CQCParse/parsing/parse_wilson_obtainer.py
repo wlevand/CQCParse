@@ -23,6 +23,7 @@ def parse_from_source(requested_data: dict,
 
     returns a dict like requested_data dict, with values as data parsed from outputs
 
+    lvl_theory, basis_set: not used; kept because wilson passes them.
     reindex_modes: Gaussian only, renumbers the modes from Gaussian's A order to its H order. The result's
         'reindex_modes' says whether that was done. CFOUR has one mode order: its data is never reindexed, and its
         'reindex_modes' is always False.

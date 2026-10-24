@@ -34,7 +34,7 @@ Now, one small fix at a time. After each fix, run the tests and check the baseli
 
 Any time:
     P2      A slow loop in the Gaussian reader, 2.2 s.
-    L4      Small cleanups: dead files, unused functions, the user name in example files.
+    L5      Leftovers from L4: simple_parsed_data, an empty stub.
 
 Later:
     L3      Rewrite the readers, CFOUR first. Only after all the fixes above: a rewrite now forces every [decide]
@@ -244,22 +244,10 @@ L. Legacy code and the rewrite
 [ ] L3  Rewrite one reader at a time, after T2-T4 and the C and A fixes. CFOUR first: smaller, more bugs. Keep
         what wilson uses (Rules), so wilson needs no change. Check number by number against T2; every
         difference needs a reason. If CQCParse has users besides wilson, tell them first.
-[ ] L4  Small cleanups:
-            - relay/retrieve_data.py fails on import (`from parsing import ...`), and nothing imports it
-            - parseGaussian_forWilson.py: parse_frequencies and get_allStates_fromParsedResults fail on every
-              Gaussian example (the 'Mode(n)' header row), and nothing uses them now; parse_g16_freqs.py replaced
-              them
-            - empty files: parsing/filesparser.py, relay/wilson_data_obtainer.py
-            - tests/test_comparing_software.py is all comments (213 lines): old code for the deleted classes, with
-              local paths in the comments
-            - README's "Key features" list is unfinished
-            - parse_g16_freqs.extract_sections prints 'HELLO' on every Gaussian frequency read (a debug line)
-            - parse_from_source requires lvl_theory and basis_set but does not use them (keep them: wilson passes
-              them)
-            - example files hold the cluster user name and job paths: the 6 older Gaussian .out files, and
-              outfile0.out in refinedc4/CCSDTcc_pVQZ and refinedc4/HFcc_pVDZ. Replace the name with a placeholder
-              of the same length (as done for dftGaussian/FORM/HFcc_pVTZ), then check the baseline (T2).
-              Git history keeps the old text; removing it from there needs a history rewrite.
+[ ] L5  Leftovers found in L4:
+            - parsing/simple_parsed_data.py: no user but its test (test_simple_parsed_data.py). Its own CFOUR
+              reader still takes linear_molecule (C4 did not change it). Delete both, or keep as a simple API?
+            - parseGaussian_forWilson.parse_rot_const: an empty stub (returns None), no caller.
 
 
 Done
@@ -404,6 +392,19 @@ Done
         parse_frequencies on ACDM (14189 states): 1.93 s -> 0.10 s. The others were already fast (ACAC 0.03 s,
         formaldehyde 0.01 s). Output checked identical, same order, on all 7 Gaussian files. Baseline unchanged.
         The test run: about 10 s -> 5 s.
+    L4 (2026-10-24)  Small cleanups. Nothing imported or called any of the deleted code; all tests and the baseline
+        unchanged.
+            - deleted: relay/retrieve_data.py (failed on import), the empty parsing/filesparser.py and
+              relay/wilson_data_obtainer.py, tests/test_comparing_software.py and tests/test_polar_calcs.py (both
+              all comments; test_polar_calcs.py was not on the list).
+            - parseGaussian_forWilson.py: deleted parse_frequencies, parse_frequencies_v2 (not on the list, same
+              family, no caller) and get_allStates_fromParsedResults; parse_g16_freqs.py replaced them. Also the
+              debugfunc import is gone (C4).
+            - parse_g16_freqs.extract_sections: removed the debug print('HELLO').
+            - parse_from_source's docstring: lvl_theory and basis_set are not used, kept because wilson passes them.
+            - README: "Key features" filled in, and a "Quick start" example (run on dftGaussian/FORM/HFcc_pVTZ).
+            - example files: account and job details in the program's own paths and headers replaced with
+              placeholders of the same length (file sizes unchanged, baseline unchanged).
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).

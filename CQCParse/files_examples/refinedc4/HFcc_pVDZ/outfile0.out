@@ -1,5 +1,5 @@
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xjoda
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xjoda
 
 
    *************************************************************************
@@ -362,7 +362,7 @@ MEM_UNIT=GB)
       35270.9422854846         40186.7852783801        288338.2944169288
   GENBAS file not present.   Using default GENBAS. 
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/set_genbas
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/set_genbas
 --executable set_genbas finished with status     0 in        0.03 seconds (walltime).
   ECPDATA file not present.   Using default ECPDATA. 
   There are   38 basis functions.
@@ -373,7 +373,7 @@ MEM_UNIT=GB)
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.15/       0.29 seconds.
 --executable xjoda finished with status     0 in        0.33 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xvmol
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xvmol
  SERIAL VERSION OF MOLECULE STARTED
 ********************************************************************************
                     INPUT FROM MOL FILE
@@ -731,7 +731,7 @@ Running with 16 threads/proc
 
 --executable xvmol finished with status     0 in        0.17 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xvmol2ja
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xvmol2ja
  @GETMEM-I,  Allocated    3814 MB of main memory.
  ZMAT order <=> comp order: mapping vector 
            1    1
@@ -741,7 +741,7 @@ Running with 16 threads/proc
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.01/       0.02 seconds.
 --executable xvmol2ja finished with status     0 in        0.05 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xvscf
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xvscf
   There are   38 functions in the AO basis.
 
   There are 4 irreducible representations.
@@ -1867,7 +1867,7 @@ Eigenvalue      3.446342      3.750780      3.869233
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.08/       0.14 seconds.
 --executable xvscf finished with status     0 in        0.17 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xvtran
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xvtran
  @GETMEM-I,  Allocated    3814 MB of main memory.
   Partial RHF integral transformation
   @GTNRB2-I, There are  4 irreducible representations.
@@ -1928,7 +1928,7 @@ Eigenvalue      3.446342      3.750780      3.869233
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.03/       0.04 seconds.
 --executable xvtran finished with status     0 in        0.07 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xintprc
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xintprc
  @GETMEM-I,  Allocated    3814 MB of main memory.
   Processing integrals for SCF second derivatives.
   @GMOIAA-I, Processing MO integrals for spin case AA.
@@ -2063,7 +2063,7 @@ d) total number of operations for various methods
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.15/       0.15 seconds.
 --executable xintprc finished with status     0 in        0.23 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xvdint
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xvdint
  @GETMEM-I,  Allocated    3814 MB of main memory.
  One- and two-electron integral derivatives are calculated
  for RHF hessians and dipole derivatives.
@@ -2761,7 +2761,7 @@ d) total number of operations for various methods
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.41/       0.44 seconds.
 --executable xvdint finished with status     0 in        0.47 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xcphf
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xcphf
  @GETMEM-I,  Allocated    3814 MB of main memory.
  Coupled-perturbed HF (CPHF) equations 
  are solved for RHF hessian and dipole derivatives.
@@ -2810,7 +2810,7 @@ d) total number of operations for various methods
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.10/       0.05 seconds.
 --executable xcphf finished with status     0 in        0.08 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xjoda
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xjoda
   igrd and ihes are                      0                     0
   gradient from JOBARC 
    0.000000000000000   0.000000000000000   0.000000526270475
@@ -3037,7 +3037,7 @@ D1        -0.000000      0.000000
  @CHECKOUT-I, Total execution time (CPU/WALL):        0.03/       0.09 seconds.
 --executable xjoda finished with status     0 in        0.11 seconds (walltime).
  --invoking executable--
-/cluster/projects/nn14654k/vle014/cfour_serial/bin/xcubic
+/cluster/projects/nnxxxxxk/xxxxxx/cfour_serial/bin/xcubic
  @GETMEM-I,  Allocated    3814 MB of main memory.
   linear flag is set to                      0
   Analysis of normal coordinate   1:

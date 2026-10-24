@@ -1,6 +1,6 @@
  Entering Gaussian System, Link 0=g16
  Initial command:
- /cluster/software/Gaussian/g16_B.01/l1.exe "/cluster/work/users/vle014/12741685/Gau-1798619.inp" -scrdir="/cluster/work/users/vle014/12741685/"
+ /cluster/software/Gaussian/g16_B.01/l1.exe "/cluster/work/users/xxxxxx/xxxxxxxx/Gau-1798619.inp" -scrdir="/cluster/work/users/xxxxxx/xxxxxxxx/"
  Entering Link 1 = /cluster/software/Gaussian/g16_B.01/l1.exe PID=   1798620.
   
  Copyright (c) 1988-2017, Gaussian, Inc.  All Rights Reserved.
@@ -81,7 +81,7 @@
  Will use up to   32 processors via shared memory.
  %chk=inputFull_3q
  %mem=745MB
- SetLPE:    new flags="-opt 'Tsnet.Node.lindarsharg: ssh'  -nodelist 'c5-50-ib.saga' -env GAUSS_MDEF=97648640 -env GAUSS_EXEDIR="/cluster/software/Gaussian/g16_B.01""
+ SetLPE:    new flags="-opt 'Tsnet.Node.lindarsharg: ssh'  -nodelist 'xxxxxxxxxxxxx' -env GAUSS_MDEF=97648640 -env GAUSS_EXEDIR="/cluster/software/Gaussian/g16_B.01""
  Will use up to    1 processors via Linda.
  ----------------------------------------------------------------------
  #P B3LYP/cc-pVQZ Opt=(maxcycle=150,cartesian,VeryTight) Int=UltraFine 
@@ -22812,7 +22812,7 @@ SCF-CI
  ----------------------------------------------------------------------
 
  Test job not archived.
- 1\1\GINC-C5-50\Freq\RB3LYP\CC-pVQZ\C2H4O2\VLE014\01-Oct-2024\0\\#P B3L
+ 1\1\GINC-XXXXX\Freq\RB3LYP\CC-pVQZ\C2H4O2\XXXXXX\01-Oct-2024\0\\#P B3L
  YP/cc-pVQZ Freq=(Anharmonic,raman,hpmodes,ReadAnharm) Int=UltraFine SC
  F=VeryTight iop(7/33=1) IOp(10/96=2) Guess=Read Geom=AllCheck\\Title\\
  0,1\C,-0.0944247891,-0.1255562055,0.\C,1.3803030133,0.1608269192,0.\O,
