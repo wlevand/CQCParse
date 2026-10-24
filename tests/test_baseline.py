@@ -41,7 +41,7 @@ SOURCES = {
     'c4_FORM_HF_cc-pVDZ':      ('cfour', 'refinedc4/HFcc_pVDZ', 'HF', 'cc-pVDZ'),
 }
 
-# every name a reader knows (cff_rc and qff_rc come only next to cff and qff for now, todo A1)
+# every name a reader knows (a request for cff or cff_rc returns both; the same for qff and qff_rc)
 ALL_NAMES = ['equilibrium_geometry', 'atoms', 'normal_modes',
              'harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
              'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc', 'modes_mapping']

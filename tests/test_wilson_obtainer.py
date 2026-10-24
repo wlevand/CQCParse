@@ -1,5 +1,17 @@
+import pytest
+
 from CQCParse.parsing.parse_wilson_obtainer import parse_cfour_output, parse_gaussian16_output, parse_from_source
 from CQCParse.utils import PKG_ROOT
+from tests.test_baseline import BASE, parse
+
+
+@pytest.mark.parametrize('source', ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ'])
+@pytest.mark.parametrize('name, partner', [('cff', 'cff_rc'), ('cff_rc', 'cff'), ('qff', 'qff_rc'), ('qff_rc', 'qff')])
+def test_force_constants_by_name(source, name, partner):
+    """A request for the force constants in one unit returns both units (todo A1), asked for as wilson asks."""
+    result = parse(source, BASE + [name])
+    assert name in result and partner in result, f'{name} asked for, returned {sorted(result)}'
+
 
 def test_parse_from_source_cfour():
     print()

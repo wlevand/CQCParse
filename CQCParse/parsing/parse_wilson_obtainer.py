@@ -85,9 +85,12 @@ def parse_gaussian16_output(requested_data: dict,
         "qff": "Ha*m_e(-2)*a0(-4)",
         "cff_rc": "cm-1",
         "qff_rc": "cm-1",
+
+    cff and cff_rc come together: a request for either returns both. The same for qff and qff_rc.
+    Gaussian prints both units (columns K and FI), so both are Gaussian's own numbers.
     """
     results = {}
-    
+
     with open(log_file, 'r') as file:
         log_lines = [i.strip() for i in file.readlines()]
 
@@ -199,7 +202,7 @@ def parse_gaussian16_output(requested_data: dict,
         if 'polhess' in requested_data:
             results['polhess'] = alpha[1]
 
-    if 'cff' in requested_data:
+    if any(k in requested_data for k in ('cff', 'cff_rc')):
         from .parseGaussian_forWilson import parse_cubic_constants, get_cubic_post
         cubic_df = parse_cubic_constants(log_lines)[0]
         selected_df1 = cubic_df[['I', 'J', 'K', 'K(I,J,K)']]
@@ -212,7 +215,7 @@ def parse_gaussian16_output(requested_data: dict,
         results['cff_rc'] = get_cubic_post(len_nmodes, cubic_rcm, reduced=False)
 
 
-    if 'qff' in requested_data:
+    if any(k in requested_data for k in ('qff', 'qff_rc')):
         from .parseGaussian_forWilson import parse_quartic_constants, get_quartic_post
         quartic_df = parse_quartic_constants(log_lines)[0]
         selected_df2 = quartic_df[['I', 'J', 'K', 'L', 'K(I,J,K,L)']]
@@ -264,10 +267,14 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         "diphess": "a.u.",
         "polgrad": "a.u.",
         "polhess": "a.u.",
-        "cff": "cm-1",
-        "qff": "cm-1",
-        "cff_au": "Ha*m_e(-3/2)*a0(-3)", # a.u.
-        "qff_au": "Ha*m_e(-2)*a0(-4)", # a.u.
+        "cff": "Ha*m_e(-3/2)*a0(-3)", # a.u.
+        "qff": "Ha*m_e(-2)*a0(-4)", # a.u.
+        "cff_rc": "cm-1",
+        "qff_rc": "cm-1",
+
+    cff and cff_rc come together: a request for either returns both. The same for qff and qff_rc.
+    CFOUR's cubic and quartic files are in cm-1, so cff_rc and qff_rc are CFOUR's own numbers; cff and qff are
+    converted from them.
 
     AVERAGING: CFOUR lists some values twice, once per index order, from two numerical differentiations:
         diphess  every mode pair, e.g. (9,10) and (10,9) in the dipole(xyz) files
@@ -295,7 +302,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
 
     # the harmonic frequencies give the mode count and the unit conversion of the properties
     needs_out_file = ('anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
-                      'cff', 'qff', 'dipgrad', 'diphess', 'polgrad', 'polhess')
+                      'cff', 'cff_rc', 'qff', 'qff_rc', 'dipgrad', 'diphess', 'polgrad', 'polhess')
     if any(k in requested_data for k in needs_out_file):
         import numpy as np
         from .parseCFOUR_forWilson import parse_output_file
@@ -330,7 +337,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         if 'coriolis' in requested_data:
             results['coriolis'] = coriolis_constant
 
-    if 'cff' in requested_data:
+    if any(k in requested_data for k in ('cff', 'cff_rc')):
         from .parseCFOUR_forWilson import pCubicORQuartic, getCubicPost
         cubic = pCubicORQuartic(files_dict['cubic_file'])
         cff_au = getCubicPost(fundamentals_harmonic_int, cubic,
@@ -340,7 +347,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str, linear_molecule: b
         results['cff'] = cff_au
         results['cff_rc'] = cubic_cm_1
 
-    if 'qff' in requested_data:
+    if any(k in requested_data for k in ('qff', 'qff_rc')):
         from .parseCFOUR_forWilson import pCubicORQuartic, getQuarticPost
         quartic = pCubicORQuartic(files_dict['quartic_file'])
         qff_au = getQuarticPost(fundamentals_harmonic_int, quartic,
