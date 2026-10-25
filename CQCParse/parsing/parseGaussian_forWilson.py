@@ -149,26 +149,39 @@ def parse_Na(lines: list[str]) -> int:
     raise ValueError('No "NAtoms=" line in the Gaussian output')
 
 
-def get_detected_resonances_g16(file_content: list[str]) -> list[str]:
+def get_detected_resonances_g16(file_content: list[str]) -> list[tuple[int, int, int]]:
+    """
+    Validation only: not used by parse_from_source. For checking wilson's VPT2 against Gaussian's own.
 
-    if "Resonance Analysis" in file_content:
-        file_lines = file_content
-        found_resonances_str = []
-        inFR = False
-        for line in file_lines:
-            if 'I      J  +   K' in line:
-                inFR = True
-                found_resonances_str.append(line)
-            if 'Active Fermi resonances' in line:
-                number_of_FR = int(line.strip().split()[0])
-                found_resonances_str.append(f'There are {number_of_FR} Fermi resonances')
-                inFR = False
-
-            if inFR:
-                line_numbers = line.strip().split()
-                if len(line_numbers)>0 and line not in found_resonances_str:
-                    found_resonances_str.append(line)
-        return found_resonances_str
+    The Fermi resonances Gaussian's VPT2 found and treated, nu_I ~ nu_J + nu_K: one (I, J, K) per row of the
+    "Fermi resonances" table in the "Resonance Analysis" section. Modes counted from 0 in Gaussian's A order, the
+    order of the other mode indices of parse_from_source; wilson's identify_fermi gives the same kind of triple.
+    Darling-Dennison resonances are not read.
+    Example, formaldehyde HF/cc-pVTZ: [(4, 2, 5)], nu5 ~ nu3 + nu6 (130 cm-1 apart).
+    Returns [] for a line "No Fermi resonance ..." (wording assumed from Gaussian's "No 1-1 Darling-Dennison
+    resonance found"; no example file has it).
+    Raises ValueError if the file has no "Resonance Analysis" section (e.g. CO: 1 mode), or if the table holds
+    another number of rows than its "N Active Fermi resonances over M" line says (M).
+    """
+    lines = [line.strip() for line in file_content]
+    if not any('Resonance Analysis' in line for line in lines):
+        raise ValueError('no "Resonance Analysis" section')
+    resonances = []
+    in_table = False
+    for line in lines:
+        if line.startswith('No Fermi resonance'):
+            return []
+        if line.startswith('I      J  +   K'):
+            in_table = True
+        elif in_table and 'Active Fermi resonances over' in line:
+            total = int(line.split()[-1])
+            if len(resonances) != total:
+                raise ValueError(f'Fermi resonance table: {len(resonances)} rows, "{line}"')
+            return resonances
+        elif in_table and line:
+            i, j, k = (int(x) - 1 for x in line.split()[:3])
+            resonances.append((i, j, k))
+    raise ValueError('no "Fermi resonances" table with its "Active Fermi resonances over" line')
 
 def getDipDers_log(logfile: list[str]) -> tuple:
     """
@@ -740,20 +753,27 @@ def parse_matrix_section(lines, start_search, end_search, section_title_pattern=
 
 def parse_anharmonic_x_matrix(file_lines):
     """
-    Parse the Anharmonic X Matrix section from Gaussian output file lines.
-    
+    Validation only: not used by parse_from_source. For checking wilson's VPT2 against Gaussian's own.
+
+    Parse the Anharmonic X Matrix section from Gaussian output file lines: the anharmonic constants X_ij in cm-1,
+    in Gaussian's A order (the order of the other mode indices of parse_from_source). Checked on formaldehyde:
+    E(2 nu_i) - 2 E(nu_i) = 2 X_ii and E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij from the anharmonic states, to
+    the states' rounding, for the modes outside Gaussian's resonance treatment.
+
     Args:
         file_lines (list): List of strings, each representing a line from the file
-    
+
     Returns:
         dict: Dictionary containing parsed anharmonic X matrix data with keys:
-            - 'coriolis_contributions': 2D list of coriolis contribution values
-            - '3rd_deriv_contributions': 2D list of 3rd derivative contribution values  
-            - '4th_deriv_contributions': 2D list of 4th derivative contribution values
-            - 'total_anharmonic': 2D list of total anharmonic X matrix values
-            - 'matrix_size': integer indicating the size of the matrices
+            - 'coriolis_contributions': (n, n) array of coriolis contribution values
+            - '3rd_deriv_contributions': (n, n) array of 3rd derivative contribution values
+            - '4th_deriv_contributions': (n, n) array of 4th derivative contribution values
+            - 'total_anharmonic': (n, n) array of total anharmonic X matrix values (the sum of the three, within
+              the file's print rounding)
+            - 'matrix_size': the shape, (n, n)
+    Raises ValueError if the file has no "Anharmonic X Matrix" section.
     """
-    
+
     result = {
         'coriolis_contributions': [],
         '3rd_deriv_contributions': [],
@@ -761,16 +781,16 @@ def parse_anharmonic_x_matrix(file_lines):
         'total_anharmonic': [],
         'matrix_size': 0
     }
-    
+
     # Find the start of the Anharmonic X Matrix section
     start_idx = None
     for i, line in enumerate(file_lines):
         if "Anharmonic X Matrix" in line:
             start_idx = i+2
             break
-    
+
     if start_idx is None:
-        return result
+        raise ValueError('no "Anharmonic X Matrix" section')
     
     
     # Parse each matrix section

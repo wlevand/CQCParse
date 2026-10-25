@@ -177,19 +177,22 @@ def parse_output_file(filepath: str):
     else:
         raise ValueError(f'no "All levels with up to three quanta" section (anharmonic levels) in {filepath}')
 
-def get_detected_resonances_c4(filepath: str):
+def get_detected_resonances_c4(filepath: str) -> list[str]:
+    """
+    Validation only: not used by parse_from_source. For checking wilson's VPT2 against CFOUR's own.
 
+    The lines of the out file that report a resonance CFOUR removed from its VPT2 ("Resonance between ...
+    combination ..."), as they are. CFOUR removes a resonant term only below the thresholds it prints
+    ("Thresholds for removing resonance denominators:", e.g. Delta_omega = 50 cm-1). None of the example files
+    reports one, so the format of these lines is not known here: they are returned as text.
+    Raises ValueError if the out file has no "Thresholds for removing resonance denominators:" line.
+    """
     with open(filepath, 'r') as file:
-        file_content = file.read()
+        lines = file.readlines()
 
-    if "Thresholds for removing resonance denominators:" in file_content:
-        found_resonances_str = []
-        for line in file_content:
-            if 'Resonance between' in line and 'combination' in line:
-                found_resonances_str.append(line)
-        if found_resonances_str:
-            found_resonances_str.append(f'There are {len(found_resonances_str)} Fermi resonances\n')
-        return found_resonances_str
+    if not any('Thresholds for removing resonance denominators:' in line for line in lines):
+        raise ValueError(f'no "Thresholds for removing resonance denominators:" line in {filepath}')
+    return [line.strip() for line in lines if 'Resonance between' in line and 'combination' in line]
 
 def pCubicORQuartic(filepath: str):
     """

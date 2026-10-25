@@ -9,10 +9,10 @@ Goal
 Clean code, and a core that gives the right numbers or a clear error.
 "Core" = what wilson uses: parse_from_source, the two readers behind it, PKG_ROOT, setup_logger (todo.txt, Rules).
 
-Done when ([x] met, [~] partly, [ ] open; as of T4/R4):
+Done when ([x] met, [~] partly, [ ] open; as of Q10):
     [x] 1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
-    [~] 2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
-           tested: the polar.pkl builder (Q5, done) and the readers for validating wilson (Q10, open).
+    [x] 2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
+           tested: the polar.pkl builder (Q5) and the readers for validating wilson (Q10).
     [x] 3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, a
            missing section in a file (Q6, Q7, Q12), a section cut short where data are paired (Q8's zip). Not every
            reader counts its rows, so a section cut short elsewhere can still pass.
@@ -30,7 +30,7 @@ features, not fixes.
 How to work
 -----------
 The rules of todo.txt apply. In short:
-    - After each change: CQCParse's tests (303 pass, about 3 s on an idle machine) and the baseline (T2).
+    - After each change: CQCParse's tests (323 pass, about 3 s on an idle machine) and the baseline (T2).
     - A cleanup must not move a number. If the baseline moves during a cleanup, stop and find out why.
     - A change that moves a number on purpose (only T4/R4 here): give the reason in the commit message, and run
       wilson's tests too (T6).
@@ -46,15 +46,13 @@ named, not line numbers: those move with every change.
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py. Independent of the
                rest; any time, but before Q13.
-    2. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them. (T4 shows
-               why they matter: the programs' VPT2 differs where resonances are.)
-    3. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
+    2. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
                choice for polarData.pkl changes Q11.
-    4. Q13     Finish: merge to main, version, the list of changes for users.
+    3. Q13     Finish: merge to main, version, the list of changes for users.
 Also decided, outside this goal: N1's change (H order, Gaussian reindexed by default, with Q7's leftover as its
 first part), in todo.txt N1; it needs wilson's references rerun.
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step),
-and todo.txt T4 and R4 (see Done here and in todo.txt).
+Q10, and todo.txt T4 and R4 (see Done here and in todo.txt).
 
 
 Q. New findings (2026-10-25)
@@ -84,28 +82,6 @@ Q. New findings (2026-10-25)
         (the only copy). Then Q11 concerns only polarData_raw.pkl.
         (The counts above are from before Q12: test_missing_sections.py now copies the HFcc_pVTZ folder, which opens
         its files, but no reader reads the ones listed.)
-[ ] Q10 Readers kept for validating wilson's results against the programs' own VPT2 (decided 2026-10-25: keep).
-        Nothing calls them and no test checks them, so mark them and test them:
-            - parse_anharmonic_x_matrix (parseGaussian_forWilson.py), with its helpers
-              lower_triangular_to_full_matrix and parse_matrix_section: Gaussian's X matrix (anharmonic constants,
-              cm-1). Returns a dict: coriolis_contributions, 3rd_deriv_contributions, 4th_deriv_contributions,
-              total_anharmonic (n x n arrays) and matrix_size.
-              Works: checked on all 7 Gaussian files. Every matrix symmetric, no NaN; the three parts add up to
-              total_anharmonic within the file's print rounding (gap at most 8e-3 cm-1, ACDM; 4e-4 to 7e-4 for
-              formaldehyde).
-              To check before use: the mode order of the X matrix (A or H order, see N1).
-            - get_detected_resonances_g16 (parseGaussian_forWilson.py): broken, always returns None.
-              `"Resonance Analysis" in file_content` tests the list of lines for an element equal to that string;
-              no line is, so the body never runs. The files do have the section: formaldehyde HF/cc-pVTZ lists 1
-              active Fermi resonance, ACAC 8.
-            - get_detected_resonances_c4 (parseCFOUR_forWilson.py): broken, always returns []. It reads the
-              file as one string, then loops over it, so `line` is one character. In the 4 CFOUR examples, "Resonance
-              between" does not occur anyway, so the right answer there is also []; no example tests a hit.
-        Fix: the two loops (one line each); a test per reader (X matrix: shape, symmetry, parts sum to the total;
-        resonances: 1 for formaldehyde HF/cc-pVTZ, 8 for ACAC; CFOUR: needs a file with a resonance, or a small
-        made-up one as in test_cfour_linear_mode_numbers); one docstring line on each: "Validation only: not used by
-        parse_from_source."
-        Later, maybe: return them through parse_from_source under new names, so wilson can compare by itself.
 [ ] Q11 [decide] polarData.pkl and polarData_raw.pkl (pklPoldata, CQCParse/tools/build_polar_pkl.py) store the
         reference run as 'equil' ROTATED BY ITS OWN OMAT. That is a different frame than the other entries: in all 3
         folders the unrotated reference equals the mean of each mode's two rotated displaced tensors within 1.5e-5
@@ -361,3 +337,31 @@ Done
         Left in ruff's report (51, none applied): unused unpacked variables, module names (N999: parseCFOUR_forWilson
         and the like are not snake_case; renaming them would change import paths), and other style findings that
         need a hand or an "unsafe" fix. None hides an error.
+    Q10 (2026-10-25)  The readers kept for checking wilson's VPT2 against the programs' own: fixed, marked
+        ("Validation only: not used by parse_from_source." in each docstring) and tested. parse_from_source does not
+        use them.
+            - parse_anharmonic_x_matrix (Gaussian's X matrix, cm-1): worked already. Its mode order, open before:
+              Gaussian's A order. Checked on formaldehyde HF/cc-pVTZ and B3LYP/cc-pVQZ against the anharmonic
+              states: E(2 nu_i) - 2 E(nu_i) = 2 X_ii and E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij to 1e-3 cm-1
+              (the states' rounding), for nu1-nu3; in H order the same entries differ by up to 18 cm-1. Now raises
+              ValueError without an "Anharmonic X Matrix" section (it returned empty lists); docstring fixed
+              (matrix_size is the shape, the values are arrays).
+            - get_detected_resonances_g16: returned None for every file (`"Resonance Analysis" in file_content`
+              tested the list of lines for an element equal to that string). Rewritten to return what it can be
+              compared with: one (I, J, K) per row of Gaussian's Fermi table, nu_I ~ nu_J + nu_K, modes from 0 in
+              A order, the same kind of triple as wilson's vpt2.identify_fermi. It returned text lines before (the
+              table's header, its rows, and a sentence "There are N Fermi resonances"); nothing called it.
+              Formaldehyde HF/cc-pVTZ: [(4, 2, 5)]; ACAC 8, ACDM 27, formaldehyde B3LYP/cc-pVQZ 2. Checks its row
+              count against "N Active Fermi resonances over M"; raises without a "Resonance Analysis" section
+              (CO: 1 mode, none); [] for a "No Fermi resonance" line (wording assumed, no example has it).
+              Darling-Dennison resonances are not read.
+            - get_detected_resonances_c4: returned [] for every file (it looped over the characters of the file
+              text). Now over its lines; returns them as text (no example reports a resonance, so their format is
+              not known); raises without the "Thresholds for removing resonance denominators:" line; the appended
+              sentence "There are N Fermi resonances" is gone.
+        New tests: tests/test_validation_readers.py, 20 (the X matrix on all 7 Gaussian files: shape, symmetry,
+        parts sum to the total within 0.01 cm-1; its order against the states; Fermi triples on 4 files; CFOUR:
+        [] on the 4 examples, a made-up out file). 7 of them fail on the code before (the two resonance readers
+        and the missing sections); the X matrix tests pass on both, they pin it. Tests 303 -> 323; baseline
+        unchanged; wilson's full run as before.
+        Later, maybe: return these through parse_from_source under new names, so wilson can compare by itself.

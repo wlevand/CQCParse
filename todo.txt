@@ -240,8 +240,9 @@ B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order.
                come from normal_modes (it fails on ACAC, ACDM and CO, N2): take it from the harmonic fundamentals.
             2. Reindex Gaussian by default: reindex_modes=True as the default, or drop the argument (wilson never
                passes it). The result's 'reindex_modes' is then True for Gaussian.
-            3. Everything else with mode indices: the validation readers (todo_cleanup Q10, the X matrix) and
-               modes_mapping itself; check each one's order and bring it to H.
+            3. Everything else with mode indices: the validation readers (todo_cleanup Q10) are in A order, checked:
+               the X matrix and the Fermi triples of get_detected_resonances_g16; bring them to H too. And
+               modes_mapping itself.
             4. Tests: the baseline changes for every Gaussian source (values only move between mode indices);
                rewrite it with that reason. test_matches_gaussian_column_k compares with the file's own A-numbered
                I, J, K: give it the mapping. test_cfour_matches_gaussian matches modes by frequency: unchanged.
