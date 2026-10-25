@@ -28,16 +28,9 @@ import numpy as np
 import os
 import pickle
 from scipy import constants
-from scipy.constants import physical_constants
 
 import logging
 logger = logging.getLogger("CQCParse")
-
-bohr_in_angstroms = physical_constants['Bohr radius'][0]/10**(-10)
-
-def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
-    """Conversion from GHz to cm-1"""
-    return ghz*10**9/(constants.c*100)
 
 def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:
     """Convert wavenumber (cm-1) to energy (Hartree)"""
@@ -177,7 +170,6 @@ def parse_output_file(filepath: str):
     else:
         print('\nNo anharmonic levels information in this file')
 
-# used for polarizability derivatives calculations
 def pTensor(filepath: str):
     """
     Parsing DIPOL or POLAR or FCMFINAL files
@@ -232,7 +224,6 @@ def get_detected_resonances_c4(filepath: str):
             found_resonances_str.append(f'There are {len(found_resonances_str)} Fermi resonances\n')
         return found_resonances_str
 
-# used
 def pCubicORQuartic(filepath: str):
     """
     Parising cubic and quartic files with CFFs and QFFs
@@ -248,7 +239,6 @@ def pCubicORQuartic(filepath: str):
 
     return np.array(alllines)
 
-# used
 def getCubicPost(freq: dict, cubic: np.ndarray, startmode):
     """ Cubic force constants as a full tensor (n, n, n), every index order filled, modes 0 .. n-1.
         In the file's own unit: cm-1, in dimensionless normal coordinates (cff_rc). For atomic units (cff):
@@ -309,7 +299,6 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, startmode):
     return K4
 
 
-# used in getDipoleDers_anharm
 def pDipole(filenamebase: str):
     """
     Parsing dipole(xyz) files dipole(xyz)
@@ -378,28 +367,6 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
 
     return dmudq_array, dmudqdq_array
 
-def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int, fundamentals_harmonic: dict) -> tuple:
-    firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
-    w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
-    matrix_2d = np.outer(w_h, w_h)
-
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
-    firstder_mat = np.zeros_like(firstder)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            firstder_mat[i, j] = firstder[i, j] / sqrtvec[i]
-
-    secder_mat = np.zeros_like(secder)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-            for k in range(3):
-                secder_mat[i, j, k] = secder[i, j, k] / sqrtmat[i, j]
-
-    return tuple([firstder_mat, secder_mat])
-
-
 def getDipoleDers_anharm_au_simple(filenamebase: str, labels: list, nModesStart: int, 
                                    fund_harmonic_energies_array: list | np.ndarray) -> tuple:
     firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
@@ -421,40 +388,6 @@ def getDipoleDers_anharm_au_simple(filenamebase: str, labels: list, nModesStart:
                 secder_mat[i, j, k] = secder[i, j, k] / sqrtmat[i, j]
 
     return tuple([firstder_mat, secder_mat])
-
-
-def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
-    w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
-    matrix_2d = np.outer(w_h, w_h)
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
-    with open(polar_pkl_file, 'rb') as file:
-        alpha = pickle.load(file)
-    polgrad = alpha[0]
-    polhess = alpha[1]
-
-    logger.debug('polgrad')
-    logger.debug(polgrad)
-
-    logger.debug('polhess')
-    logger.debug(polhess)
-
-    fdpol = np.zeros_like(polgrad)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            for k in range(3):
-                fdpol[i, j, k] = polgrad[i, j, k] / sqrtvec[i]
-
-    sdpol = np.zeros_like(polhess)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-
-            for k in range(3):
-                for L in range(3):
-                    sdpol[i, j, k, L] = polhess[i, j, k, L] / sqrtmat[i, j]
-
-    return tuple([fdpol, sdpol])
 
 
 def getPolarDers_pkl_au_simple(polar_pkl_file: str, fund_harmonic_energies_array: np.ndarray | list):
@@ -490,7 +423,6 @@ def getPolarDers_pkl_au_simple(polar_pkl_file: str, fund_harmonic_energies_array
 
     return tuple([fdpol, sdpol])
 
-# used
 def getDisplacementsPolarData(polar_dir: str, raw: bool = False):
     """
     Collecting the POLAR files data and also rotates is according to the matrix from the corresponding outfile0.out
@@ -526,7 +458,6 @@ def getDisplacementsPolarData(polar_dir: str, raw: bool = False):
     else:
         return allpolardata
 
-# used
 def getPolarDers(polar_dir: str):
     """
     Computing polarizability derivatives
@@ -591,7 +522,6 @@ def getPolarDers(polar_dir: str):
 
     return first, second
 
-# not used now
 def pklPolder(polar_dir):
     first, second = getPolarDers(polar_dir)
     filenamec = 'polar.pkl'
@@ -603,7 +533,6 @@ def pklPolder(polar_dir):
 
     return filenamec
 
-# not used now
 def pklPoldata(polar_dir):
     allpolardata = getDisplacementsPolarData(polar_dir)
     rawdata = getDisplacementsPolarData(polar_dir, raw=True)
@@ -631,7 +560,6 @@ def pklPoldata(polar_dir):
 
     return filenamec
 
-# used for polarizability calculations (in pklDimless_normal_modes,)
 def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """Dimensionless normal coordinates are here, in QUADRATURE file"""
 
@@ -682,7 +610,6 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.nd
     normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat))
     return np.array(undisplaced_matrix), freqs, normal_coordinates
 
-# not used now
 def pklDimless_normal_modes(quadratureFile):
     equilibrium_geometry, freqs, normal_modes = pQUADRATURE(quadratureFile)
     filenamec = 'dimensionless.pkl'
@@ -703,9 +630,7 @@ def pklDimless_normal_modes(quadratureFile):
                     7-getRotationMatrix, 8-pTensor), 
                     9-pklPolder"""
 # -----------------------------------------------------------------------------
-# not used now
 
-# used in computeRedMass4nm which is not used now; also used for making displacements (polar)
 def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """
     Parsing MOLDEN file (VIB job output, harmonic or anharmonic)
@@ -778,7 +703,6 @@ def pklOutFile(outfile):
     return os.getcwd()+'/'+filenamedata
 
 
-# used in pklDipole
 def getDipoleDers(filenamebase: str, outfile: str):
     """
     Getting dipole moment derivatives tensors
@@ -833,7 +757,6 @@ def getDipoleDers(filenamebase: str, outfile: str):
 
     return dmudqarray, dmudqdarray
 
-# not used
 def pklDipole(filenamebase, outfile):
     import pickle
 
@@ -849,7 +772,6 @@ def pklDipole(filenamebase, outfile):
 
     return os.getcwd()+'/'+filename
 
-# used
 def pklCubic(cubicfile):
 
     cubic = pCubicORQuartic(cubicfile)
@@ -864,7 +786,6 @@ def pklCubic(cubicfile):
 
 # -----------------------------------------------------------------------------
 
-# used in parse_output_file
 def modes_array2tuple(arr: np.array):
     """I J K L M NI NJ NK NL NM information array
     turned into a tuple, where I mode will be mentioned NI times and so on"""

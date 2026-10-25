@@ -159,7 +159,7 @@ A. What parse_from_source returns
         with 2 or more modes (CO has 1). Decide what B holds for a linear molecule, the same in both readers.
         Both readers know whether the molecule is linear since C4.
 [ ] A6  Gaussian equilibrium_geometry and atoms are empty for ACAC and ACDM (shape (0,) and 0 atoms, already so in
-        the baseline, T2). get_equil_geo (parseGaussian_forWilson.py:960) takes the first "Standard orientation"
+        the baseline, T2). get_equil_geo (parseGaussian_forWilson.py:540) takes the first "Standard orientation"
         after "Optimization completed.", and these two files have none there:
             - ACAC: the only "Standard orientation" (line 201) comes before "Optimization completed." (line 22703).
             - ACDM: the file is a Freq job only; its only "Standard orientation" (line 250) comes before
@@ -251,7 +251,7 @@ B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order.
         Also decide here: modes_mapping is Gaussian only (CFOUR has one mode order), the last key the two readers
         do not share (A5).
 [ ] N2  Failures: ACAC and ACDM raise "cannot reshape ... into shape (0,3,3)"; CO returns 0 modes
-        (get_normal_modes, parseGaussian_forWilson.py:820).
+        (get_normal_modes, parseGaussian_forWilson.py:528).
         Cause for ACAC and ACDM: get_equil_geo finds 0 atoms there (A6), and get_normal_modes reshapes with it.
         With the atom count from parse_Na, get_normal_modes reads 18 and 42 modes. CO: another cause (1 mode;
         get_normal_modes reshapes in blocks of 3 modes).

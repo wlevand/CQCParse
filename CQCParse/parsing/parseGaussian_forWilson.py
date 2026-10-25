@@ -10,7 +10,6 @@
 #     - .fchk --- formcheck (generated from checkpoint file)
 """
 
-from scipy import constants
 import numpy as np
 import sys
 
@@ -19,11 +18,6 @@ logger = logging.getLogger("CQCParse")
 
 import pandas as pd
 pd.set_option('display.max_rows', sys.maxsize)
-
-
-def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
-    """Conversion from GHz to cm-1"""
-    return ghz*10**9/(constants.c*100)
 
 
 def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)-> tuple[np.ndarray, np.ndarray]:
@@ -488,11 +482,6 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
     return df#, units_line
 
 
-def remove_extra_g16():
-    """
-
-    """
-
 # ------------------ Normal modes ----------------------------------
 def nm_parse_lines(filename):
     """
@@ -546,134 +535,6 @@ def get_normal_modes(filename, Na):
     result = np.transpose(m1, (0, 2, 1, 3)).reshape(-1, 3, Na, 3)
 
     return result.reshape(-1, 3 * Na)
-
-
-def normal_modes_prec(lines, Na, linear):
-
-    collect = False
-    count = 0
-    nmodes = 3*Na-5 if linear else 3*Na-6
-
-    lines_relevant = {i:[] for i in range(nmodes)}
-
-    for line in lines:
-
-        if 'Coord Atom Element:' in line:
-            collect = True
-        if ' Harmonic frequencies (cm**-1), IR intensities (KM/Mole), Raman scattering' in line:
-            count+=1
-            if count==2:
-                # collect = False
-                return
-        if collect and len(line.strip().split())==1:
-            collect = False
-
-        if collect:
-            for i, e in enumerate(line.strip().split()[3:]):
-                if len(lines_relevant[i])<Na*3:
-                    lines_relevant[i].append(e)
-                else:
-                    lines_relevant[i].append(e)
-
-
-
-def nm_matrix_check(referenceFile, currentFile, Na, phase_change=False):
-    # Normal modes lists from the files
-    referenceNMs = get_normal_modes(referenceFile, Na)     # all normal modes from ref_file
-    currentNMs = get_normal_modes(currentFile, Na)         # all normal modes from curr_file
-
-    ####  Setting up the identity matrix
-    mtx = np.zeros((3 * Na - 6, 3 * Na - 6))
-
-    ###  Phase check for all NMs based oon the 1st one
-    # for the 1st non-zero element (coordinate), check if the sign is the same
-    curr0 = np.array(currentNMs[0]).reshape(-1, 3)
-    ref0 = np.array(referenceNMs[0]).reshape(-1, 3)
-    non_zero_ref = np.transpose(np.nonzero(ref0))
-    non_zero_curr = np.transpose(np.nonzero(curr0))
-
-    first_non_zero = None
-    for i in non_zero_ref:
-        for j in non_zero_curr:
-            comparison = i == j
-            if comparison.all():
-                first_non_zero = i
-                break
-        else:
-            continue
-        break
-
-    if first_non_zero is not None:
-        s1 = ref0[first_non_zero[0], first_non_zero[1]]
-        s2 = curr0[first_non_zero[0], first_non_zero[1]]
-        if np.sign(s1) != np.sign(s2):
-            phase_change = True
-        else:
-            phase_change = False
-
-    for i in range(3 * Na - 6):
-        for j in range(3 * Na - 6):
-            # curr = np.array(currentNMs[j]).reshape(-1, 3)   # a column of the "identity" matrix
-            ref = np.array(referenceNMs[i]).reshape(-1, 3)   # a row of the "identity" matrix
-
-            ## Phase change switch
-            phase_change = False
-            # For coordinates swapping for normal mode (x->z, z->x), a manual inspection is needed
-            if phase_change:
-                ref *= -1
-
-            mtx[i][j] = np.dot(ref.flatten(), currentNMs[j]) / \
-                        np.linalg.norm(ref.flatten())/np.linalg.norm(currentNMs[j])
-
-    new_order = []
-    for i in range(len(mtx[0])):
-        match = np.where(abs(mtx[i]) > 0.9)
-        if len(match[0]) == 0:
-            match = np.where(abs(mtx[i]) > 0.8)
-            if len(match[0]) == 0:
-                match = np.where(abs(mtx[i]) > 0.6)
-                if len(match[0]) == 0:
-                    match = np.where(abs(mtx[i]) > 0.6)
-                    new_order.append(match)
-            else:
-                new_order.append(match)
-        else:
-            new_order.append(match)
-    new_order = [y for x in new_order for y in x]
-    new_new = np.concatenate(new_order).ravel()
-    if len(new_new) == len(mtx[0]):
-        return mtx, new_new, True
-    else:
-        print("Incomplete")   # if the order number was not identified for every normal mode
-        print()
-        return mtx, new_new, False
-
-def reordered_modes(filepath):
-    """
-    {A:H}
-    """
-    with open(filepath, 'r') as file:
-        file_content = file.readlines()
-
-    collect = False
-    H = []
-    A = []
-    for L in file_content:
-        if L.strip() == '(H) is reported in the present equivalency table:':
-            collect = True
-        if L.strip() == 'Normal modes will be READ in ASCENDING order (imag. freq. first)':
-            collect = False
-
-        if collect and ('(H)' in L or '(A)' in L) and 'reported' not in L:
-            L = L.strip().replace('|', '').split()
-            if '(H)' in L:
-                for e in L[1:]:
-                    H.append(int(e))
-            elif '(A)' in L:
-                for e in L[1:]:
-                    A.append(int(e))
-
-    return dict(sorted(dict(zip(A,H)).items()))
 
 
 def get_equil_geo(allines):

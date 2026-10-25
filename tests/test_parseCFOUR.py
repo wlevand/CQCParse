@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 from CQCParse.parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file
-from CQCParse.parsing.parseCFOUR_extra import pNORMCO, get_anharmonic_fundamentals
 from CQCParse.utils import PKG_ROOT
 
 # formaldehyde, CFOUR VPT2 runs
@@ -50,14 +49,6 @@ def test_pMOLDEN_normal_modes_dict():
     assert np.all(normal_modes_dict[10] == ref_normal_modes_dict10)
     assert np.all(normal_modes_dict[dictkeys[0]] == ref_normal_modes_dict7)
     assert np.all(normal_modes_dict[dictkeys[-1]] == ref_normal_modes_dict12)
-
-def test_pNORMCO():
-    massweighted_geometry = pNORMCO(C4_HF + '/NORMCO')
-    ref_massweighted_geometry = np.array([[ -0.0000000000 ,  0.0000000000 ,  4.4701567776],
-                                          [ -0.0000000000 ,  0.0000000000 , -3.8661895336],
-                                          [ -0.0000000000 ,  1.7690554959 , -2.2337334724],
-                                          [  0.0000000000 , -1.7690554959 , -2.2337334724]])
-    assert np.all(massweighted_geometry == ref_massweighted_geometry)
 
 def test_pQUADRATURE_geo():
     equilibrium_geometry, freqs, normal_coordinates = pQUADRATURE(read_lines(C4_CCSDT + '/QUADRATURE'))
@@ -136,9 +127,3 @@ def test_parse_output_file_normal_case_harmonic_transitions(mock_output_file):
     modes, labels, anharmonic_frequencies, anharmonic_intensities, harmonic_transitions = parse_output_file(
         str(mock_output_file))
     assert np.allclose(harmonic_transitions, np.array([1325.3, 2650.6, 2685.0]))
-
-def test_get_anharmonic_fundamentals(mock_output_file):
-    freqs = get_anharmonic_fundamentals(C4_HF + '/out')
-    assert freqs=={0: 1307.475, 1: 1342.594, 2: 1607.945, 3: 1988.836, 4: 2969.293, 5: 3033.298}
-    freqs = get_anharmonic_fundamentals(str(mock_output_file))
-    assert freqs == {0: 1307.4}

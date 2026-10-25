@@ -2,7 +2,7 @@
 Claude Opus 4.6 
 """
 
-from CQCParse.relay.modes_reindexing import build_permutation, reindex_tensor, clean_noise, reindex_dict
+from CQCParse.relay.modes_reindexing import build_permutation, reindex_tensor, reindex_dict
 from CQCParse.utils import PKG_ROOT
 import numpy as np
 import pickle
@@ -13,6 +13,13 @@ EXAMPLES = PKG_ROOT + '/CQCParse/files_examples'
 def unpickle(filename):
     with open(EXAMPLES + '/' + filename, 'rb') as file:
         return pickle.load(file)
+
+
+def clean_noise(arr, tol=1e-10):
+    """
+    set to zero vals below tolerace
+    """
+    return np.where(np.abs(arr) < tol, 0.0, arr)
 
 
 def test_permutation_is_valid():
