@@ -387,6 +387,8 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
             results['atoms'] = atoms
 
         if 'normal_modes' in requested_data:
+            if not normal_modes_dict:
+                raise ValueError(f'no normal modes: no [FR-NORM-COORD] vibrations in {files_dict["molden"]}')
             results['normal_modes'] = normal_modes_dict
 
     if any(k in requested_data for k in ('B', 'coriolis')):

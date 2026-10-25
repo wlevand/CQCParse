@@ -39,7 +39,8 @@ Now, in this order. After each change that moves a number: CQCParse's tests, the
             force constants. Do with T4, which checks it.
     4. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
             cut-off and measure what changes. Then decide.
-    5. A6   Gaussian geometry is empty for ACAC and ACDM, silently. First: raise an error instead. Then the fix.
+    5. A6   Gaussian geometry is empty for ACAC and ACDM. First step done (an error now, todo_cleanup Q12). Left: the
+            fix, reading the geometry from where these two files hold it.
     6. N1   First: say in parse_from_source's docstring that normal_modes is in another mode order (H) than the
             rest (A). The choice itself waits for wilson G9.
 (R5 done with todo_cleanup.txt Q5, see Done.)
@@ -172,6 +173,10 @@ A. What parse_from_source returns
         count matches parse_Na. Then N2's crash on ACAC and ACDM goes too (checked: with the NAtoms count,
         get_normal_modes reads 18 and 42 modes).
         Also: get_equil_geo knows only H, C, N and O (dictelem); any other element raises KeyError.
+        First step done 2026-10-25 (todo_cleanup.txt Q12): get_equil_geo (parseGaussian_forWilson.py:573) raises
+        ValueError when it finds no atoms ('no optimized geometry: no "Standard orientation" after "Optimization
+        completed."'), when the count differs from parse_Na's, and for an element it does not know (names the
+        atomic number; was KeyError). ACAC and ACDM: equilibrium_geometry and atoms are errors in the baseline now.
 
 
 R. Precision of the numbers in the files
@@ -245,11 +250,16 @@ B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order.
         other mode index is in A order, so nobody combines them by index without modes_mapping.
         Also decide here: modes_mapping is Gaussian only (CFOUR has one mode order), the last key the two readers
         do not share (A5).
-[ ] N2  Failures: ACAC and ACDM raise "cannot reshape ... into shape (0,3,3)"; CO returns 0 modes
-        (get_normal_modes, parseGaussian_forWilson.py:528).
+[ ] N2  Failures: ACAC and ACDM raise; CO raised nothing and returned 0 modes (get_normal_modes,
+        parseGaussian_forWilson.py:551).
         Cause for ACAC and ACDM: get_equil_geo finds 0 atoms there (A6), and get_normal_modes reshapes with it.
         With the atom count from parse_Na, get_normal_modes reads 18 and 42 modes. CO: another cause (1 mode;
-        get_normal_modes reshapes in blocks of 3 modes).
+        get_normal_modes reads only tables of 3 modes, "Atom  AN  X Y Z  X Y Z  X Y Z").
+        Since todo_cleanup Q12 (2026-10-25) all three raise ValueError with the cause: ACAC and ACDM at
+        get_equil_geo (no optimized geometry), CO at get_normal_modes (no table of 3 modes). get_normal_modes also
+        raises when the mode count is not 3N-6 or 3N-5: a molecule whose last table holds 1 or 2 modes (another
+        header) lost those modes with no error before (from reading the code; every example has a multiple of 3
+        modes, except CO). Left: read tables of 1 and 2 modes too.
 [ ] N3  One shape for both readers. Now a dict {mode: vector}: Gaussian keys 0 .. n-1 and flat vectors (3 x atoms);
         CFOUR keys from 7 (7-12 for formaldehyde) and vectors of shape (atoms, 3). wilson's MolSystemData.eigenvecs
         is typed as a numpy array, but stores the dict as it comes (from_datadict, system_data.py:308).

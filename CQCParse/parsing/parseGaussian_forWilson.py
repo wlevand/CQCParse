@@ -30,11 +30,15 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
 
     start1 = False
     start_rotcont = False
+    # a missing section raises below, instead of giving zeros
+    found_coriolis = False
+    found_rotational = False
 
     for i, line in enumerate(lines):
 
         if 'CORIOLIS COUPLINGS' in line:
             start1 = True
+            found_coriolis = True
         elif 'Num. of Coriolis couplings larger than' in line:
             start1 = False
 
@@ -91,10 +95,13 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
 
                 rotational_constant = np.array([float(rotational_constant[i]) for i in reorder])
 
-
+                found_rotational = True
                 break
         else:
             if 'E(harm)  E(anharm)' in line:
+                if len(rotational_constant) < 3:
+                    raise ValueError('no equilibrium rotational constants before the "E(harm)  E(anharm)" line '
+                                     '("Rotational Constants (in cm^-1)" section)')
                 rot_order = [line.strip().split()[-3][-2], line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
                 reorder = [rot_order.index('x'), rot_order.index('y'), rot_order.index('z')]
                 rotational_constant = np.array([float(rotational_constant[i]) for i in reorder])
@@ -103,7 +110,13 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
                 if 'Equilibrium Geometry' not in next_line:
                     raise ValueError("Cannot get rotational constant at Equilibrium Geometry from file")
                 # rot_vals = [float(i) for i in next_line.split()[2:]]
+                found_rotational = True
                 break
+
+    if not found_rotational:
+        raise ValueError('no "E(harm)  E(anharm)" line: no rotational constants (axis order) in the file')
+    if not found_coriolis:
+        raise ValueError('no "CORIOLIS COUPLINGS" section')
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
@@ -263,6 +276,9 @@ def parse_cubic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:
             elif (line.strip().startswith(': FI =') or line.strip().startswith(': k  =')
                   or line.strip().startswith(': K  =')):
                 units_lines.append(line.strip())
+    # a section with no rows (every term under Gaussian's cut-off) would give zeros; a missing one raises
+    if not start:
+        raise ValueError('no "CUBIC FORCE CONSTANTS IN NORMAL MODES" section')
     df = pd.DataFrame(results, columns=["I", "J", "K", "FI(I,J,K)", "k(I,J,K)", "K(I,J,K)", "SymmetryForbidden"])
 
     return df, units_lines
@@ -290,6 +306,9 @@ def parse_quartic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:
             elif (line.strip().startswith(': FI =') or line.strip().startswith(': k  =')
                   or line.strip().startswith(': K  =')):
                 units_lines.append(line.strip())
+    # as in parse_cubic_constants: no rows would give zeros, a missing section raises
+    if not start:
+        raise ValueError('no "QUARTIC FORCE CONSTANTS IN NORMAL MODES" section')
     df = pd.DataFrame(results, columns=["I", "J", "K", "L", "FI(I,J,K,L)", "k(I,J,K,L)", "K(I,J,K,L)", "SymmetryForbidden"])
 
     return df, units_lines
@@ -385,6 +404,8 @@ def parse_dipole_moment(lines: list[str]) -> tuple[pd.DataFrame, str]:
                 row = [row_dict.get(column_name, np.nan) for column_name in column_names]
                 results.append(row)
 
+    if not results:
+        raise ValueError('no dipole derivatives: no "Electric Dipole" section with P rows')
     df = pd.DataFrame(results, columns=column_names)
 
     return df, units_line
@@ -442,6 +463,8 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
                 # missing columns to None
                 row = [row_dict.get(column_name, np.nan) for column_name in column_names]
                 results.append(row)
+    if not results:
+        raise ValueError('no polarizability derivatives: no "Polarizability Tensor" section with P rows')
     df = pd.DataFrame(results, columns=column_names)
     array = df.to_numpy()
 
@@ -531,10 +554,20 @@ def get_normal_modes(filename, Na):
     """
 
     # Ntot = (3 * Na - 6) * Na
-    m1 = np.reshape(np.array(nm_floats(filename)), (-1, Na, 3, 3))
+    floats = nm_floats(filename)
+    if not floats:
+        raise ValueError('no normal-mode table with 3 modes per block ("Atom  AN  X Y Z  X Y Z  X Y Z"): the reader '
+                         'reads only those, so not a molecule with fewer than 3 modes')
+    m1 = np.reshape(np.array(floats), (-1, Na, 3, 3))
     result = np.transpose(m1, (0, 2, 1, 3)).reshape(-1, 3, Na, 3)
+    modes = result.reshape(-1, 3 * Na)
 
-    return result.reshape(-1, 3 * Na)
+    # a last block of 1 or 2 modes has another header and is not read
+    if len(modes) not in (3 * Na - 6, 3 * Na - 5):
+        raise ValueError(f'{len(modes)} normal modes read for {Na} atoms, expected {3 * Na - 6} or {3 * Na - 5}: '
+                         f'the reader reads only blocks of 3 modes')
+
+    return modes
 
 
 def get_equil_geo(allines):
@@ -565,11 +598,18 @@ def get_equil_geo(allines):
             break
 
         if collect and len(line.strip().split())>2 and countlines==2:
-            elements.append(dictelem[line.strip().split()[1]])
+            atomic_number = line.strip().split()[1]
+            if atomic_number not in dictelem:
+                raise ValueError(f'atomic number {atomic_number}: get_equil_geo knows only {dictelem}')
+            elements.append(dictelem[atomic_number])
             coords.append([float(line.strip().split()[-3]),
                            float(line.strip().split()[-2]),
                            float(line.strip().split()[-1])])
 
+    if not elements:
+        raise ValueError('no optimized geometry: no "Standard orientation" after "Optimization completed."')
+    if len(elements) != parse_Na(allines):
+        raise ValueError(f'{len(elements)} atoms in the optimized geometry, NAtoms= says {parse_Na(allines)}')
     coords = np.array(coords)
 
     return elements, coords
@@ -794,4 +834,6 @@ def parse_mode_mapping(file_lines: list[str]) -> dict[int, int]:
                 a_vals.extend(int(x) for x in stripped.split("|")[1:] if x.strip())
             elif stripped.startswith("Normal modes will be READ"):
                 break
+    if not a_vals:
+        raise ValueError('no A to H mode table ("The connection between this new numbering")')
     return dict(zip(a_vals, h_vals))

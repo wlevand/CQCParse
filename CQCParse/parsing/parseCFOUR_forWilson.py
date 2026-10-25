@@ -54,7 +54,13 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
     rotational_constant = []
 
     start1, start2, start3 = False, False, False
+    # IXYZ = 1, 2, 3: a missing matrix raises below, instead of giving zeros
+    found_ixyz = set()
     for line in lines:
+        for ixyz in (1, 2, 3):
+            if f'Coriolis Zeta matrix for IXYZ=                     {ixyz} :' in line:
+                found_ixyz.add(ixyz)
+
         if 'Coriolis Zeta matrix for IXYZ=                     1 :' in line:
             start1 = True
         elif 'CHECKSUM' in line:
@@ -81,6 +87,11 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
 
         if 'B in cm-1:' in line:
             rotational_constant.append(float(line.split()[-1]))
+    missing = sorted({1, 2, 3} - found_ixyz)
+    if missing:
+        raise ValueError(f'no "Coriolis Zeta matrix for IXYZ= k" section for k = {missing} in {file_path}')
+    if not rotational_constant:
+        raise ValueError(f'no "B in cm-1:" line (rotational constants) in {file_path}')
     rotational_constant = np.array(rotational_constant)
     if len(rotational_constant)>3:
         rotational_constant = rotational_constant[-3:]
@@ -167,7 +178,7 @@ def parse_output_file(filepath: str):
         return modes, labels, anharmonic_frequencies, anharmonic_intensities, harmonic_transitions
 
     else:
-        print('\nNo anharmonic levels information in this file')
+        raise ValueError(f'no "All levels with up to three quanta" section (anharmonic levels) in {filepath}')
 
 def get_detected_resonances_c4(filepath: str):
 
@@ -195,6 +206,8 @@ def pCubicORQuartic(filepath: str):
     for L in lines:
         elements = L.split()
         alllines.append(np.array([int(k) if i < len(elements) - 1 else float(k) for i, k in enumerate(elements)]))
+    if not alllines:
+        raise ValueError(f'no force constants: {filepath} is empty')
 
     return np.array(alllines)
 
@@ -274,6 +287,8 @@ def pDipole(filenamebase: str):
             dct[indx[0]] = nu[-1]
         else:
             dct[indx] = nu[-1]
+    if not dct:
+        raise ValueError(f'no dipole derivatives: {filenamebase} is empty')
 
     return dct
 
@@ -482,8 +497,10 @@ def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, 
                 if 'current_vibration_index' in locals():
                     vibrations_data[current_vibration_index].append(list(map(float, line_parts)))
                 else:
-                    print('Error: Vibration number not initialized before data lines.')
+                    raise ValueError(f'{filepath}: a [FR-NORM-COORD] data line before any "vibration" line')
 
+    if not atoms:
+        raise ValueError(f'no geometry: no [FR-COORD] section in {filepath}')
     atoms = np.array(atoms)
     geometry_data = np.array(geometry_data, dtype=float)
     vibrations_data = {key: np.array(value) for key, value in vibrations_data.items()}
