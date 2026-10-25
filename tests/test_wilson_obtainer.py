@@ -1,8 +1,7 @@
 import numpy as np
 import pytest
 
-from CQCParse.parsing.parse_wilson_obtainer import (parse_cfour_output, parse_gaussian16_output, parse_from_source,
-                                                    is_linear, KNOWN_NAMES)
+from CQCParse.parsing.parse_wilson_obtainer import parse_from_source, is_linear, KNOWN_NAMES
 from CQCParse.utils import PKG_ROOT
 from tests.test_baseline import ALL_NAMES, BASE, parse
 
@@ -80,6 +79,13 @@ def test_linear_argument_ignored():
     with pytest.warns(DeprecationWarning):
         parse_from_source({'nc_sqrt_eigval': None}, 'cfour', PKG_ROOT + '/CQCParse/files_examples/refinedc4/HFcc_pVTZ',
                           lvl_theory='HF', basis_set='cc-pVTZ', linear=True)
+
+
+@pytest.mark.parametrize('source', FORM_PAIR + ['g16_CO_HF_STO-3G'])
+def test_readers_print_nothing(source, capsys):
+    """The readers log or raise, they do not print (todo_cleanup Q8; CO is linear: it printed 'linear')."""
+    parse(source, BASE + ['B', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'qff'])
+    assert capsys.readouterr().out == ''
 
 
 def test_known_names():

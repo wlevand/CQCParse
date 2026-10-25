@@ -9,12 +9,13 @@ Goal
 Clean code, and a core that gives the right numbers or a clear error.
 "Core" = what wilson uses: parse_from_source, the two readers behind it, PKG_ROOT, setup_logger (todo.txt, Rules).
 
-Done when ([x] met, [~] partly, [ ] open; as of Q12):
+Done when ([x] met, [~] partly, [ ] open; as of Q8):
     [x] 1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
     [~] 2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
            tested: the polar.pkl builder (Q5, done) and the readers for validating wilson (Q10, open).
-    [~] 3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, a
-           missing section in a file (Q6, Q7, Q12 done). Left: a section cut short (Q8's zip).
+    [x] 3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, a
+           missing section in a file (Q6, Q7, Q12), a section cut short where data are paired (Q8's zip). Not every
+           reader counts its rows, so a section cut short elsewhere can still pass.
     [ ] 4. The unit conversion of each property is written out once, and checked against the other program (T4, R4).
     [ ] 5. wilson's tests fail only for wilson's own reasons: today 17 failures and 1 collection error that CQCParse
            main gives too (L1, T6, in wilson_gv).
@@ -28,7 +29,7 @@ features, not fixes.
 How to work
 -----------
 The rules of todo.txt apply. In short:
-    - After each change: CQCParse's tests (282 pass, about 3 s on an idle machine) and the baseline (T2).
+    - After each change: CQCParse's tests (285 pass, about 3 s on an idle machine) and the baseline (T2).
     - A cleanup must not move a number. If the baseline moves during a cleanup, stop and find out why.
     - A change that moves a number on purpose (only T4/R4 here): give the reason in the commit message, and run
       wilson's tests too (T6).
@@ -44,10 +45,9 @@ is small. Functions are named, not line numbers: those move with every change.
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py. Independent of the
                rest; any time, but before Q13.
-    2. Q8, N1  Small fixes, one sitting: zip(strict=True) (a section cut short), an always-true condition,
-               print('linear'), a duplicate helper, ruff; and N1's first step (a docstring note on the mode orders,
-               todo.txt). N1 is decided (H order, Gaussian reindexed by default); the change itself, with Q7's
-               leftover as its first part, is in todo.txt N1 and needs wilson's references rerun.
+    2. Q8      Last part: `ruff check --fix` (safe fixes only), as its own commit after Q8's. N1's first step is
+               done; N1's change itself (H order, Gaussian reindexed by default, with Q7's leftover as its first
+               part) is in todo.txt N1 and needs wilson's references rerun.
     3. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out, with a check of the units the Gaussian file states (todo.txt). The only step here that may move
                numbers.
@@ -55,29 +55,16 @@ is small. Functions are named, not line numbers: those move with every change.
     5. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
                choice for polarData.pkl changes Q11.
     6. Q13     Finish: merge to main, version, the list of changes for users.
-Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step) (see Done).
+Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 but ruff (with N1's first
+step) (see Done).
 
 
 Q. New findings (2026-10-25)
 ----------------------------
-[ ] Q8  Small fixes. None should move a number; the baseline checks that.
-            - zip() without strict=True on the core path, 4 places: getDipDers_log and parse_mode_mapping
-              (parseGaussian_forWilson.py), parse_cfour_output (2, state labels paired with energies). zip() stops
-              at the shorter list, so a missing line in a file drops data with no error. strict=True raises instead.
-            - parse_polarizability: `('|  X  |' in line or '|  Z  |')` is always true (a non-empty string).
-              Harmless today: in the example files, only X and Z rows reach this branch (Y rows start with "P" and
-              go to the branch above). Fix: `'|  X  |' in line or '|  Z  |' in line`.
-            - print('linear') in parse_coriolis (Gaussian), on every linear molecule: delete, or log at debug level.
-              The last print() in the core path; Q12 turned the other two into errors. Then tests/test_baseline.py's
-              parse() needs no redirect_stdout ("the readers print a lot").
-            - convNu2Ene: two copies (utils.py and parseCFOUR_forWilson.py, same code). Keep the one in utils.py,
-              import it in parseCFOUR_forWilson.py.
-            - ruff (in the dev dependencies): 79 findings after Q12 (117 before Q4), nearly all style: unused
-              unpacked variables 26, import order 20, module names 8. None that hides an error in CQCParse (the
-              try-except-pass and blind excepts are in tests/test_baseline.py, on purpose). Apply `ruff check --fix`
-              (the safe fixes only) as its own commit. Also test_wilson_obtainer.py imports parse_cfour_output and
-              parse_gaussian16_output, unused.
-            (The units_line note moved to R4: the unit check is part of the unit conversion.)
+[ ] Q8  Left: ruff (in the dev dependencies), nearly all style: unused unpacked variables, import order, module
+        names. None that hides an error in CQCParse (the try-except-pass and blind excepts are in
+        tests/test_baseline.py, on purpose). Apply `ruff check --fix` (the safe fixes only) as its own commit, so the
+        style changes stay apart from the others. The rest of Q8: see Done.
 [ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q5), 30 of the 76 files in
         files_examples are never opened:
             - 4 Gaussian inputs (.com): keep; they show how each run was made.
@@ -351,3 +338,23 @@ Done
         Not covered: a section that is there but cut short (Q8's zip(strict=True) covers part of it); B in a
         linear CFOUR molecule (no example; A4); a dipole file empty because every derivative along that axis is
         zero by symmetry (not checked whether that can happen; not in the examples; pDipole would raise wrongly).
+    Q8, all but ruff (2026-10-25, with todo.txt N1's first step)  Small fixes; no number moved (baseline
+        unchanged).
+            - zip(strict=True) where data are paired, 5 places: getDipDers_log and parse_mode_mapping (Gaussian),
+              parse_cfour_output (state labels with harmonic and with anharmonic energies), pQUADRATURE. zip()
+              stopped at the shorter list, so a missing line dropped data with no error; now it raises.
+            - parse_polarizability: `('|  X  |' in line or '|  Z  |')`, always true, is now
+              `('|  X  |' in line or '|  Z  |' in line)`. Same rows read in the example files (baseline).
+            - print('linear') in the Gaussian parse_coriolis: deleted. The library prints nothing now;
+              tests/test_baseline.py's parse() lost its redirect_stdout ("the readers print a lot").
+            - convNu2Ene: one copy, in utils.py; parseCFOUR_forWilson.py imports it (and lost its now unused
+              `from scipy import constants`). The two copies were the same code.
+            - tests/test_wilson_obtainer.py: the unused imports of parse_cfour_output and parse_gaussian16_output.
+            - N1's first step: parse_from_source's docstring says which mode order each key is in (Gaussian: A
+              order, which in all the examples is the Mulliken numbering, except normal_modes in H order; CFOUR:
+              ascending frequency; modes_mapping maps A to H) and that ascending frequency can swap close modes. The
+              README says the two programs' mode orders differ, in one line.
+        New test: test_readers_print_nothing (tests/test_wilson_obtainer.py; formaldehyde in both programs, and CO,
+        which printed 'linear'). Tests 282 -> 285. wilson's full run: 963 pass, 30 fail, 1 error, as before.
+        ruff now: no zip() without strict, no unused import; the one F841 left is units_line in
+        parse_polarizability, for R4.

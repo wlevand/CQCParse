@@ -53,6 +53,14 @@ def parse_from_source(requested_data: Collection[str],
         'reindex_modes' is always False.
         With Gaussian, requested_data must hold modes_mapping, normal_modes and every tensor of REINDEXED_TENSORS
         (cff or cff_rc, qff or qff_rc: each brings the other); otherwise ValueError, before any file is read.
+    Mode order: Gaussian numbers the modes two ways. Without reindex_modes, every mode index of a Gaussian result
+        (the tensors, the states, nc_sqrt_eigval) is in its anharmonic-section (A) order: in all the example files
+        the Mulliken numbering, grouped by symmetry species, then descending frequency. normal_modes alone is in
+        its harmonic-section (H) order, ascending frequency. So do not combine normal_modes with the rest by index;
+        modes_mapping maps A to H (both counted from 1). CFOUR has one order, ascending frequency (as H), in every
+        key; its normal_modes keys are CFOUR's own mode numbers (from 7 for a nonlinear molecule).
+        Ascending frequency is not a fixed label: two close modes can swap between methods, so mode k of two
+        results can be different vibrations.
     linear: ignored, kept so that old calls still work (passing it gives a DeprecationWarning). Both readers decide
         from the file whether the molecule is linear (is_linear: 3N-5 vibrational modes).
     """
@@ -354,7 +362,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
             raise ValueError(f'CFOUR fundamentals are modes {fundamentals_original}, '
                              f'expected {nModesStart} .. {n_all_modes} of {n_all_modes} normal coordinates')
 
-        harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs))
+        harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs, strict=True))
         harmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in harm_states_dict.items()}
         fundamentals_harmonic_int = {int(k[0]):v for k,v in harmonic_states.items() if len(k)==1}
         num_modes = len(fundamentals_harmonic_int)
@@ -364,7 +372,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
         labelsModes_original = [i + nModesStart for i in list(fundamentals_harmonic_int)]
 
         if 'anharmonic_states' in requested_data:
-            anharm_states_dict = dict(zip(vib_energy_levels_list, anharmonic_freqs))
+            anharm_states_dict = dict(zip(vib_energy_levels_list, anharmonic_freqs, strict=True))
             anharmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in anharm_states_dict.items()}
             results['anharmonic_states'] = anharmonic_states
 

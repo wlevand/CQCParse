@@ -26,15 +26,11 @@
 
 import numpy as np
 import pickle
-from scipy import constants
+
+from CQCParse.utils import convNu2Ene
 
 import logging
 logger = logging.getLogger("CQCParse")
-
-def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:
-    """Convert wavenumber (cm-1) to energy (Hartree)"""
-    hartree2J = constants.physical_constants['hartree-joule relationship'][0]
-    return reciprocal_cm * (100 * constants.h * constants.c / hartree2J)
 
 
 def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarray, np.ndarray]:
@@ -444,7 +440,7 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.nd
     if current_matrix:
         undisplaced_matrix = current_matrix
 
-    normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat))
+    normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat, strict=True))
     return np.array(undisplaced_matrix), freqs, normal_coordinates
 
 # polar.pkl, read by getPolarDers_pkl_au_simple, is built by CQCParse.tools.build_polar_pkl

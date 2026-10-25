@@ -10,8 +10,6 @@ check each difference, give its reason in the commit message, then rewrite the b
     python tests/test_baseline.py
 Only the .npz files whose arrays changed are rewritten.
 """
-import contextlib
-import io
 import json
 import os
 
@@ -51,10 +49,9 @@ BASE = ['nc_sqrt_eigval', 'harmonic_states', 'anharmonic_states']
 
 def parse(source, names):
     source_type, path, lvl_theory, basis_set = SOURCES[source]
-    with contextlib.redirect_stdout(io.StringIO()):   # the readers print a lot
-        return parse_from_source(requested_data=dict.fromkeys(names), source_type=source_type,
-                                 base_file_loc=EXAMPLES + '/' + path,
-                                 lvl_theory=lvl_theory, basis_set=basis_set)
+    return parse_from_source(requested_data=dict.fromkeys(names), source_type=source_type,
+                             base_file_loc=EXAMPLES + '/' + path,
+                             lvl_theory=lvl_theory, basis_set=basis_set)
 
 
 def error_text(exc):

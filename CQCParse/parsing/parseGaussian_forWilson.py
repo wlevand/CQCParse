@@ -82,7 +82,6 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
 
         if linear_molecule:
             if 'E(harm)  E(anharm)' in line:
-                print('linear')
                 rot_order = [line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
                 cart_lbls = ['x', 'y', 'z']
                 lbls_here = [i for i in cart_lbls if i in rot_order]
@@ -179,7 +178,7 @@ def getDipDers_log(logfile: list[str]) -> tuple:
     a2d2 = dipl.loc[dipl['P'] == 'P2', ['X', 'Y', 'Z']].to_numpy()
     a2d2_3d = np.zeros((shpNM, shpNM, 3))
 
-    for i, j, xyz in zip(dipl.loc[dipl['P'] == 'P2', 'i'], dipl.loc[dipl['P'] == 'P2', 'j'], a2d2):
+    for i, j, xyz in zip(dipl.loc[dipl['P'] == 'P2', 'i'], dipl.loc[dipl['P'] == 'P2', 'j'], a2d2, strict=True):
         a2d2_3d[int(i) - 1, int(j) - 1] = xyz
         a2d2_3d[int(j) - 1, int(i) - 1] = xyz
 
@@ -451,7 +450,7 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
                 row = [row_dict.get(column_name, np.nan) for column_name in column_names]
                 results.append(row)
 
-            elif ('|  X  |' in line or '|  Z  |') and len(line.split('|')) == 4 and 'i' not in line:
+            elif ('|  X  |' in line or '|  Z  |' in line) and len(line.split('|')) == 4 and 'i' not in line:
                 parts = line.split('|')
                 allparts = [np.nan]
                 allparts.extend([np.nan, np.nan, np.nan])
@@ -836,4 +835,4 @@ def parse_mode_mapping(file_lines: list[str]) -> dict[int, int]:
                 break
     if not a_vals:
         raise ValueError('no A to H mode table ("The connection between this new numbering")')
-    return dict(zip(a_vals, h_vals))
+    return dict(zip(a_vals, h_vals, strict=True))

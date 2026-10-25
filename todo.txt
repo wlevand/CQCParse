@@ -41,8 +41,8 @@ Now, in this order. After each change that moves a number: CQCParse's tests, the
             cut-off and measure what changes. Then decide.
     5. A6   Gaussian geometry is empty for ACAC and ACDM. First step done (an error now, todo_cleanup Q12). Left: the
             fix, reading the geometry from where these two files hold it.
-    6. N1   Decided: H order for both readers, Gaussian reindexed by default (see N1). First: the docstring note on
-            today's mixed orders. Then the change, in N1's order; it needs wilson's references rerun [wilson].
+    6. N1   Decided: H order for both readers, Gaussian reindexed by default (see N1). The docstring note on today's
+            mixed orders is done. Left: the change, in N1's order; it needs wilson's references rerun [wilson].
 (R5 done with todo_cleanup.txt Q5, see Done.)
 
 Later, when wilson needs it:
@@ -267,8 +267,9 @@ B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order.
         Now: without reindex_modes, normal_modes is in H order and the rest in A order (formaldehyde:
         normal_modes[0] is the B1 mode, 1203 cm-1; nc_sqrt_eigval[0] the A1 C-H stretch, 2879 cm-1). wilson cannot
         ask for reindex_modes (no field in DataOriginInfo).
-        Until the change (the first step): say so in parse_from_source's docstring, so nobody combines them by
-        index without modes_mapping.
+        Until the change (the first step, DONE 2026-10-25 with todo_cleanup Q8): parse_from_source's docstring says
+        which order each key is in, so nobody combines them by index without modes_mapping; the README says the
+        two programs' orders differ.
         The change, in order:
             1. Q7's leftover (todo_cleanup.txt): reindex only the names in the result, not all 9 tensors, and read
                modes_mapping and the mode count from the file without asking for them. The mode count must not
