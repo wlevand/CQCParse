@@ -37,7 +37,8 @@ Order
 -----
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
     2. Q3      Star imports out of CQCParse.parsing and CQCParse.
-    3. Q4      Delete dead code.
+    3. Q4      Delete dead code. Part 1 done (rich, the logger, debug.py). Next: part 2, DataVault; then part 3, the
+               rest.
     4. Q5      The pickle builders: keep the polar.pkl one, apart from the reader. Do with R5.
     5. Q6      Clear errors in parse_from_source and parse_gaussian16_output.
     6. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
@@ -59,12 +60,12 @@ Q. New findings (2026-10-25)
         Who uses CQCParse.parsing directly: wilson only `from CQCParse.parsing import parse_from_source`; the tests
         import everything else by the full module path.
         Fix: keep only `from .parse_wilson_obtainer import parse_from_source`.
-        Same in CQCParse/__init__.py: it exports debug, change_idx_modes and change_idx_states, all dead (Q4).
-        Keep parsing, relay and utils.
+        Same in CQCParse/__init__.py: it exports change_idx_modes and change_idx_states, both dead (Q4).
+        Keep parsing, relay and utils. (The debug export is gone: Q4, part 1.)
 [ ] Q4  Dead code: no path to it from parse_from_source, setup_logger or PKG_ROOT, and no test uses it. wilson_gv
         uses none of it (checked: wilson_gv imports from CQCParse only parse_from_source, PKG_ROOT, setup_logger,
         relay, and the dead lines of L1). All of it stays in git history.
-            - debug.py: the whole file (9 functions).
+        Done: part 1, debug.py (see Done). Left: part 2, DataVault; part 3, everything else below.
             - parsing/parseGaussian_extra.py: the whole file (.fchk readers and FormchkInterface; no .fchk file in
               the repo).
             - parsing/parseCFOUR_extra.py: pDIPDER, describe_structure, unpickle, dictinfo, hessianfromout,
@@ -83,9 +84,30 @@ Q. New findings (2026-10-25)
             - utils.py: change_idx_modes, change_idx_states, make_modes_idx.
             - relay/modes_reindexing.py: reindex_result_data. clean_noise: used only by its test.
             - relay/relay_data.py, DataVault: used only by its test (tests/test_relay_data.py). wilson's two uses
-              are dead lines (todo.txt, Rules). [decide] keep as a tool for finding calculation folders, or delete
-              with its test and files_examples/calculations.csv.
-        Tests: the count drops by the tests of deleted code. The baseline must not change.
+              are dead lines (todo.txt, Rules). Decided 2026-10-25: delete (part 2), with its test and
+              files_examples/calculations.csv. Why:
+                  1. In wilson, script_example.py:140-143 builds a vault and never uses it;
+                     src/wilson_suite/parsing.py builds one, but nothing imports that file. All else is commented out.
+                  2. Its output does not work with parse_from_source. On the CCSD(T) row of calculations.csv:
+                     make_data_input_dict gives KeyError 'out_file' (its keys are 'out', 'cubic', ...);
+                     make_data_input_by_index gives FileNotFoundError (it skips the relative-path column), and
+                     returns None for HF (it picks the program from the method name).
+                  3. A catalog of runs is not parsing. If one is wanted, build it in wilson and return
+                     DataOriginInfo directly: one format, nothing to translate.
+              [wilson] Then delete script_example.py:140-143 and src/wilson_suite/parsing.py, in L1's PR. Until then
+              script_example.py fails on import, as wilson's utils.py does already.
+        Changes from the review of 2026-10-25 (part 3):
+            - reindex_result_data (relay/modes_reindexing.py): delete. A second copy of the reindex loop in
+              parse_from_source, with the same KeyError (Q7). Q7 then fixes the one copy left.
+            - clean_noise: move into tests/test_reindexing.py, its only user.
+            - pQUADRATURE (tests only): keep. It reads CFOUR's QUADRATURE file (geometry, frequencies,
+              dimensionless normal coordinates): a possible source of CFOUR normal modes. Decide in N3.
+            - getRotationMatrix (tests only): keep, part of the polar.pkl builder (Q5).
+            - parse_anharmonic_x_matrix: delete, but note: Gaussian's own VPT2 X matrix, in git history. It could
+              serve later as an independent check of wilson's VPT2.
+            - the star-import lines of the two deleted _extra files must go from parsing/__init__.py in the same
+              commit; best to do all of Q3 there.
+        Tests: the count drops by the tests of deleted code (248 -> 245 after part 3). The baseline must not change.
 [ ] Q5  Pickle builders in parsing/parseCFOUR_forWilson.py. Nothing in the reader calls them; each writes a .pkl
         file:
             - polar.pkl: pklPolder -> getPolarDers -> getDisplacementsPolarData, getRotationMatrix. The CFOUR
@@ -162,9 +184,28 @@ Done
         versions, rich moved to the runtime list).
         Checked: a non-editable install from uv.lock without the dev group (no pytest, no ruff) imports CQCParse,
         parse_from_source and setup_logger. Tests 248 pass, baseline unchanged.
+        Later the same day, Q4 part 1: rich is gone altogether, so this entry's change is undone.
     Q2 (2026-10-25)  One install file: pyproject.toml. Deleted:
             - setup.py: version 0.1.1 (pyproject.toml: 0.1.0), no dependencies, placeholder description and author.
               The hatchling build backend in pyproject.toml ignores it.
             - requirements.txt: pinned numpy 1.26, pandas 2.2 and setuptools, no scipy. Nothing read it.
         `pip install .` (this README and wilson_gv's README) reads only pyproject.toml. uv.lock pins the versions.
         Nothing in the repo named either file. Tests 248 pass, baseline unchanged.
+    Q4, part 1 (2026-10-25)  rich removed; CQCParse needs only numpy, scipy and pandas.
+        rich was used in two places:
+            - debug.py: colored print helpers. Nothing called them. Deleted, and its import and export in
+              CQCParse/__init__.py.
+            - logger.setup_logger: a RichHandler (colored log lines). Nothing in CQCParse calls setup_logger; wilson
+              calls it once, to set CQCParse's level (test_anharm_analyzer.py:208). No log message used rich markup.
+              Now plain logging: a StreamHandler with the plain format it already had. Kept name, level,
+              log_to_file; dropped use_rich and no_color (no caller passed them). Reason: a library should not choose
+              how logs look; the application does (Python's logging HOWTO). wilson has its own rich logger.
+        Changes: pyproject.toml and uv.lock without rich (uv.lock also drops markdown-it-py and mdurl; pygments
+        stays, pytest needs it).
+        Checked: tests 248 pass, baseline unchanged. A fresh install from uv.lock without the dev group holds only
+        numpy, scipy, pandas (and their helpers); import CQCParse, parse_from_source, setup_logger all work.
+        wilson's test_anharm_analyzer.py (with the T6 stand-ins): test_anharm_analyzer_vibana, which calls
+        setup_logger, passes; test_anharm_analyzer_wilsonsim fails on cf_uv, a known wilson failure (todo.txt,
+        Tests).
+        Later, if wanted: delete setup_logger too; wilson's test would use
+        logging.getLogger('CQCParse').setLevel(logging.ERROR). One more wilson change.

@@ -1,30 +1,25 @@
 """
 Logger is like a singleton, it's one instance of a logger by the name of it.
+Plain logging only: the application (e.g. wilson) chooses how the log lines look.
 
 https://docs.python.org/3/howto/logging.html
 """
 
 import logging
 import sys
-from rich.logging import RichHandler
 
-def setup_logger(name="CQCParse", level=logging.INFO, use_rich=True, log_to_file=None, no_color=False):
+def setup_logger(name="CQCParse", level=logging.INFO, log_to_file=None):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
     if logger.handlers:
         return logger
 
-    # Formatter for plain output (no color)
     plain_fmt = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    # Terminal handler (colored or plain)
-    if use_rich and not no_color:
-        handler = RichHandler(markup=True, rich_tracebacks=True)
-    else:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(plain_fmt)
-
+    # Terminal handler
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(plain_fmt)
     logger.addHandler(handler)
 
     # Optional file logging (plain format)
