@@ -87,7 +87,7 @@ Rules
           Conditions and prep_data_load, and only commented-out code uses those two. These classes are deleted
           here (L1); utils.py runs on `import wilson_suite`, so wilson_gv fails to import until the lines go.
       CQCParse.relay.DataVault: in wilson_suite/parsing.py, which nothing imports (its import is commented out),
-          and in script_example.py, which builds a vault and never uses it.
+          and in script_example.py, which builds a vault and never uses it. DataVault is deleted here too (L1).
 
 - The dict fits wilson's contract (wilson D5): properties in au (plain derivatives in mass-weighted coordinates);
   frequencies, state energies, cff_rc and qff_rc in cm-1; mode indices first, then x, y, z; modes 0 .. n-1;
@@ -277,6 +277,8 @@ L. Legacy code and the rewrite
         wilson_intensities/utils/utils.py:8 and 11, and the unused Conditions and prep_data_load that name the
         classes in type hints. Needed now: until then `import wilson_suite` fails with this branch
         (ImportError: cannot import name 'CFOURParser' from 'CQCParse.parsing').
+        Same PR: DataVault is deleted here too (todo_cleanup.txt, Q4 part 2). Delete script_example.py:140-143
+        (builds a vault, never uses it) and src/wilson_suite/parsing.py (nothing imports it).
 [ ] L2  [wilson] wilson_gv's setup.sh:14 clones the CQCParse branch `tests`, which does not exist (only main).
         setup.sh looks like a leftover of the old layout with one repo per package: it also clones the wilson-*
         repos, which are now folders in src/wilson_suite. wilson_gv's README clones CQCParse main. Fix or delete
