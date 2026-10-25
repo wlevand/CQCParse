@@ -24,12 +24,13 @@
 #     - quartic                      --- quartic force constants in cm-1 in dimensionless normal modes
 """
 
-import numpy as np
+import logging
 import pickle
+
+import numpy as np
 
 from CQCParse.utils import convNu2Ene
 
-import logging
 logger = logging.getLogger("CQCParse")
 
 
@@ -122,7 +123,7 @@ def count_normal_coordinates(filepath: str) -> int:
     """
     import re
     with open(filepath, 'r') as file:
-        labels = {int(m.group(1)) for m in re.finditer(r'^\s*Normal coordinate\s+(\d+)\s*$', file.read(), re.M)}
+        labels = {int(m.group(1)) for m in re.finditer(r'^\s*Normal coordinate\s+(\d+)\s*$', file.read(), re.MULTILINE)}
     if not labels:
         raise ValueError(f'No "Normal coordinate" sections in {filepath}')
     return len(labels)

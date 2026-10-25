@@ -1,6 +1,11 @@
 import numpy as np
 import pytest
-from CQCParse.parsing.parseCFOUR_forWilson import pMOLDEN, pQUADRATURE, parse_output_file
+
+from CQCParse.parsing.parseCFOUR_forWilson import (
+    parse_output_file,
+    pMOLDEN,
+    pQUADRATURE,
+)
 from CQCParse.utils import PKG_ROOT
 
 # formaldehyde, CFOUR VPT2 runs

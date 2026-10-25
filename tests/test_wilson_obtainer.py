@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 
-from CQCParse.parsing.parse_wilson_obtainer import parse_from_source, is_linear, KNOWN_NAMES
+from CQCParse.parsing.parse_wilson_obtainer import (
+    KNOWN_NAMES,
+    is_linear,
+    parse_from_source,
+)
 from CQCParse.utils import PKG_ROOT
 from tests.test_baseline import ALL_NAMES, BASE, parse
 

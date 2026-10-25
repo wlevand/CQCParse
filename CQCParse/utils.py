@@ -1,7 +1,8 @@
+import os
+
 import numpy as np
 from scipy import constants
 
-import os
 PKG_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:

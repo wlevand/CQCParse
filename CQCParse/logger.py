@@ -8,6 +8,7 @@ https://docs.python.org/3/howto/logging.html
 import logging
 import sys
 
+
 def setup_logger(name="CQCParse", level=logging.INFO, log_to_file=None):
     logger = logging.getLogger(name)
     logger.setLevel(level)

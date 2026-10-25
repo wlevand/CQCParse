@@ -33,13 +33,13 @@ folder's polar.pkl from them (tests/test_build_polar_pkl.py). refinedc4/HFcc_pVD
 Use: pklPolder(polar_dir) writes polar.pkl into the current folder; copy it into the folder of the anharmonic run.
 """
 
+import logging
 import os
 import pickle
 import re
 
 import numpy as np
 
-import logging
 logger = logging.getLogger("CQCParse")
 
 STEP = 0.01

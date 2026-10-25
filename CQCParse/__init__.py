@@ -1,6 +1,4 @@
-from CQCParse import parsing
-from CQCParse import relay
-from CQCParse import utils
+from CQCParse import parsing, relay, utils
 
 __all__ = [
     "parsing",

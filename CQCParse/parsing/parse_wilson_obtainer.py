@@ -93,8 +93,12 @@ def parse_from_source(requested_data: Collection[str],
 
             # reindexing if requested
             if reindex_modes:
-                from CQCParse.relay.modes_reindexing import (reindex_tensor, build_permutation, validate_mapping,
-                                                             reindex_dict)
+                from CQCParse.relay.modes_reindexing import (
+                    build_permutation,
+                    reindex_dict,
+                    reindex_tensor,
+                    validate_mapping,
+                )
                 """
                 'normal_modes' -- already in H numbering
                 'modes_mapping' -- contains mapping A to H
@@ -174,7 +178,7 @@ def parse_gaussian16_output(requested_data: dict,
     results = {}
 
     with open(log_file, 'r') as file:
-        log_lines = [i.strip() for i in file.readlines()]
+        log_lines = [i.strip() for i in file]
 
     if any(k in requested_data for k in ('equilibrium_geometry', 'atoms')): 
     
@@ -188,7 +192,7 @@ def parse_gaussian16_output(requested_data: dict,
             results['atoms'] = atoms
 
     if 'normal_modes' in requested_data:
-        from .parseGaussian_forWilson import get_normal_modes, get_equil_geo
+        from .parseGaussian_forWilson import get_equil_geo, get_normal_modes
 
         if 'atoms' not in results:
             atoms, _ = get_equil_geo(log_lines)
@@ -206,7 +210,7 @@ def parse_gaussian16_output(requested_data: dict,
                    'cff', 'cff_rc', 'qff', 'qff_rc')
     if any(k in requested_data for k in needs_freqs):
 
-        from .parse_g16_freqs import parse_frequencies, get_allStates_from_parsed_freqs
+        from .parse_g16_freqs import get_allStates_from_parsed_freqs, parse_frequencies
         results_log = parse_frequencies(lines=log_lines)
         if not results_log:
             raise ValueError('the anharmonic frequency section has no states')
@@ -229,7 +233,7 @@ def parse_gaussian16_output(requested_data: dict,
                 results['nc_sqrt_eigval'] = {int(k[0]): v for k,v in fund_harm_dict.items()}
 
     if any(k in requested_data for k in ('B', 'coriolis')): 
-        from .parseGaussian_forWilson import parse_Na, parse_coriolis
+        from .parseGaussian_forWilson import parse_coriolis, parse_Na
         linear = is_linear(parse_Na(log_lines), len_nmodes)
 
         rotational_constant, coriolis_constant = parse_coriolis(log_lines, len_nmodes, linear)
@@ -260,8 +264,9 @@ def parse_gaussian16_output(requested_data: dict,
             results['polhess'] = alpha[1]
 
     if any(k in requested_data for k in ('cff', 'cff_rc')):
-        from .parseGaussian_forWilson import parse_cubic_constants, get_cubic_post
         from CQCParse.utils import reduced_to_au
+
+        from .parseGaussian_forWilson import get_cubic_post, parse_cubic_constants
         cubic_df = parse_cubic_constants(log_lines)[0]
         cubic_rcm = cubic_df[['I', 'J', 'K', 'FI(I,J,K)']].to_numpy() # cm-1
         cff_rc = get_cubic_post(len_nmodes, cubic_rcm)
@@ -272,8 +277,9 @@ def parse_gaussian16_output(requested_data: dict,
 
 
     if any(k in requested_data for k in ('qff', 'qff_rc')):
-        from .parseGaussian_forWilson import parse_quartic_constants, get_quartic_post
         from CQCParse.utils import reduced_to_au
+
+        from .parseGaussian_forWilson import get_quartic_post, parse_quartic_constants
         quartic_df = parse_quartic_constants(log_lines)[0]
         quartic_rcm = quartic_df[['I', 'J', 'K', 'L', 'FI(I,J,K,L)']].to_numpy() # cm-1
         qff_rc = get_quartic_post(len_nmodes, quartic_rcm)
@@ -350,7 +356,8 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
                       'cff', 'cff_rc', 'qff', 'qff_rc', 'dipgrad', 'diphess', 'polgrad', 'polhess')
     if any(k in requested_data for k in needs_out_file):
         import numpy as np
-        from .parseCFOUR_forWilson import parse_output_file, count_normal_coordinates
+
+        from .parseCFOUR_forWilson import count_normal_coordinates, parse_output_file
         vib_energy_levels_list, _, anharmonic_freqs, _, harmonic_freqs = parse_output_file(files_dict['out_file'])
 
         # CFOUR mode numbers of the vibrations: 3N - n_vib + 1 .. 3N, i.e. from 7 (nonlinear) or 6 (linear)
@@ -410,16 +417,18 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
             results['coriolis'] = coriolis_constant
 
     if any(k in requested_data for k in ('cff', 'cff_rc')):
-        from .parseCFOUR_forWilson import pCubicORQuartic, getCubicPost
         from CQCParse.utils import reduced_to_au
+
+        from .parseCFOUR_forWilson import getCubicPost, pCubicORQuartic
         cubic = pCubicORQuartic(files_dict['cubic_file'])
         cubic_cm_1 = getCubicPost(fundamentals_harmonic_int, cubic, startmode=nModesStart)
         results['cff'] = reduced_to_au(cubic_cm_1, fund_harmonic_energies_array)
         results['cff_rc'] = cubic_cm_1
 
     if any(k in requested_data for k in ('qff', 'qff_rc')):
-        from .parseCFOUR_forWilson import pCubicORQuartic, getQuarticPost
         from CQCParse.utils import reduced_to_au
+
+        from .parseCFOUR_forWilson import getQuarticPost, pCubicORQuartic
         quartic = pCubicORQuartic(files_dict['quartic_file'])
         quartic_cm_1 = getQuarticPost(fundamentals_harmonic_int, quartic, startmode=nModesStart)
         results['qff'] = reduced_to_au(quartic_cm_1, fund_harmonic_energies_array)

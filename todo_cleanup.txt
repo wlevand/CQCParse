@@ -45,26 +45,21 @@ is small. Functions are named, not line numbers: those move with every change.
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py. Independent of the
                rest; any time, but before Q13.
-    2. Q8      Last part: `ruff check --fix` (safe fixes only), as its own commit after Q8's. N1's first step is
-               done; N1's change itself (H order, Gaussian reindexed by default, with Q7's leftover as its first
-               part) is in todo.txt N1 and needs wilson's references rerun.
-    3. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
+    2. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out, with a check of the units the Gaussian file states (todo.txt). The only step here that may move
                numbers.
-    4. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
-    5. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
+    3. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
+    4. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
                choice for polarData.pkl changes Q11.
-    6. Q13     Finish: merge to main, version, the list of changes for users.
-Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 but ruff (with N1's first
-step) (see Done).
+    5. Q13     Finish: merge to main, version, the list of changes for users.
+Also decided, outside this goal: N1's change (H order, Gaussian reindexed by default, with Q7's leftover as its
+first part), in todo.txt N1; it needs wilson's references rerun.
+Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step)
+(see Done).
 
 
 Q. New findings (2026-10-25)
 ----------------------------
-[ ] Q8  Left: ruff (in the dev dependencies), nearly all style: unused unpacked variables, import order, module
-        names. None that hides an error in CQCParse (the try-except-pass and blind excepts are in
-        tests/test_baseline.py, on purpose). Apply `ruff check --fix` (the safe fixes only) as its own commit, so the
-        style changes stay apart from the others. The rest of Q8: see Done.
 [ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q5), 30 of the 76 files in
         files_examples are never opened:
             - 4 Gaussian inputs (.com): keep; they show how each run was made.
@@ -358,3 +353,9 @@ Done
         which printed 'linear'). Tests 282 -> 285. wilson's full run: 963 pass, 30 fail, 1 error, as before.
         ruff now: no zip() without strict, no unused import; the one F841 left is units_line in
         parse_polarizability, for R4.
+    Q8, ruff (2026-10-25)  `ruff check --fix`, the safe fixes only, as its own commit (style, no behavior): 25 fixes
+        in 12 files. 20 import blocks sorted; 4 `for ... in file.readlines()` -> `for ... in file` (the same lines);
+        re.M -> re.MULTILINE (the same flag). Tests 285 pass, baseline unchanged; wilson's full run as before.
+        Left in ruff's report (51, none applied): unused unpacked variables, module names (N999: parseCFOUR_forWilson
+        and the like are not snake_case; renaming them would change import paths), and other style findings that
+        need a hand or an "unsafe" fix. None hides an error.

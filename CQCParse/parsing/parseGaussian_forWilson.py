@@ -10,13 +10,15 @@
 #     - .fchk --- formcheck (generated from checkpoint file)
 """
 
-import numpy as np
+import logging
 import sys
 
-import logging
+import numpy as np
+
 logger = logging.getLogger("CQCParse")
 
 import pandas as pd
+
 pd.set_option('display.max_rows', sys.maxsize)
 
 

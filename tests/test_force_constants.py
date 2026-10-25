@@ -6,8 +6,12 @@ import numpy as np
 import pytest
 from scipy import constants
 
-from CQCParse.parsing.parseGaussian_forWilson import (parse_cubic_constants, parse_quartic_constants,
-                                                      get_cubic_post, get_quartic_post)
+from CQCParse.parsing.parseGaussian_forWilson import (
+    get_cubic_post,
+    get_quartic_post,
+    parse_cubic_constants,
+    parse_quartic_constants,
+)
 from CQCParse.utils import reduced_to_au
 from tests.test_baseline import BASE, EXAMPLES, SOURCES, parse
 

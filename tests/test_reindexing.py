@@ -2,10 +2,16 @@
 Claude Opus 4.6 
 """
 
-from CQCParse.relay.modes_reindexing import build_permutation, reindex_tensor, reindex_dict
-from CQCParse.utils import PKG_ROOT
-import numpy as np
 import pickle
+
+import numpy as np
+
+from CQCParse.relay.modes_reindexing import (
+    build_permutation,
+    reindex_dict,
+    reindex_tensor,
+)
+from CQCParse.utils import PKG_ROOT
 
 EXAMPLES = PKG_ROOT + '/CQCParse/files_examples'
 
