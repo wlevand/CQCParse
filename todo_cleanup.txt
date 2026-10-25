@@ -13,10 +13,11 @@ Done when:
     1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
     2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
        tested: the polar.pkl builder (Q5, done) and the readers for validating wilson (Q10) (Q3, Q4 done).
-    3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, an empty
-       section in a file (Q6, Q7, Q8, A6).
+    3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, a
+       missing or empty section in a file (Q6, Q7 done; Q12 with A6, Q8).
     4. The unit conversion of each property is written out once, and checked against the other program (T4, R4).
-    5. wilson's tests pass with this branch (L1, T6).
+    5. wilson's tests fail only for wilson's own reasons: today 17 failures and 1 collection error that CQCParse
+       main gives too (L1, T6).
 
 Not part of this goal (they stay in todo.txt): R2, N1-N3 (except N1's first step), X1, A3, A4, L2. These are new
 physics choices or wilson features, not fixes.
@@ -35,14 +36,19 @@ The rules of todo.txt apply. In short:
 
 Order
 -----
+Reviewed 2026-10-25 (after Q7): the two risks left of wrong numbers with no error are Q12 (missing sections give
+zeros) and T4/R4 (unit conversions of the dipole and polarizability derivatives nobody checks). The rest is small.
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
-               Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py.
-    2. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
-    3. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
-    4. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
-    5. N1      First step: docstring note on the mode orders (todo.txt). Q7's leftover goes with N1's choice.
-    6. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
+               Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py. Independent of the
+               rest; any time, but before wilson uses this branch.
+    2. Q12     A missing section in a file gives zeros or an unclear error. Includes A6's first step (the empty
+               Gaussian geometry is one case) and Q8's print() cases in parse_output_file and pMOLDEN.
+    3. Q8      Small fixes: zip(strict=True) (the same kind of silent loss as Q12: do with it), an always-true
+               condition, print('linear'), duplicate helper, ruff.
+    4. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out (todo.txt). The only step here that may move numbers. Q8's units_line note belongs here.
+    5. N1      First step: docstring note on the mode orders (todo.txt). Q7's leftover goes with N1's choice.
+    6. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
     7. Q9      [decide] Example files that nothing reads.
     8. Q11     [decide] polarData.pkl's 'equil' entry is in another frame than the other entries.
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7 (see Done).
@@ -52,23 +58,23 @@ Q. New findings (2026-10-25)
 ----------------------------
 [ ] Q8  Small fixes. None should move a number; the baseline checks that.
             - zip() without strict=True on the core path, 4 places: getDipDers_log (parseGaussian_forWilson.py:169),
-              parse_mode_mapping (parseGaussian_forWilson.py:797), parse_cfour_output (parse_wilson_obtainer.py:342
-              and 352, state labels paired with energies). zip() stops at the shorter list, so a missing line in a
+              parse_mode_mapping (parseGaussian_forWilson.py:797), parse_cfour_output (parse_wilson_obtainer.py:357
+              and 367, state labels paired with energies). zip() stops at the shorter list, so a missing line in a
               file drops data with no error. strict=True raises instead.
             - parse_polarizability (parseGaussian_forWilson.py:433): `('|  X  |' in line or '|  Z  |')` is always
               true (a non-empty string). Harmless today: in the example files, only X and Z rows reach this branch
               (Y rows start with "P" and go to the branch above). Fix: `'|  X  |' in line or '|  Z  |' in line`.
             - parse_polarizability (parseGaussian_forWilson.py:408): units_line is read but never used. For R4: check
               that it says "a.u.", and raise otherwise.
-            - print() in the core path: print('linear') in parse_coriolis (parseGaussian_forWilson.py:81), on every
-              linear molecule; parse_output_file (parseCFOUR_forWilson.py:170) and pMOLDEN (:485). Delete, or log
-              at debug/warning level (parse_output_file then returns None: better raise). parse_wilson_obtainer.py
-              has none since Q6, the polar.pkl builder none since Q5.
+            - print('linear') in parse_coriolis (parseGaussian_forWilson.py:81), on every linear molecule: delete,
+              or log at debug level. The two other print() calls in the core path are missing-section cases: Q12.
             - convNu2Ene: two copies (utils.py and parseCFOUR_forWilson.py, same code). Keep the one in utils.py,
               import it in parseCFOUR_forWilson.py.
-            - ruff (in the dev dependencies) reports many findings, mostly style; rerun it now that Q4 is done.
-              Apply `ruff check --fix` (the safe fixes only) as its own commit. Two left from before:
-              test_wilson_obtainer.py:4 imports parse_cfour_output and parse_gaussian16_output, unused.
+            - ruff (in the dev dependencies): 79 findings after Q7 (117 before Q4), nearly all style: unused
+              unpacked variables 26, import order 20, module names 8. None that hides an error in CQCParse (the
+              try-except-pass and blind excepts are in tests/test_baseline.py, on purpose). Apply `ruff check --fix`
+              (the safe fixes only) as its own commit. Also test_wilson_obtainer.py:4 imports parse_cfour_output and
+              parse_gaussian16_output, unused.
 [ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q5), 30 of the 76 files in
         files_examples are never opened:
             - 4 Gaussian inputs (.com): keep; they show how each run was made.
@@ -120,6 +126,34 @@ Q. New findings (2026-10-25)
         the 3 pairs of files from themselves (R @ alpha' @ R.T); or keep, as documented. Also open: why the
         reference needs no rotation. The data say so; the likely reason is that each displaced run's OMAT maps to
         the reference run's frame, not to the input frame. Not checked in CFOUR's documentation.
+[ ] Q12 A missing section in a file gives zeros, an empty result, or an unclear error (found in the review of
+        2026-10-25). For wilson the zeros are the danger: e.g. a cff of zeros gives EVV terms without the cubic
+        part, and no error. Measured with parse_from_source, each name asked for with nc_sqrt_eigval:
+            Gaussian, a file holding only the anharmonic frequency block (from formaldehyde HF/cc-pVTZ):
+                cff, qff                 all zeros, (6,6,6) and (6,6,6,6)
+                dipgrad, diphess         empty arrays, (0,3) and (0,0,3): wrong shape too
+                modes_mapping            {}
+                equilibrium_geometry     shape (0,); atoms []   (A6: the same as ACAC and ACDM today)
+                B, coriolis              IndexError: list index out of range
+                polgrad, polhess         ValueError: max() iterable argument is empty
+                normal_modes             ValueError: cannot reshape array of size 0 into shape (0,3,3)
+            CFOUR, the HFcc_pVTZ folder with one file emptied, or one section removed:
+                cubic empty -> cff all zeros; quartic empty -> qff all zeros
+                dipolex empty -> dipgrad's x column all zeros (y and z fine)
+                MOLDEN empty -> atoms shape (0,), normal_modes {}
+                out without the "Coriolis Zeta matrix" sections -> coriolis all zeros
+                out without the levels table: parse_output_file prints "No anharmonic levels information" and
+                returns None; the caller then fails on the unpacking (the print() of Q8)
+                pMOLDEN: prints "Error: Vibration number not initialized" and goes on
+        (Not checked: B in CFOUR; a section that is there but cut short. zip(strict=True), Q8, covers some of the
+        latter.)
+        Fix: each section reader raises ValueError naming the section it did not find (and the file: the note of
+        Q6 adds it), instead of returning zeros or empty. Then A6's first step is done too (0 atoms from
+        get_equil_geo -> ValueError). A section that is there but holds no values (possible for force constants
+        under the cut-off, R2) is a separate case: keep zeros there, but say so in the docstring.
+        Tests: the cases above, from small files made in the test (as test_reader_error_names_the_file does).
+        Baseline: ACAC and ACDM equilibrium_geometry and atoms will fail instead of returning empty arrays; rewrite
+        the baseline with that reason. No value of the example files should move (every section is there).
 
 
 Done
