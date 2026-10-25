@@ -46,7 +46,8 @@ is small. Functions are named, not line numbers: those move with every change.
                rest; any time, but before Q13.
     2. Q8, N1  Small fixes, one sitting: zip(strict=True) (a section cut short), an always-true condition,
                print('linear'), a duplicate helper, ruff; and N1's first step (a docstring note on the mode orders,
-               todo.txt). Q7's leftover goes with N1's choice, later.
+               todo.txt). N1 is decided (H order, Gaussian reindexed by default); the change itself, with Q7's
+               leftover as its first part, is in todo.txt N1 and needs wilson's references rerun.
     3. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out, with a check of the units the Gaussian file states (todo.txt). The only step here that may move
                numbers.
@@ -307,10 +308,11 @@ Done
         test_reindex_full_request (the first test of this path: dipgrad and cff_rc renumbered by modes_mapping's
         permutation), test_reindex_ignored_for_cfour. Tests 256 -> 260; baseline unchanged. wilson's full run as
         before.
-        Left, with N1's choice of mode order: reindex only the names asked for (and read modes_mapping and the mode
-        count without asking for them), or drop reindex_modes. normal_modes fails on ACAC and ACDM and gives 0
-        modes on CO (N2), so reindex_modes fails there too (the reshape error; on CO validate_mapping's), now with
-        the file named. (Since Q12 all three raise at the reading already, with the cause.)
+        Left, with N1's change (decided 2026-10-25: H order, Gaussian reindexed by default; todo.txt N1, step 1):
+        reindex only the names asked for, and read modes_mapping and the mode count without asking for them.
+        normal_modes fails on ACAC and ACDM and gives 0 modes on CO (N2), so reindex_modes fails there too (the
+        reshape error; on CO validate_mapping's), now with the file named. (Since Q12 all three raise at the
+        reading already, with the cause.)
     Q12 (2026-10-25, with todo.txt A6's first step)  A missing section in a file raises ValueError naming it; the
         file is in the note of Q6. Found in the review after Q7. For wilson the zeros were the danger: e.g. a cff of
         zeros gives EVV terms without the cubic part, and no error.
