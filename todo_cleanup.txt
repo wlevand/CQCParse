@@ -25,7 +25,7 @@ physics choices or wilson features, not fixes.
 How to work
 -----------
 The rules of todo.txt apply. In short:
-    - After each change: CQCParse's tests (256 pass, about 3 s on an idle machine) and the baseline (T2).
+    - After each change: CQCParse's tests (260 pass, about 3 s on an idle machine) and the baseline (T2).
     - A cleanup must not move a number. If the baseline moves during a cleanup, stop and find out why.
     - A change that moves a number on purpose (only T4/R4 here): give the reason in the commit message, and run
       wilson's tests too (T6).
@@ -37,31 +37,19 @@ Order
 -----
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py.
-    2. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
-    3. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
-    4. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
-    5. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
-    6. N1      First step: docstring note on the mode orders (todo.txt).
-    7. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
+    2. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
+    3. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
+    4. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
+    5. N1      First step: docstring note on the mode orders (todo.txt). Q7's leftover goes with N1's choice.
+    6. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out (todo.txt). The only step here that may move numbers. Q8's units_line note belongs here.
-    8. Q9      [decide] Example files that nothing reads.
-    9. Q11     [decide] polarData.pkl's 'equil' entry is in another frame than the other entries.
-Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6 (see Done).
+    7. Q9      [decide] Example files that nothing reads.
+    8. Q11     [decide] polarData.pkl's 'equil' entry is in another frame than the other entries.
+Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7 (see Done).
 
 
 Q. New findings (2026-10-25)
 ----------------------------
-[ ] Q7  parse_from_source(..., reindex_modes=True) crashes unless the request holds every tensor. Run on Gaussian
-        formaldehyde HF/cc-pVTZ:
-            - request ['cff']: KeyError 'modes_mapping'.
-            - request ['cff', 'modes_mapping', 'normal_modes']: KeyError 'coriolis'.
-        Causes: the loop reindexes all 9 tensor names without checking that each is in the result; modes_mapping
-        and normal_modes must be requested by hand; the mode count comes from normal_modes, which fails on ACAC,
-        ACDM and CO (N2). No test runs this path. wilson never passes reindex_modes (no field in DataOriginInfo).
-        Whether reindex_modes stays at all is part of N1.
-        Now: raise a clear error (or fix the loop: skip missing names, read modes_mapping and the mode count
-        without asking the user for them). Add a test either way.
-        Also: the reindex block sits outside _source_note (Q6), so its errors do not name the file. Move it inside.
 [ ] Q8  Small fixes. None should move a number; the baseline checks that.
             - zip() without strict=True on the core path, 4 places: getDipDers_log (parseGaussian_forWilson.py:169),
               parse_mode_mapping (parseGaussian_forWilson.py:797), parse_cfour_output (parse_wilson_obtainer.py:342
@@ -273,3 +261,24 @@ Done
         test_getRotationMatrix (moved from test_parseCFOUR.py). Tests 252 -> 256; baseline unchanged.
         Checked: a fresh wheel holds CQCParse/tools (with uv, rebuild with --reinstall-package cqcparse: uv reuses
         a cached wheel while pyproject.toml is unchanged). wilson's full run: 963 pass, 30 fail, 1 error, as before.
+    Q7 (2026-10-25)  reindex_modes=True with a request it cannot serve gives a clear error. Before, on Gaussian
+        formaldehyde HF/cc-pVTZ, after the whole file was read: request ['cff'] -> KeyError 'modes_mapping';
+        ['cff', 'modes_mapping', 'normal_modes'] -> KeyError 'coriolis'. Cause: the loop renumbers all 9 tensors
+        without checking that each is there, and takes the mode count from normal_modes.
+        Changes (parse_wilson_obtainer.py):
+            - REINDEXED_TENSORS (module level), the 9 tensors the loop renumbers; the loop uses it.
+            - parse_from_source checks the request first, before any file is read: with Gaussian and
+              reindex_modes=True it must hold modes_mapping, normal_modes and every tensor of REINDEXED_TENSORS
+              (cff_rc counts for cff, qff_rc for qff: the reader returns both). Otherwise ValueError, naming the
+              missing ones. CFOUR: still ignored.
+            - the reindex block is inside _source_note, so its errors name the file too (e.g. validate_mapping's).
+            - docstring: reindex_modes says what a request needs.
+        No change for a request that worked before. wilson never passes reindex_modes.
+        New tests (tests/test_wilson_obtainer.py): test_reindex_needs_every_tensor (the two requests above),
+        test_reindex_full_request (the first test of this path: dipgrad and cff_rc renumbered by modes_mapping's
+        permutation), test_reindex_ignored_for_cfour. Tests 256 -> 260; baseline unchanged. wilson's full run as
+        before.
+        Left, with N1's choice of mode order: reindex only the names asked for (and read modes_mapping and the mode
+        count without asking for them), or drop reindex_modes. normal_modes fails on ACAC and ACDM and gives 0
+        modes on CO (N2), so reindex_modes fails there too (the reshape error; on CO validate_mapping's), now with
+        the file named.

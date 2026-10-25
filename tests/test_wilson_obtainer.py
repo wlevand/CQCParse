@@ -115,6 +115,43 @@ def test_reader_error_names_the_file(tmp_path):
     assert str(tmp_path) in ' '.join(err.value.__notes__)
 
 
+G16_FORM = PKG_ROOT + '/CQCParse/files_examples/dftGaussian/FORM/HFcc_pVTZ/g16_inputFull_3q.out'
+# what reindex_modes=True needs: every tensor it renumbers (cff_rc and qff_rc come with cff and qff), the mapping
+# and normal_modes
+REINDEX_REQUEST = BASE + ['modes_mapping', 'normal_modes', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess',
+                          'cff', 'qff']
+
+
+@pytest.mark.parametrize('names, missing', [(['cff'], ['modes_mapping', 'normal_modes', 'coriolis']),
+                                            (['cff', 'modes_mapping', 'normal_modes'], ['coriolis', 'qff'])])
+def test_reindex_needs_every_tensor(names, missing):
+    """reindex_modes=True with a request that lacks a name it needs: ValueError naming the missing ones (todo_cleanup
+    Q7). It was KeyError 'modes_mapping' and KeyError 'coriolis', after the whole file was read."""
+    with pytest.raises(ValueError, match='missing') as err:
+        parse_from_source(names, 'gaussian', G16_FORM, lvl_theory='', basis_set='', reindex_modes=True)
+    assert all(repr(n) in str(err.value) for n in missing)
+
+
+def test_reindex_full_request():
+    """With every name it needs, reindex_modes=True renumbers the tensors from A to H order (todo_cleanup Q7)."""
+    from CQCParse.relay.modes_reindexing import build_permutation
+    plain = parse_from_source(REINDEX_REQUEST, 'gaussian', G16_FORM, lvl_theory='', basis_set='')
+    reindexed = parse_from_source(REINDEX_REQUEST, 'gaussian', G16_FORM, lvl_theory='', basis_set='',
+                                  reindex_modes=True)
+    perm = build_permutation(plain['modes_mapping'], len(plain['normal_modes']))
+    assert reindexed['reindex_modes'] is True
+    np.testing.assert_array_equal(reindexed['dipgrad'], plain['dipgrad'][perm])
+    np.testing.assert_array_equal(reindexed['cff_rc'], plain['cff_rc'][np.ix_(perm, perm, perm)])
+    assert sorted(reindexed['nc_sqrt_eigval'].values()) == sorted(plain['nc_sqrt_eigval'].values())
+
+
+def test_reindex_ignored_for_cfour():
+    """CFOUR has one mode order: reindex_modes=True is ignored, whatever the request."""
+    result = parse_from_source(['cff'], 'cfour', PKG_ROOT + '/CQCParse/files_examples/refinedc4/HFcc_pVTZ',
+                               lvl_theory='', basis_set='', reindex_modes=True)
+    assert result['reindex_modes'] is False
+
+
 def test_parse_from_source_cfour():
     print()
     complete_data = ['cff', 'anharmonic_states', 'nc_sqrt_eigval', 'dipgrad', 'B', 'polgrad', 'coriolis', 'polhess', 'qff', 'diphess']

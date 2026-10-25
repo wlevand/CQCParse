@@ -7,6 +7,8 @@ SOURCE_TYPES = ('gaussian', 'cfour')
 KNOWN_NAMES = ('equilibrium_geometry', 'atoms', 'normal_modes',
                'harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
                'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc', 'modes_mapping')
+# reindex_modes=True renumbers every one of these, so a request with it must hold them all
+REINDEXED_TENSORS = ('coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc')
 
 
 @contextmanager
@@ -49,6 +51,8 @@ def parse_from_source(requested_data: Collection[str],
     reindex_modes: Gaussian only, renumbers the modes from Gaussian's A order to its H order. The result's
         'reindex_modes' says whether that was done. CFOUR has one mode order: its data is never reindexed, and its
         'reindex_modes' is always False.
+        With Gaussian, requested_data must hold modes_mapping, normal_modes and every tensor of REINDEXED_TENSORS
+        (cff or cff_rc, qff or qff_rc: each brings the other); otherwise ValueError, before any file is read.
     linear: ignored, kept so that old calls still work (passing it gives a DeprecationWarning). Both readers decide
         from the file whether the molecule is linear (is_linear: 3N-5 vibrational modes).
     """
@@ -63,48 +67,59 @@ def parse_from_source(requested_data: Collection[str],
     if unknown:
         raise ValueError(f'unknown names in requested_data: {unknown}; known: {KNOWN_NAMES}')
 
+    if reindex_modes and source_type == 'gaussian':
+        # the reindexing below renumbers every tensor of REINDEXED_TENSORS, and takes the mode count from
+        # normal_modes; reindexing only the names asked for is not done yet. cff_rc counts for cff and qff_rc for
+        # qff: the reader returns both of a pair
+        needed = ('modes_mapping', 'normal_modes', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'qff')
+        missing = [k for k in needed if k not in requested_data and k + '_rc' not in requested_data]
+        if missing:
+            raise ValueError(f'reindex_modes=True renumbers all of {REINDEXED_TENSORS}, so requested_data must hold '
+                             f'them, and modes_mapping and normal_modes; missing: {missing}')
+
     if source_type == 'gaussian':
 
         with _source_note(source_type, base_file_loc):
             results_dict = parse_gaussian16_output(requested_data=requested_data,
                                                    log_file=base_file_loc)
-        
-        # reindexing if requested
-        if reindex_modes:
-            from CQCParse.relay.modes_reindexing import reindex_tensor, build_permutation, validate_mapping, reindex_dict
-            """
-            'normal_modes' -- already in H numbering
-            'modes_mapping' -- contains mapping A to H
-            Need to reindex:
-             'anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval'  -- dicts
-             'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc' -- tensors
-            """
-            # results_dict needs to have `modes_mapping` key
-            validate_mapping(results_dict['modes_mapping'], len(results_dict['normal_modes']))
 
-            perm = build_permutation(results_dict['modes_mapping'], nmodes=len(results_dict['normal_modes']))
+            # reindexing if requested
+            if reindex_modes:
+                from CQCParse.relay.modes_reindexing import (reindex_tensor, build_permutation, validate_mapping,
+                                                             reindex_dict)
+                """
+                'normal_modes' -- already in H numbering
+                'modes_mapping' -- contains mapping A to H
+                Need to reindex:
+                 'anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval'  -- dicts
+                 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc' -- tensors
+                """
+                # results_dict needs to have `modes_mapping` key
+                validate_mapping(results_dict['modes_mapping'], len(results_dict['normal_modes']))
 
-            for key in ['coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc']:
-                
-                if key == 'coriolis':
-                    results_dict[key] = reindex_tensor(results_dict[key], perm, [1,2])
-                elif 'grad' in key:
-                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0])
-                elif 'hess' in key:
-                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1])
-                elif 'cff' in key:
-                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2])
-                elif 'qff' in key:
-                    results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2,3])
-            
-            for key in ['anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval']:
-                if key in results_dict:
-                    results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
+                perm = build_permutation(results_dict['modes_mapping'], nmodes=len(results_dict['normal_modes']))
 
-            results_dict['reindex_modes'] = True
-        else:
-            # to keep track of transformations
-            results_dict['reindex_modes'] = False
+                for key in REINDEXED_TENSORS:
+
+                    if key == 'coriolis':
+                        results_dict[key] = reindex_tensor(results_dict[key], perm, [1,2])
+                    elif 'grad' in key:
+                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0])
+                    elif 'hess' in key:
+                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1])
+                    elif 'cff' in key:
+                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2])
+                    elif 'qff' in key:
+                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2,3])
+
+                for key in ['anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval']:
+                    if key in results_dict:
+                        results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
+
+                results_dict['reindex_modes'] = True
+            else:
+                # to keep track of transformations
+                results_dict['reindex_modes'] = False
 
         return results_dict
     
