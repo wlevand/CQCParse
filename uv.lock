@@ -137,6 +137,7 @@ source = { editable = "." }
 dependencies = [
     { name = "numpy" },
     { name = "pandas" },
+    { name = "rich" },
     { name = "scipy" },
 ]
 
@@ -144,7 +145,6 @@ dependencies = [
 dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
-    { name = "rich" },
     { name = "ruff" },
 ]
 
@@ -152,6 +152,7 @@ dev = [
 requires-dist = [
     { name = "numpy" },
     { name = "pandas" },
+    { name = "rich" },
     { name = "scipy" },
 ]
 
@@ -159,7 +160,6 @@ requires-dist = [
 dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
-    { name = "rich" },
     { name = "ruff" },
 ]
 

@@ -2,10 +2,10 @@
 name = "CQCParse"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["numpy", "scipy", "pandas"]
+dependencies = ["numpy", "scipy", "pandas", "rich"]
 
 [dependency-groups]
-dev = ["pytest", "ruff", "rich", "pytest-cov"]
+dev = ["pytest", "ruff", "pytest-cov"]
 
 [build-system]
 requires = ["hatchling"]

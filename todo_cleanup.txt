@@ -36,35 +36,22 @@ The rules of todo.txt apply. In short:
 Order
 -----
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
-    2. Q1      rich: a runtime import, but only a dev dependency.
-    3. Q2      One install file: pyproject.toml.
-    4. Q3      Star imports out of CQCParse.parsing and CQCParse.
-    5. Q4      Delete dead code.
-    6. Q5      The pickle builders: keep the polar.pkl one, apart from the reader. Do with R5.
-    7. Q6      Clear errors in parse_from_source and parse_gaussian16_output.
-    8. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
-    9. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
-   10. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
-   11. N1      First step: docstring note on the mode orders (todo.txt).
-   12. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
+    2. Q3      Star imports out of CQCParse.parsing and CQCParse.
+    3. Q4      Delete dead code.
+    4. Q5      The pickle builders: keep the polar.pkl one, apart from the reader. Do with R5.
+    5. Q6      Clear errors in parse_from_source and parse_gaussian16_output.
+    6. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
+    7. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
+    8. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
+    9. N1      First step: docstring note on the mode orders (todo.txt).
+   10. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out (todo.txt). The only step here that may move numbers. Q8's units_line note belongs here.
-   13. Q9      [decide] Example files that nothing reads.
+   11. Q9      [decide] Example files that nothing reads.
+Done: Q1, Q2 (see Done).
 
 
 Q. New findings (2026-10-25)
 ----------------------------
-[ ] Q1  `import CQCParse` needs rich, but pyproject.toml lists rich only under the dev dependencies. A plain
-        `pip install .` does not install it. Checked: with rich blocked, `import CQCParse` raises ModuleNotFoundError.
-        Two imports: CQCParse/__init__.py imports debug.py (`from rich import print`), and logger.py imports
-        RichHandler. wilson calls setup_logger (logger.py).
-        Fix: add rich to [project] dependencies (one line). debug.py goes in Q4 anyway.
-[ ] Q2  Three install files disagree:
-            - pyproject.toml: version 0.1.0; numpy, scipy, pandas; build backend hatchling.
-            - setup.py: version 0.1.1, no dependencies, placeholder description and author.
-            - requirements.txt: pins numpy 1.26 and pandas 2.2 (and setuptools), no scipy.
-        `pip install .` (the README's way, and wilson_gv's README) reads only pyproject.toml. The hatchling backend
-        ignores setup.py, and nothing reads requirements.txt. uv.lock pins the versions.
-        Fix: delete setup.py and requirements.txt. Keep pyproject.toml.
 [ ] Q3  CQCParse/parsing/__init__.py has four star imports (`from .module import *`). They copy every function of
         parseCFOUR_forWilson, parseCFOUR_extra, parseGaussian_forWilson and parseGaussian_extra into
         CQCParse.parsing. The modules share names (parse_coriolis, GHz2Nu, convNu2Ene); the last import wins, so
@@ -167,4 +154,17 @@ Q. New findings (2026-10-25)
 
 Done
 ----
-(none yet)
+    Q1 (2026-10-25)  rich is a runtime dependency now. `import CQCParse` needs rich: CQCParse/__init__.py imports
+        debug.py (`from rich import print`), and logger.py imports RichHandler (wilson calls setup_logger). Before,
+        pyproject.toml listed rich only under the dev dependencies, so a plain `pip install .` left it out, and
+        `import CQCParse` raised ModuleNotFoundError.
+        Changes: pyproject.toml, rich moved from the dev group to [project] dependencies; uv.lock updated (same
+        versions, rich moved to the runtime list).
+        Checked: a non-editable install from uv.lock without the dev group (no pytest, no ruff) imports CQCParse,
+        parse_from_source and setup_logger. Tests 248 pass, baseline unchanged.
+    Q2 (2026-10-25)  One install file: pyproject.toml. Deleted:
+            - setup.py: version 0.1.1 (pyproject.toml: 0.1.0), no dependencies, placeholder description and author.
+              The hatchling build backend in pyproject.toml ignores it.
+            - requirements.txt: pinned numpy 1.26, pandas 2.2 and setuptools, no scipy. Nothing read it.
+        `pip install .` (this README and wilson_gv's README) reads only pyproject.toml. uv.lock pins the versions.
+        Nothing in the repo named either file. Tests 248 pass, baseline unchanged.
