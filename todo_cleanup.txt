@@ -365,3 +365,32 @@ Done
         and the missing sections); the X matrix tests pass on both, they pin it. Tests 303 -> 323; baseline
         unchanged; wilson's full run as before.
         Later, maybe: return these through parse_from_source under new names, so wilson can compare by itself.
+
+
+LLM use (Claude Code)
+---------------------
+Claude Code, model Claude Opus 5.5, 2026-10-22 to 2026-10-25. The owner made every commit; Claude Code ran no git
+commit or push in this repo.
+    - 2026-10-22: a review of the repository, read only.
+    - "T3 tests" (2026-10-23 evening): wrote test_contract.py, changed test_baseline.py and todo.txt; copied the new
+      formaldehyde HF/cc-pVTZ example files (the owner's program output) into files_examples, with placeholders over
+      the account details in one of them.
+    - 15 commits on 2026-10-24, "C2 parse_cfour_output reads only ..." to "upd todo" (C1-C4, A1, A2, A5, P1, P2,
+      L4-L6, C3 + R1), including L4's placeholders in the example output files and the baseline files.
+    - 16 commits on 2026-10-25, "cleanup todo" to "Q10 done" (below).
+No Claude Code edits are known for the other commits since main's "bug fixes in parsing" (2026-08-07):
+"pyproject.toml and uv env" (main, 2026-09-13) and the branch's first 6 commits (2026-10-23 morning, T1 and T2).
+
+2026-10-25: everything in this file's Done section, and todo.txt's T4, R4, R5 and the first steps of A6 and N1.
+    - Claude Code: reviewed the code and wrote this file (Q1-Q13); changed the code for Q1-Q8, Q10, Q12, T4, R4,
+      R5; wrote the tests (248 -> 323; new: test_missing_sections, test_build_polar_pkl, test_cfour_vs_gaussian,
+      test_validation_readers) and the docstrings; kept both todo files up to date.
+    - Checks it ran after each change: CQCParse's tests and the baseline (T2), and wilson_gv's full test suite (with
+      the T6 stand-ins; wilson_gv was only read and run, never changed). New tests were also run on the code before
+      the change, to see that they fail there (Q10, Q12, T4).
+    - Analyses, read only: every name wilson's test suite requests; Gaussian's two mode orders (A = the Mulliken
+      numbering); CFOUR vs Gaussian, measured before T4's bounds were set.
+    - Decided by the owner: the goal and the order of the work; what to keep (the validation readers, the polar.pkl
+      builder, the data of the other pickles); deleting DataVault; N1's mode order (H); when to commit.
+Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
+both came from main (March 2026).
