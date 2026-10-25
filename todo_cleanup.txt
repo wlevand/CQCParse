@@ -25,7 +25,7 @@ physics choices or wilson features, not fixes.
 How to work
 -----------
 The rules of todo.txt apply. In short:
-    - After each change: CQCParse's tests (245 pass, about 3 s on an idle machine) and the baseline (T2).
+    - After each change: CQCParse's tests (252 pass, about 3 s on an idle machine) and the baseline (T2).
     - A cleanup must not move a number. If the baseline moves during a cleanup, stop and find out why.
     - A change that moves a number on purpose (only T4/R4 here): give the reason in the commit message, and run
       wilson's tests too (T6).
@@ -38,16 +38,15 @@ Order
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py.
     2. Q5      The pickle builders: keep the polar.pkl one, apart from the reader. Do with R5.
-    3. Q6      Clear errors in parse_from_source and parse_gaussian16_output.
-    4. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
-    5. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
-    6. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
-    7. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
-    8. N1      First step: docstring note on the mode orders (todo.txt).
-    9. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
+    3. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
+    4. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
+    5. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
+    6. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
+    7. N1      First step: docstring note on the mode orders (todo.txt).
+    8. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out (todo.txt). The only step here that may move numbers. Q8's units_line note belongs here.
-   10. Q9      [decide] Example files that nothing reads.
-Done: Q1, Q2, Q3, Q4 (see Done).
+    9. Q9      [decide] Example files that nothing reads.
+Done: Q1, Q2, Q3, Q4, Q6 (see Done).
 
 
 Q. New findings (2026-10-25)
@@ -64,24 +63,6 @@ Q. New findings (2026-10-25)
         runs a user needs). Delete the other builders. Their .pkl files: Q9. The builders' print() calls: logger,
         or keep them (a script's output), but not in the reader.
         test_getRotationMatrix moves with getRotationMatrix. pQUADRATURE stays in the reader module (N3).
-[ ] Q6  Bad input to parse_from_source gives no clear error. Run on Gaussian formaldehyde HF/cc-pVTZ:
-            - an unknown name, e.g. requested_data {'bogus_name': None}: no error. The result holds only
-              reindex_modes. So a misspelled name gives a missing key later, far from the cause.
-            - source_type 'Gaussian' (capital G) or any other unknown type: returns None, with no error.
-              The caller then fails, e.g. TypeError: 'NoneType' object is not iterable.
-            - parse_gaussian16_output wraps each section in try/except: print() the error, then raise
-              ValueError("smth went wrong"), with no file name and no section name (parse_wilson_obtainer.py
-              138-198).
-        Fix:
-            - unknown source_type: raise ValueError that names 'gaussian' and 'cfour'.
-            - unknown names: first list the names wilson's requests hold (wilson_data_obtainer.py). Raise
-              ValueError only for names that neither reader knows, so wilson's requests keep working.
-            - the try/except blocks: delete them (the original error is clearer), or raise with the section name
-              and the file path, `from e`. No print().
-            - stale comments: the FIXME at parse_wilson_obtainer.py:151 ("atoms may not be defined"): atoms is
-              always defined now; the real problem is 0 atoms (A6, N2). Point it there. The "todo: finish
-              parse_cfour_output" at line 87: check what is missing, then say it or delete the comment.
-        New test: each of the cases above raises ValueError.
 [ ] Q7  parse_from_source(..., reindex_modes=True) crashes unless the request holds every tensor. Run on Gaussian
         formaldehyde HF/cc-pVTZ:
             - request ['cff']: KeyError 'modes_mapping'.
@@ -92,10 +73,11 @@ Q. New findings (2026-10-25)
         Whether reindex_modes stays at all is part of N1.
         Now: raise a clear error (or fix the loop: skip missing names, read modes_mapping and the mode count
         without asking the user for them). Add a test either way.
+        Also: the reindex block sits outside _source_note (Q6), so its errors do not name the file. Move it inside.
 [ ] Q8  Small fixes. None should move a number; the baseline checks that.
             - zip() without strict=True on the core path, 4 places: getDipDers_log (parseGaussian_forWilson.py:169),
-              parse_mode_mapping (parseGaussian_forWilson.py:797), parse_cfour_output (parse_wilson_obtainer.py:334
-              and 344, state labels paired with energies). zip() stops at the shorter list, so a missing line in a
+              parse_mode_mapping (parseGaussian_forWilson.py:797), parse_cfour_output (parse_wilson_obtainer.py:342
+              and 352, state labels paired with energies). zip() stops at the shorter list, so a missing line in a
               file drops data with no error. strict=True raises instead.
             - parse_polarizability (parseGaussian_forWilson.py:433): `('|  X  |' in line or '|  Z  |')` is always
               true (a non-empty string). Harmless today: in the example files, only X and Z rows reach this branch
@@ -104,8 +86,8 @@ Q. New findings (2026-10-25)
               that it says "a.u.", and raise otherwise.
             - print() in the core path: print('linear') in parse_coriolis (parseGaussian_forWilson.py:81), on every
               linear molecule; parse_output_file (parseCFOUR_forWilson.py:171), getRotationMatrix (:211) and
-              pQUADRATURE (:681). Delete, or log at debug/warning level. The others: Q6 (parse_wilson_obtainer.py)
-              and Q5 (the builders).
+              pQUADRATURE (:681). Delete, or log at debug/warning level. The others: Q5 (the builders).
+              parse_wilson_obtainer.py has none since Q6.
             - convNu2Ene: two copies (utils.py and parseCFOUR_forWilson.py, same code). Keep the one in utils.py,
               import it in parseCFOUR_forWilson.py.
             - ruff (in the dev dependencies) reports many findings, mostly style; rerun it now that Q4 is done.
@@ -231,3 +213,33 @@ Done
         Checked: tests 247 -> 245, baseline unchanged; ruff finds no undefined name. wilson's tests that use
         CQCParse (8 files, 131 tests, with the T6 stand-ins): the same 9 fail with this commit and with the one
         before (R1's 3 in test_hand_calculation, cf_uv in test_anharm_analyzer, 5 others), so none is new.
+    Q6 (2026-10-25)  Bad input to parse_from_source gives a clear error. Before, on Gaussian formaldehyde
+        HF/cc-pVTZ: an unknown name was ignored (the result held only reindex_modes); source_type 'Gaussian' returned
+        None; any error inside parse_gaussian16_output was printed, then raised as ValueError("smth went wrong"),
+        with no file and no section.
+        Changes (parse_wilson_obtainer.py, parse_g16_freqs.py):
+            - SOURCE_TYPES and KNOWN_NAMES (module level). parse_from_source raises ValueError for a source_type
+              not in SOURCE_TYPES, and for names not in KNOWN_NAMES (it names them). modes_mapping is in
+              KNOWN_NAMES; with CFOUR it is still ignored (one mode order).
+              wilson: its full test run sends 14 names, always as a list, all known. Measured by recording every
+              parse_from_source call during the run.
+            - the 5 try/except blocks with print() in parse_gaussian16_output: gone. A reader's error now keeps its
+              type and message, and _source_note adds a note naming the file, in both readers (Python 3.11+
+              add_note: the traceback shows it, str(e) does not). E.g. ACAC normal_modes:
+              "ValueError: cannot reshape array of size 432 into shape (0,3,3)", note "while reading the gaussian
+              output .../ACAC/.../g16_inputFull_3q.out".
+            - parse_g16_freqs.extract_relevant_block: ValueError naming the marker it misses (was RuntimeError
+              "Could not find start or end markers in file."; nothing caught it). An empty frequency section:
+              ValueError, checked before get_allStates_from_parsed_freqs.
+            - comments: the FIXME "atoms may not be defined" (atoms always is) now says the real problem, 0 atoms
+              from get_equil_geo (A6, N2); "todo: finish parse_cfour_output" deleted (the CFOUR reader returns
+              every name but modes_mapping).
+            - parse_from_source's docstring: requested_data (a list or a dict of names), source_type, the note;
+              its type hint is Collection[str].
+        Baseline: no value changed; summary.json rewritten, only the error text of ACAC and ACDM normal_modes
+        ("smth went wrong" -> the reshape error).
+        New tests (tests/test_wilson_obtainer.py): test_known_names (KNOWN_NAMES = the baseline's ALL_NAMES),
+        test_unknown_source_type (3), test_unknown_name (both readers), test_reader_error_names_the_file (Gaussian
+        file without frequencies: ValueError with the note; CFOUR folder without files: FileNotFoundError with the
+        note). Tests 245 -> 252.
+        wilson's full test run (T6 stand-ins): 963 pass, 30 fail, 1 collection error, as before.

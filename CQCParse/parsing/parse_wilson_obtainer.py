@@ -1,4 +1,22 @@
+from collections.abc import Collection
+from contextlib import contextmanager
 from typing import Any
+
+SOURCE_TYPES = ('gaussian', 'cfour')
+# every name a reader knows; modes_mapping is Gaussian only (CFOUR has one mode order, so it returns no such key)
+KNOWN_NAMES = ('equilibrium_geometry', 'atoms', 'normal_modes',
+               'harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
+               'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc', 'modes_mapping')
+
+
+@contextmanager
+def _source_note(source_type, location):
+    """An error raised inside keeps its type and gets a note naming the source (the readers' errors do not)."""
+    try:
+        yield
+    except Exception as e:
+        e.add_note(f'while reading the {source_type} output {location}')
+        raise
 
 
 def is_linear(n_atoms: int, n_vib: int) -> bool:
@@ -11,7 +29,7 @@ def is_linear(n_atoms: int, n_vib: int) -> bool:
                      f'or {3 * n_atoms - 5} (linear)')
 
 
-def parse_from_source(requested_data: dict,
+def parse_from_source(requested_data: Collection[str],
                       source_type: str,
                       base_file_loc: str,
                       lvl_theory: str,
@@ -23,6 +41,10 @@ def parse_from_source(requested_data: dict,
 
     returns a dict like requested_data dict, with values as data parsed from outputs
 
+    requested_data: the names to read, a list (as wilson passes) or a dict whose keys are the names. A name not in
+        KNOWN_NAMES raises ValueError.
+    source_type: 'gaussian' or 'cfour' (SOURCE_TYPES); anything else raises ValueError.
+    Errors from the readers keep their type, with a note that names base_file_loc.
     lvl_theory, basis_set: not used; kept because wilson passes them.
     reindex_modes: Gaussian only, renumbers the modes from Gaussian's A order to its H order. The result's
         'reindex_modes' says whether that was done. CFOUR has one mode order: its data is never reindexed, and its
@@ -35,10 +57,17 @@ def parse_from_source(requested_data: dict,
         warnings.warn("parse_from_source: 'linear' is ignored, the readers decide it from the file",
                       DeprecationWarning, stacklevel=2)
 
+    if source_type not in SOURCE_TYPES:
+        raise ValueError(f'source_type {source_type!r}: expected one of {SOURCE_TYPES}')
+    unknown = [k for k in requested_data if k not in KNOWN_NAMES]
+    if unknown:
+        raise ValueError(f'unknown names in requested_data: {unknown}; known: {KNOWN_NAMES}')
+
     if source_type == 'gaussian':
 
-        results_dict = parse_gaussian16_output(requested_data=requested_data, 
-                                               log_file=base_file_loc)
+        with _source_note(source_type, base_file_loc):
+            results_dict = parse_gaussian16_output(requested_data=requested_data,
+                                                   log_file=base_file_loc)
         
         # reindexing if requested
         if reindex_modes:
@@ -84,10 +113,10 @@ def parse_from_source(requested_data: dict,
             files_dict = make_cfour_files_dict(base_file_loc)
         else:
             files_dict = base_file_loc
-        
-        # todo: finish parse_cfour_output
-        results_dict = parse_cfour_output(requested_data=requested_data,
-                                          files_dict=files_dict)
+
+        with _source_note(source_type, base_file_loc):
+            results_dict = parse_cfour_output(requested_data=requested_data,
+                                              files_dict=files_dict)
         # as for Gaussian, to keep track of transformations (none for CFOUR)
         results_dict['reindex_modes'] = False
         return results_dict
@@ -127,17 +156,13 @@ def parse_gaussian16_output(requested_data: dict,
     if any(k in requested_data for k in ('equilibrium_geometry', 'atoms')): 
     
         from .parseGaussian_forWilson import get_equil_geo
-        try:
-            atoms, equilibrium_geometry = get_equil_geo(log_lines)
-            
-            if 'equilibrium_geometry' in requested_data:
-                results['equilibrium_geometry'] = equilibrium_geometry
-            
-            if 'atoms' in requested_data:
-                results['atoms'] = atoms
-        except Exception as e:
-            print('Failed at "equilibrium_geometry" with:', e)
-            raise ValueError("smth went wrong")
+        atoms, equilibrium_geometry = get_equil_geo(log_lines)
+
+        if 'equilibrium_geometry' in requested_data:
+            results['equilibrium_geometry'] = equilibrium_geometry
+
+        if 'atoms' in requested_data:
+            results['atoms'] = atoms
 
     if 'normal_modes' in requested_data:
         from .parseGaussian_forWilson import get_normal_modes, get_equil_geo
@@ -147,55 +172,38 @@ def parse_gaussian16_output(requested_data: dict,
         else:
             atoms = results['atoms']
 
-        try:
-            # FIXME: `atoms` mayb not be defined at this point
-            nmodes = get_normal_modes(filename=log_file, Na=len(atoms))
-            nmodes = {i: nm for i, nm in enumerate(nmodes)}
-            results['normal_modes'] = nmodes
-        except Exception as e:
-            print('Failed at "normal_modes" with:', e)
-            raise ValueError("smth went wrong")
+        # get_equil_geo finds 0 atoms in files with no "Standard orientation" after "Optimization completed.";
+        # get_normal_modes then fails on its reshape
+        nmodes = get_normal_modes(filename=log_file, Na=len(atoms))
+        nmodes = {i: nm for i, nm in enumerate(nmodes)}
+        results['normal_modes'] = nmodes
 
     # the harmonic fundamentals give the mode count (len_nmodes), the same as in nc_sqrt_eigval
     needs_freqs = ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
                    'cff', 'cff_rc', 'qff', 'qff_rc')
     if any(k in requested_data for k in needs_freqs):
 
-        try:
-            from .parse_g16_freqs import parse_frequencies, get_allStates_from_parsed_freqs
-            results_log = parse_frequencies(lines=log_lines)
-            h_sts, ah_sts = get_allStates_from_parsed_freqs(results_log)
+        from .parse_g16_freqs import parse_frequencies, get_allStates_from_parsed_freqs
+        results_log = parse_frequencies(lines=log_lines)
+        if not results_log:
+            raise ValueError('the anharmonic frequency section has no states')
+        h_sts, ah_sts = get_allStates_from_parsed_freqs(results_log)
 
-            if not results_log:
-                raise ValueError("result of parse_frequencies() is empty")
-
-            harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
-            fund_harm_dict = {k:v for k,v in harmonic_states.items() if len(k)==1}
-            len_nmodes = len(fund_harm_dict)
-            # harmonic wavenumbers in mode order 0 .. n-1, for the conversion of cff and qff
-            harmonic_cm = [fund_harm_dict[(str(m),)] for m in range(len_nmodes)]
-        except Exception as e:
-            print('Failed at "parse_frequencies" with:', e)
-            raise ValueError("smth went wrong in parse_frequencies() or get_allStates_from_parsed_freqs()")
+        harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
+        fund_harm_dict = {k:v for k,v in harmonic_states.items() if len(k)==1}
+        len_nmodes = len(fund_harm_dict)
+        # harmonic wavenumbers in mode order 0 .. n-1, for the conversion of cff and qff
+        harmonic_cm = [fund_harm_dict[(str(m),)] for m in range(len_nmodes)]
 
         if 'anharmonic_states' in requested_data:
-            try:
-                anharmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in ah_sts.items()}
-                results['anharmonic_states'] = anharmonic_states
-            except Exception as e:
-                print('Failed at "anharmonic_states" with:', e)
-                raise ValueError("smth went wrong")
+            anharmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in ah_sts.items()}
+            results['anharmonic_states'] = anharmonic_states
 
         if any(k in requested_data for k in ('harmonic_states', 'nc_sqrt_eigval')):
+            results['harmonic_states'] = harmonic_states
 
-            try:
-                results['harmonic_states'] = harmonic_states
-
-                if 'nc_sqrt_eigval' in requested_data:
-                    results['nc_sqrt_eigval'] = {int(k[0]): v for k,v in fund_harm_dict.items()}
-            except Exception as e:
-                print('Failed at "harmonic_states/nc_sqrt_eigval" with:', e)
-                raise ValueError("smth went wrong")
+            if 'nc_sqrt_eigval' in requested_data:
+                results['nc_sqrt_eigval'] = {int(k[0]): v for k,v in fund_harm_dict.items()}
 
     if any(k in requested_data for k in ('B', 'coriolis')): 
         from .parseGaussian_forWilson import parse_Na, parse_coriolis

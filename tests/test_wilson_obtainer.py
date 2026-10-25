@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from CQCParse.parsing.parse_wilson_obtainer import (parse_cfour_output, parse_gaussian16_output, parse_from_source,
-                                                    is_linear)
+                                                    is_linear, KNOWN_NAMES)
 from CQCParse.utils import PKG_ROOT
 from tests.test_baseline import ALL_NAMES, BASE, parse
 
@@ -80,6 +80,39 @@ def test_linear_argument_ignored():
     with pytest.warns(DeprecationWarning):
         parse_from_source({'nc_sqrt_eigval': None}, 'cfour', PKG_ROOT + '/CQCParse/files_examples/refinedc4/HFcc_pVTZ',
                           lvl_theory='HF', basis_set='cc-pVTZ', linear=True)
+
+
+def test_known_names():
+    """parse_from_source checks names against KNOWN_NAMES; the baseline asks for each of them."""
+    assert set(KNOWN_NAMES) == set(ALL_NAMES)
+
+
+@pytest.mark.parametrize('source_type', ['Gaussian', 'orca', None])
+def test_unknown_source_type(source_type):
+    """An unknown source_type raises, naming the known ones (todo_cleanup Q6). It returned None."""
+    with pytest.raises(ValueError, match="'gaussian', 'cfour'"):
+        parse_from_source(['nc_sqrt_eigval'], source_type, 'nowhere', lvl_theory='', basis_set='')
+
+
+@pytest.mark.parametrize('source', FORM_PAIR)
+def test_unknown_name(source):
+    """A name no reader knows raises, naming it (todo_cleanup Q6). It was ignored: the key was just missing."""
+    with pytest.raises(ValueError, match='bogus_name'):
+        parse(source, BASE + ['bogus_name'])
+
+
+def test_reader_error_names_the_file(tmp_path):
+    """A reader's error keeps its type and gets a note naming the file (todo_cleanup Q6). The Gaussian reader
+    raised ValueError('smth went wrong') and only printed the cause."""
+    out = tmp_path / 'g16.out'
+    out.write_text('no frequency section here\n')
+    with pytest.raises(ValueError, match='no anharmonic frequency section') as err:
+        parse_from_source(['nc_sqrt_eigval'], 'gaussian', str(out), lvl_theory='', basis_set='')
+    assert str(out) in ' '.join(err.value.__notes__)
+
+    with pytest.raises(FileNotFoundError) as err:
+        parse_from_source(['nc_sqrt_eigval'], 'cfour', str(tmp_path), lvl_theory='', basis_set='')
+    assert str(tmp_path) in ' '.join(err.value.__notes__)
 
 
 def test_parse_from_source_cfour():

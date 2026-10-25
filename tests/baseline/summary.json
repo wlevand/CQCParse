@@ -51,7 +51,7 @@
       "reindex_modes": "bool False"
     },
     "errors": {
-      "normal_modes": "ValueError: smth went wrong"
+      "normal_modes": "ValueError: cannot reshape array of size 432 into shape (0,3,3)"
     }
   },
   "g16_ACDM_B3LYP_cc-pVQZ": {
@@ -79,7 +79,7 @@
       "reindex_modes": "bool False"
     },
     "errors": {
-      "normal_modes": "ValueError: smth went wrong"
+      "normal_modes": "ValueError: cannot reshape array of size 2016 into shape (0,3,3)"
     }
   },
   "g16_FORM_B3LYP_cc-pVDZ": {
