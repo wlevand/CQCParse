@@ -29,7 +29,7 @@ import pickle
 
 import numpy as np
 
-from CQCParse.utils import convNu2Ene
+from CQCParse.utils import dimensionless_to_mass_weighted
 
 logger = logging.getLogger("CQCParse")
 
@@ -291,9 +291,10 @@ def pDipole(filenamebase: str):
 
 def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
     """
-    Getting dipole moment derivatives tensors
+    Getting dipole moment derivatives tensors, as the files hold them: by dimensionless normal coordinates q, in
+    e a0 (getDipoleDers_anharm_au turns them into wilson's units)
 
-    AVERAGING: the dipole(xyz) files list the second derivative d2mu/dQi dQj of each mode pair twice, in both
+    AVERAGING: the dipole(xyz) files list the second derivative d2mu/dqi dqj of each mode pair twice, in both
     orders, e.g. (9,10) and (10,9). The two come from two numerical differentiations and differ slightly (up to
     ~1e-3 of the value in the example files). Both slots [i, j] and [j, i] get the mean of the two. If only one
     order is listed, it goes to both slots.
@@ -301,8 +302,8 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
     :param nModesStart:
     :param labels:
     :param filenamebase: basename for dipole(xyz) files, e.g, 'dipole'
-    :return:  first derivatives of the dipole moment, dmu/dQi, shape (3N-6, 3)
-              second derivatives of the dipole moment, d2mu/dQi dQj, shape (3N-6, 3N-6, 3), symmetric in i, j
+    :return:  first derivatives of the dipole moment, dmu/dqi, shape (3N-6, 3)
+              second derivatives of the dipole moment, d2mu/dqi dqj, shape (3N-6, 3N-6, 3), symmetric in i, j
     """
     last_part = filenamebase.split('/')[-1]
 
@@ -338,61 +339,36 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
 
     return dmudq_array, dmudqdq_array
 
-def getDipoleDers_anharm_au_simple(filenamebase: str, labels: list, nModesStart: int, 
-                                   fund_harmonic_energies_array: list | np.ndarray) -> tuple:
+def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int,
+                            fund_harmonic_energies_array: list | np.ndarray) -> tuple:
+    """
+    dipgrad (n, 3) and diphess (n, n, 3) in atomic units, as the Gaussian reader's getDipDers_au: mu in e a0, Q the
+    mass-weighted normal coordinates in m_e^(1/2) a0.
+
+    CFOUR's dipole(xyz) files hold the derivatives by dimensionless normal coordinates q, with mu in e a0
+    (getDipoleDers_anharm). q_i = Q_i * sqrt(w_i), so each mode index brings sqrt(nu_i / Eh), nu_i the harmonic
+    wavenumber in cm-1 (CQCParse.utils.dimensionless_to_mass_weighted):
+        dipgrad_i = dmu/dq_i * sqrt(nu_i / Eh),    diphess_ij = d2mu/dq_i dq_j * sqrt(nu_i / Eh) * sqrt(nu_j / Eh)
+    Example, formaldehyde HF/cc-pVTZ, mode 7 (B1, 1337.152 cm-1), x: dipolex holds 0.0141179696, so dipgrad =
+    0.0141179696 * sqrt(1337.152 / 219474.63) = 1.1020e-3, as Gaussian (getDipDers_au's example);
+    tests/test_cfour_vs_gaussian.py checks every value.
+    """
     firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
-    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
-    matrix_2d = np.outer(w_h, w_h)
-    
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
-    firstder_mat = np.zeros_like(firstder)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            firstder_mat[i, j] = firstder[i, j] / sqrtvec[i]
-
-    secder_mat = np.zeros_like(secder)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-            for k in range(3):
-                secder_mat[i, j, k] = secder[i, j, k] / sqrtmat[i, j]
-
-    return tuple([firstder_mat, secder_mat])
+    return (dimensionless_to_mass_weighted(firstder, fund_harmonic_energies_array, 1),
+            dimensionless_to_mass_weighted(secder, fund_harmonic_energies_array, 2))
 
 
-def getPolarDers_pkl_au_simple(polar_pkl_file: str, fund_harmonic_energies_array: np.ndarray | list):
-    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
-    matrix_2d = np.outer(w_h, w_h)
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
+def getPolarDers_pkl_au(polar_pkl_file: str, fund_harmonic_energies_array: np.ndarray | list):
+    """
+    polgrad (n, 3, 3) and polhess (n, n, 3, 3) in atomic units, as getDipoleDers_anharm_au: polar.pkl holds the
+    derivatives by dimensionless normal coordinates q, alpha in au (CQCParse.tools.build_polar_pkl), and each mode
+    index brings sqrt(nu_i / Eh). Checked against Gaussian (tests/test_cfour_vs_gaussian.py).
+    """
     with open(polar_pkl_file, 'rb') as file:
         alpha = pickle.load(file)
-    polgrad = alpha[0]
-    polhess = alpha[1]
-
-    logger.debug('polgrad')
-    logger.debug(polgrad)
-
-    logger.debug('polhess')
-    logger.debug(polhess)
-
-    fdpol = np.zeros_like(polgrad)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            for k in range(3):
-                fdpol[i, j, k] = polgrad[i, j, k] / sqrtvec[i]
-
-    sdpol = np.zeros_like(polhess)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-
-            for k in range(3):
-                for L in range(3):
-                    sdpol[i, j, k, L] = polhess[i, j, k, L] / sqrtmat[i, j]
-
-    return tuple([fdpol, sdpol])
+    polgrad, polhess = alpha[0], alpha[1]
+    return (dimensionless_to_mass_weighted(polgrad, fund_harmonic_energies_array, 1),
+            dimensionless_to_mass_weighted(polhess, fund_harmonic_energies_array, 2))
 
 def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """Dimensionless normal coordinates are here, in QUADRATURE file"""
@@ -444,7 +420,7 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.nd
     normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat, strict=True))
     return np.array(undisplaced_matrix), freqs, normal_coordinates
 
-# polar.pkl, read by getPolarDers_pkl_au_simple, is built by CQCParse.tools.build_polar_pkl
+# polar.pkl, read by getPolarDers_pkl_au, is built by CQCParse.tools.build_polar_pkl
 # -----------------------------------------------------------------------------
 
 def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:

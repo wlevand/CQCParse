@@ -9,14 +9,15 @@ Goal
 Clean code, and a core that gives the right numbers or a clear error.
 "Core" = what wilson uses: parse_from_source, the two readers behind it, PKG_ROOT, setup_logger (todo.txt, Rules).
 
-Done when ([x] met, [~] partly, [ ] open; as of Q8):
+Done when ([x] met, [~] partly, [ ] open; as of T4/R4):
     [x] 1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
     [~] 2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
            tested: the polar.pkl builder (Q5, done) and the readers for validating wilson (Q10, open).
     [x] 3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, a
            missing section in a file (Q6, Q7, Q12), a section cut short where data are paired (Q8's zip). Not every
            reader counts its rows, so a section cut short elsewhere can still pass.
-    [ ] 4. The unit conversion of each property is written out once, and checked against the other program (T4, R4).
+    [x] 4. The unit conversion of each property is written out once, and checked against the other program (T4, R4,
+           todo.txt). Not compared across programs: coriolis, and the geometry and normal modes (N3).
     [ ] 5. wilson's tests fail only for wilson's own reasons: today 17 failures and 1 collection error that CQCParse
            main gives too (L1, T6, in wilson_gv).
     [ ] 6. The branch is on main, with a list of what changed for users (Q13).
@@ -29,7 +30,7 @@ features, not fixes.
 How to work
 -----------
 The rules of todo.txt apply. In short:
-    - After each change: CQCParse's tests (285 pass, about 3 s on an idle machine) and the baseline (T2).
+    - After each change: CQCParse's tests (303 pass, about 3 s on an idle machine) and the baseline (T2).
     - A cleanup must not move a number. If the baseline moves during a cleanup, stop and find out why.
     - A change that moves a number on purpose (only T4/R4 here): give the reason in the commit message, and run
       wilson's tests too (T6).
@@ -39,23 +40,21 @@ The rules of todo.txt apply. In short:
 
 Order
 -----
-Reviewed again after Q12: the one risk left of wrong numbers with no error is T4/R4 (the unit conversions of the
-dipole and polarizability derivatives: nothing checks them, and wilson's EVV terms are built from them). The rest
-is small. Functions are named, not line numbers: those move with every change.
+After T4/R4 no known risk is left of wrong numbers with no error, in what wilson reads (the unit conversions are
+checked against the other program now). What is left is small, or in wilson_gv, or a decision. Functions are
+named, not line numbers: those move with every change.
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py. Independent of the
                rest; any time, but before Q13.
-    2. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
-               out, with a check of the units the Gaussian file states (todo.txt). The only step here that may move
-               numbers.
-    3. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
-    4. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
+    2. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them. (T4 shows
+               why they matter: the programs' VPT2 differs where resonances are.)
+    3. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
                choice for polarData.pkl changes Q11.
-    5. Q13     Finish: merge to main, version, the list of changes for users.
+    4. Q13     Finish: merge to main, version, the list of changes for users.
 Also decided, outside this goal: N1's change (H order, Gaussian reindexed by default, with Q7's leftover as its
 first part), in todo.txt N1; it needs wilson's references rerun.
-Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step)
-(see Done).
+Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step),
+and todo.txt T4 and R4 (see Done here and in todo.txt).
 
 
 Q. New findings (2026-10-25)
@@ -127,9 +126,12 @@ Q. New findings (2026-10-25)
 [ ] Q13 Finish (found in the review after Q12: nothing in the plan said how the work reaches users).
             - after L1/T6 in wilson_gv: merge cleanup_claude into main.
             - version: pyproject.toml says 0.1.0. Since then, for a user: errors where there were zeros or empty
-              results (Q6, Q7, Q12); names gone from CQCParse (debug, convNu2Ene, change_idx_modes,
-              change_idx_states, CQCParse.relay.DataVault, the parsing star exports: Q3, Q4); rich no longer
-              installed (Q4). Raise it, e.g. to 0.2.0.
+              results (Q6, Q7, Q12), and for a Gaussian file whose unit lines are not Debye / a.u. (R4); names gone
+              from CQCParse (debug, convNu2Ene (from utils too, R4), change_idx_modes, change_idx_states,
+              CQCParse.relay.DataVault, the parsing star exports: Q3, Q4); renamed:
+              getDipoleDers_anharm_au_simple -> getDipoleDers_anharm_au, getPolarDers_pkl_au_simple ->
+              getPolarDers_pkl_au (R4); the polar.pkl builder moved to CQCParse.tools.build_polar_pkl (Q5); rich no
+              longer installed (Q4). Raise it, e.g. to 0.2.0.
             - the list of these changes for users: in the README or the merge message (no todo names there: the
               README is public).
 

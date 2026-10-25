@@ -435,22 +435,22 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
         results['qff_rc'] = quartic_cm_1
 
     if any(k in requested_data for k in ('dipgrad', 'diphess')):
-        from .parseCFOUR_forWilson import getDipoleDers_anharm_au_simple
+        from .parseCFOUR_forWilson import getDipoleDers_anharm_au
 
-        mu = getDipoleDers_anharm_au_simple(filenamebase=files_dict['dipole_file'], 
-                                            labels=labelsModes_original, # why
-                                            nModesStart=nModesStart,
-                                            fund_harmonic_energies_array=fund_harmonic_energies_array)
+        mu = getDipoleDers_anharm_au(filenamebase=files_dict['dipole_file'],
+                                     labels=labelsModes_original,    # CFOUR's mode numbers of the vibrations
+                                     nModesStart=nModesStart,
+                                     fund_harmonic_energies_array=fund_harmonic_energies_array)
         if 'dipgrad' in requested_data:
             results['dipgrad'] = mu[0]
         if 'diphess' in requested_data:
             results['diphess'] = mu[1]
 
     if any(k in requested_data for k in ('polgrad', 'polhess')):
-        from .parseCFOUR_forWilson import getPolarDers_pkl_au_simple
+        from .parseCFOUR_forWilson import getPolarDers_pkl_au
 
-        alpha = getPolarDers_pkl_au_simple(polar_pkl_file=files_dict['polar_pkl'], 
-                                        fund_harmonic_energies_array=fund_harmonic_energies_array)
+        alpha = getPolarDers_pkl_au(polar_pkl_file=files_dict['polar_pkl'],
+                                    fund_harmonic_energies_array=fund_harmonic_energies_array)
 
         if 'polgrad' in requested_data:
             results['polgrad'] = alpha[0]

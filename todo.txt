@@ -17,8 +17,8 @@ Where things stand (reviewed 2026-10-25 against wilson_gv's code and tests):
     Both readers pass wilson's data checks on all 11 example sources (T3). All known wrong numbers are fixed.
     wilson cannot use this branch yet: `import wilson_suite` fails (L1), and 13 of wilson's reference tests fail
         because R1 moved Gaussian cff (by up to 1.1e-4 of a spectrum's largest amplitude; T6).
-    Least checked: the unit conversions of dipgrad, diphess, polgrad, polhess. wilson's EVV terms are built from
-        them, and no automatic test checks them (T4, R4).
+    The unit conversions of dipgrad, diphess, polgrad, polhess (wilson's EVV terms are built from them): checked
+        against the other program since 2026-10-25 (T4, R4: within 7e-5 for formaldehyde HF).
     Normal modes: not ready (N). wilson does not ask for them today.
 
 What wilson reads (wilson_gv, checked 2026-10-25), to weigh each item:
@@ -33,17 +33,13 @@ Now, in this order. After each change that moves a number: CQCParse's tests, the
 (T6).
     1. L1, T6  [wilson] In wilson_gv: delete two dead import lines (L1), then update the 13 reference values that
             R1 moved (T6). Until both are done, wilson cannot use this branch.
-    2. T4   CFOUR vs Gaussian test for the rest: dipgrad, diphess, polgrad, polhess, B, frequencies, states.
-            The force constants are done (C3). Needs the mode signs and the axes.
-    3. R4   Write out the unit conversion of dipgrad, diphess, polgrad, polhess, as reduced_to_au does for the
-            force constants. Do with T4, which checks it.
-    4. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
+    2. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
             cut-off and measure what changes. Then decide.
-    5. A6   Gaussian geometry is empty for ACAC and ACDM. First step done (an error now, todo_cleanup Q12). Left: the
+    3. A6   Gaussian geometry is empty for ACAC and ACDM. First step done (an error now, todo_cleanup Q12). Left: the
             fix, reading the geometry from where these two files hold it.
-    6. N1   Decided: H order for both readers, Gaussian reindexed by default (see N1). The docstring note on today's
+    4. N1   Decided: H order for both readers, Gaussian reindexed by default (see N1). The docstring note on today's
             mixed orders is done. Left: the change, in N1's order; it needs wilson's references rerun [wilson].
-(R5 done with todo_cleanup.txt Q5, see Done.)
+(Done 2026-10-25: R5 with todo_cleanup.txt Q5; T4 and R4. See Done.)
 
 Later, when wilson needs it:
     N2, N3  Normal modes: choose the shape [decide], then read the files that fail now. Before wilson G9. (N1's
@@ -104,23 +100,7 @@ Rules
 
 T. Tests and baseline
 ---------------------
-[ ] T4  CFOUR vs Gaussian test: formaldehyde HF/cc-pVTZ in both (refinedc4/HFcc_pVTZ, dftGaussian/FORM/HFcc_pVTZ).
-        The only check here that does not assume CQCParse is right.
-        HF/cc-pVQZ works too since C2 (all but the geometry and normal modes, which need MOLDEN).
-        Done for the force constants (C3): test_cfour_matches_gaussian (tests/test_force_constants.py), cff,
-        cff_rc, qff, qff_rc in both basis sets. Modes matched by harmonic frequency, absolute values compared.
-        Measured: within 2.1e-4 of each tensor's largest term, except qff_rc HF/cc-pVQZ at 7.5e-4. That is one
-        small term, (4,4,5,6) in Gaussian's numbering: 2.83 cm-1 in Gaussian, -2.40 in CFOUR, already so in the
-        two programs' files (a numerical difference between the programs, not a parser bug).
-        Left: dipgrad, diphess, polgrad, polhess, B, frequencies and states. These need the signs and the axes:
-        Found by hand on HF/cc-pVQZ (October 2026):
-            - harmonic frequencies agree to 0.1 cm-1, B to 1e-6
-            - mode match: CFOUR's ascending order = Gaussian's H order (see N); modes 4 and 5 have the opposite
-              sign (check whether 0- or 1-based); the y axis is flipped
-            - after the match, dipgrad, polgrad, diphess, polhess agree within 1.8e-4 of each tensor's largest
-              value (the hand check said the same of qff_rc, but the test above measures 7.5e-4)
-        Why it matters: it is the only check of the dipole and polarizability unit conversions (R4), and wilson's
-        EVV terms are built from these four. The matching code (modes, signs, axes) is also the start of X1.
+    T4  Done 2026-10-25: tests/test_cfour_vs_gaussian.py, see Done.
 [ ] T6  [wilson] Run wilson's tests after every change that moves a number. How, until L1 is done (wilson_gv's
         environment uses this working copy): give CQCParse.parsing stand-ins for the 7 deleted class names in
         memory, then run pytest on wilson_gv/src, e.g.
@@ -215,23 +195,7 @@ are here. How many digits each value the readers use has in the file:
         (formaldehyde loses nothing); possibly the largest remaining error for large, floppy molecules.
         First step: rerun ACAC with a lower cut-off; compare cff, qff and the VPT2 energies (and wilson's results)
         with the present run. Only then choose a way.
-[ ] R4  Write out the unit conversions of dipgrad, diphess, polgrad, polhess, as reduced_to_au does for the force
-        constants. Now:
-            - Gaussian (getDipDers_au, getPolarDers_au): the dipole values in Debye -> au (in parse_dipole_moment),
-              then / sqrt(m_u/m_e) for each mode index; the polarizability values are already in au. This assumes
-              the file's derivatives are per mass-weighted normal coordinate in amu^(1/2) Bohr; the file says only
-              "Unit of the property: Debye" (a.u. for the polarizability). Confirm, and write it down.
-            - CFOUR (getDipoleDers_anharm_au_simple, getPolarDers_pkl_au_simple): the reader takes the dipole files
-              and polar.pkl as derivatives in dimensionless normal coordinates q, in au; each mode index gets a
-              factor sqrt(w_i) (w in Hartree, convNu2Ene). The same per-index factor as in reduced_to_au, written a
-              second time, without a docstring. Could become one shared function.
-        T4 checks the result (the hand check: within 1.8e-4).
-        Also check the unit the file states: parse_dipole_moment and parse_polarizability read the "Unit of the
-        property" line, and nothing checks it (getDipDers_log drops it; parse_polarizability never returns it). The
-        Debye -> au factor holds only for "Debye". All 7 examples: "Debye" (dipole), "a.u." (polarizability). Raise
-        for any other.
-        And rename the CFOUR *_simple functions: their other copies are gone since todo_cleanup Q4, so "_simple"
-        means nothing now.
+    R4  Done 2026-10-25 (with T4), see Done.
     R5  Done 2026-10-25 (todo_cleanup.txt Q5): CQCParse/tools/build_polar_pkl.py, see Done.
 
 
@@ -562,3 +526,40 @@ Done
         HFcc_pVQZ and HFcc_pVTZ holds every displaced run's POLAR and OMAT; test_rebuild_polar_pkl rebuilds each
         polar.pkl from it (first derivatives exactly, second within 1e-9). HFcc_pVDZ has polar.pkl only.
         Found: the reference run must not be rotated; polarData*.pkl store it rotated (todo_cleanup.txt Q11).
+    T4 (2026-10-25)  CFOUR vs Gaussian for the rest: tests/test_cfour_vs_gaussian.py, formaldehyde HF/cc-pVTZ and
+        HF/cc-pVQZ in both programs. The only check that does not assume CQCParse is right.
+        Matching: modes by harmonic frequency (Gaussian's A order -> CFOUR's ascending order: [4, 3, 2, 0, 5, 1]);
+        the axes, the signed permutation of x, y, z (of 48) that fits best; the mode signs, fitted to the first
+        derivatives. Neither fit can hide a wrong unit factor. Found: the identity fits (not "y flipped" as the
+        hand check said); Gaussian modes 0 and 5 have the opposite sign. For a symmetric molecule several axes fit
+        equally (a mirror plane flips an axis and some mode signs together), so "the y axis is flipped" and
+        "the identity" can both be right.
+        Measured (cc-pVTZ / cc-pVQZ): harmonic frequencies within 0.003 cm-1; dipgrad 4.2e-6 / 6.5e-7, diphess
+        7.0e-5 / 5.3e-5, polgrad 1.8e-6 / 5.9e-7, polhess 4.6e-5 / 6.9e-5 of each tensor's largest value; B within
+        5e-7 of the value; harmonic states (all 83) within 0.01 cm-1. Test bounds: 0.05 cm-1, 2e-4, 1e-5, 0.05 cm-1.
+        Anharmonic states: the same for the 19 states of nu1-nu3 (within 0.39 cm-1; bound 1 cm-1). The others
+        differ by the programs' resonance treatment, not the readers: Gaussian finds a Fermi resonance nu5 = nu3 +
+        nu6 (gap 130 cm-1) and a 2-2 Darling-Dennison resonance of nu4 and nu6 and treats them variationally; CFOUR
+        removes resonant terms only below a gap of 50 cm-1. So nu5 differs by 29 cm-1, states with nu4, nu5 or nu6
+        by up to 141 cm-1. Matters for wilson: VPT2 energies from the two programs differ where resonances are.
+        Checked that the test fails on a unit error: with CFOUR's frequency factor 1% off, all 8 derivative tests
+        fail.
+        Not checked here: coriolis (axis-vector components; wilson uses only zeta^2), normal_modes (N3).
+    R4 (2026-10-25, with T4)  The unit conversions of dipgrad, diphess, polgrad, polhess, written out and checked.
+            - CQCParse.utils.dimensionless_to_mass_weighted(tensor, harmonic_cm, n_mode_axes): derivatives by
+              dimensionless q -> by mass-weighted Q in au, a factor sqrt(nu_i / Eh) per mode index. reduced_to_au
+              uses it now (the same operations: its values are identical). HARTREE_CM and AMU_IN_ME are module
+              constants in utils.
+            - CFOUR: getDipoleDers_anharm_au and getPolarDers_pkl_au (renamed from *_simple) use it; their values
+              moved by 2.5e-15 relative per mode index (they took Eh through convNu2Ene's constants; now through
+              HARTREE_CM, as reduced_to_au), within the baseline's 1e-12. convNu2Ene deleted (no caller left).
+            - Gaussian: getDipDers_au and getPolarDers_au use AMU_IN_ME; values identical.
+            - Docstrings with the formulas and one worked example, the same mode in both programs: formaldehyde
+              HF/cc-pVTZ, the B1 mode (1337 cm-1), x. Gaussian: 0.119586 Debye amu^(-1/2) a0^(-1) * 0.393430 /
+              42.6953 = 1.1020e-3. CFOUR: 0.0141179696 * sqrt(1337.152 / 219474.63) = 1.1020e-3.
+            - Confirmed by T4: Gaussian's derivatives are per normal coordinate in amu^(1/2) a0 (the file says only
+              the unit of mu); CFOUR's dipole files and polar.pkl are per dimensionless q, in au.
+            - Unit lines checked: parse_dipole_moment raises unless "Unit of the property: Debye",
+              parse_polarizability unless "a.u." (test_gaussian_unexpected_unit). All examples have these.
+        Tests 285 -> 303 (16 in test_cfour_vs_gaussian.py, 2 unit tests); baseline unchanged (not rewritten);
+        wilson's full run: 963 pass, 30 fail, 1 error, as before.

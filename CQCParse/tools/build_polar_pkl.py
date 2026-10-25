@@ -6,7 +6,7 @@ polar.pkl is not a CFOUR file. The CFOUR reader (parse_from_source: 'polgrad', '
     first   (n, 3, 3)      d alpha / d q_k
     second  (n, n, 3, 3)   d2 alpha / d q_k d q_l
 with alpha in au and the n vibrational modes in ascending CFOUR order (index 0 = CFOUR mode 7 for a nonlinear
-molecule). The reader takes q as dimensionless normal coordinates (getPolarDers_pkl_au_simple).
+molecule). The reader takes q as dimensionless normal coordinates (getPolarDers_pkl_au).
 
 Input: one CFOUR polarizability run per displaced geometry, and the reference (undisplaced) run:
     <polar_dir>/<k>p, <polar_dir>/<k>n               mode k displaced by +h, -h

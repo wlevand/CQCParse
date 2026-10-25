@@ -5,10 +5,31 @@ from scipy import constants
 
 PKG_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:
-    """Convert wavenumber (cm-1) to energy (Hartree)"""
-    hartree2J = constants.physical_constants['hartree-joule relationship'][0]
-    return reciprocal_cm * (100 * constants.h * constants.c / hartree2J)
+HARTREE_CM = constants.physical_constants['hartree-inverse meter relationship'][0] / 100   # 1 Hartree in cm-1
+# m_u / m_e: a mass-weighted coordinate in amu^(1/2) a0 is sqrt(AMU_IN_ME) times the same in m_e^(1/2) a0
+AMU_IN_ME = (constants.physical_constants['atomic mass constant'][0]
+             / constants.physical_constants['atomic unit of mass'][0])
+
+
+def dimensionless_to_mass_weighted(tensor: np.ndarray, harmonic_cm: np.ndarray, n_mode_axes: int) -> np.ndarray:
+    """
+    Derivatives by dimensionless normal coordinates q -> by mass-weighted normal coordinates Q, in atomic units.
+
+    q_i = Q_i * sqrt(w_i / hbar) (see reduced_to_au), so d/dQ_i = sqrt(w_i / hbar) * d/dq_i: each mode index
+    brings one factor sqrt(nu_i / Eh), with nu_i the harmonic wavenumber in cm-1 (hbar = 1, Eh = HARTREE_CM).
+    The value's own unit stays (e.g. a dipole in e a0); only the coordinate changes, to m_e^(1/2) a0.
+
+    tensor: its first n_mode_axes axes are mode indices, in the order of harmonic_cm; the other axes (x, y, z)
+        get no factor
+    harmonic_cm: the harmonic wavenumbers in cm-1, shape (n_modes,)
+    """
+    sqrt_w = np.sqrt(np.asarray(harmonic_cm, dtype=np.float64) / HARTREE_CM)    # sqrt(w_i / hbar) in au
+    out = np.asarray(tensor, dtype=np.float64)
+    for axis in range(n_mode_axes):                                             # one factor per mode index
+        shape = [1] * out.ndim
+        shape[axis] = -1
+        out = out * sqrt_w.reshape(shape)
+    return out
 
 
 def reduced_to_au(fc_cm: np.ndarray, harmonic_cm: np.ndarray) -> np.ndarray:
@@ -35,13 +56,7 @@ def reduced_to_au(fc_cm: np.ndarray, harmonic_cm: np.ndarray) -> np.ndarray:
     fc_cm: the force constants in cm-1, a tensor of shape (n_modes,) * n (any order n)
     harmonic_cm: the harmonic wavenumbers in cm-1, in the same mode order, shape (n_modes,)
     """
-    hartree_cm = constants.physical_constants['hartree-inverse meter relationship'][0] / 100
-    sqrt_w = np.sqrt(np.asarray(harmonic_cm, dtype=np.float64) / hartree_cm)    # sqrt(w_i / hbar) in au
-    fc_au = np.asarray(fc_cm, dtype=np.float64) / hartree_cm
-    for axis in range(fc_au.ndim):                                               # one factor per index
-        shape = [1] * fc_au.ndim
-        shape[axis] = -1
-        fc_au = fc_au * sqrt_w.reshape(shape)
-    return fc_au
+    fc_au = np.asarray(fc_cm, dtype=np.float64) / HARTREE_CM                    # the energy, cm-1 -> Hartree
+    return dimensionless_to_mass_weighted(fc_au, harmonic_cm, fc_au.ndim)       # every index is a mode index
 
 

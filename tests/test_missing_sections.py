@@ -55,6 +55,18 @@ def test_gaussian_missing_coriolis(tmp_path):
         parse('gaussian', path, 'coriolis')
 
 
+@pytest.mark.parametrize('name, unit, other', [('dipgrad', 'Debye', 'a.u.'), ('polgrad', 'a.u.', 'Debye')])
+def test_gaussian_unexpected_unit(tmp_path, name, unit, other):
+    """The conversions hold only for the dipole in Debye and the polarizability in a.u. (todo R4): another unit
+    line raises. Each example file has one unit line of each."""
+    with open(G16_FORM) as file:
+        text = file.read()
+    path = tmp_path / 'g16.out'
+    path.write_text(text.replace(f'Unit of the property: {unit}', f'Unit of the property: {other}'))
+    with pytest.raises(ValueError, match='unit line'):
+        parse('gaussian', path, name)
+
+
 def test_gaussian_normal_modes_one_mode():
     """CO has 1 mode: no table of 3 modes, which is all the reader reads (todo N2). It returned 0 modes."""
     with pytest.raises(ValueError, match='normal-mode table'):

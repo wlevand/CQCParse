@@ -7,13 +7,14 @@
 #
 # Files:
 #     - .log  --- the main full output file that contains all the relevant data
-#     - .fchk --- formcheck (generated from checkpoint file)
 """
 
 import logging
 import sys
 
 import numpy as np
+
+from CQCParse.utils import AMU_IN_ME
 
 logger = logging.getLogger("CQCParse")
 
@@ -171,10 +172,11 @@ def get_detected_resonances_g16(file_content: list[str]) -> list[str]:
 
 def getDipDers_log(logfile: list[str]) -> tuple:
     """
-    Dipole derivatives: first order and second order
+    Dipole derivatives: first order and second order, in e a0 (parse_dipole_moment converts from Debye) per
+    Gaussian's normal coordinates, amu^(1/2) a0; getDipDers_au turns these into atomic units.
     Return: tuple[np.ndarray - shape(NM, 3), np.ndarray - shape(NM, NM, 3)]
     """
-    dipl, units = parse_dipole_moment(logfile)
+    dipl, _ = parse_dipole_moment(logfile)
     a2d = dipl.loc[dipl['P'] == 'P1', ['X', 'Y', 'Z']].to_numpy()
     shpNM = a2d.shape[0]
     a2d2 = dipl.loc[dipl['P'] == 'P2', ['X', 'Y', 'Z']].to_numpy()
@@ -188,17 +190,24 @@ def getDipDers_log(logfile: list[str]) -> tuple:
 
 def getDipDers_au(logfile: list[str]) -> tuple:
     """
-    1a.u. = 2.541746Debye
+    dipgrad (n, 3) and diphess (n, n, 3) in atomic units: dmu/dQ_i and d2mu/dQ_i dQ_j, with mu in e a0 and Q the
+    mass-weighted normal coordinates in m_e^(1/2) a0 (wilson's contract).
+
+    Gaussian prints the derivatives by its normal coordinates in amu^(1/2) a0, with mu in Debye ("Unit of the
+    property: Debye", checked by parse_dipole_moment). Two factors:
+        mu: 1 Debye = 0.393430 e a0 (parse_dipole_moment, debye_to_au)
+        Q: Q[m_e^(1/2) a0] = sqrt(m_u / m_e) * Q[amu^(1/2) a0], so each mode index brings 1 / sqrt(m_u / m_e)
+           = 1 / 42.6953 (AMU_IN_ME = m_u / m_e = 1822.888)
+        dipgrad = dmu/dQ [Debye amu^(-1/2) a0^(-1)] * 0.393430 / 42.6953
+        diphess = d2mu/dQ2 [Debye amu^(-1) a0^(-2)] * 0.393430 / 1822.888
+    Example, formaldehyde HF/cc-pVTZ, mode 4 (B1, 1337 cm-1), x: Gaussian prints 0.119586, so dipgrad =
+    0.119586 * 0.393430 / 42.6953 = 1.1020e-3. CFOUR gives the same by another route (getDipoleDers_anharm_au);
+    tests/test_cfour_vs_gaussian.py checks every value.
     """
     a2d, a2d2_3d = getDipDers_log(logfile)
-    from scipy import constants
-    # to go from amu to au mass unit (m_e)
-    amc_au = constants.physical_constants['atomic mass constant'][0] / \
-             constants.physical_constants['atomic unit of mass'][0]
 
-    # transformation from Gaussian to Wilson units
-    firstder = a2d / np.sqrt(amc_au)
-    secder = a2d2_3d / amc_au
+    firstder = a2d / np.sqrt(AMU_IN_ME)
+    secder = a2d2_3d / AMU_IN_ME
     return tuple([firstder, secder])
 
 def getPolarDers_log(logfile: list[str]) -> tuple:
@@ -240,14 +249,17 @@ def getPolarDers_log(logfile: list[str]) -> tuple:
     return tuple([p1_3d, p2_4d])
 
 def getPolarDers_au(logfile: list[str]) -> tuple:
-    from scipy import constants
-    # to go from amu to au mass unit (m_e)
-    amc_au = constants.physical_constants['atomic mass constant'][0] / \
-             constants.physical_constants['atomic unit of mass'][0]
+    """
+    polgrad (n, 3, 3) and polhess (n, n, 3, 3) in atomic units: d alpha/dQ_i and d2 alpha/dQ_i dQ_j, with alpha in
+    au and Q in m_e^(1/2) a0, as getDipDers_au.
 
+    Gaussian prints alpha in au already ("Unit of the property: a.u.", checked by parse_polarizability), per its
+    normal coordinates in amu^(1/2) a0. So only the coordinate changes: each mode index brings 1 / sqrt(m_u / m_e)
+    = 1 / 42.6953 (see getDipDers_au). Checked against CFOUR (tests/test_cfour_vs_gaussian.py).
+    """
     p1_3d, p2_4d = getPolarDers_log(logfile)
-    fdpol = p1_3d / np.sqrt(amc_au)
-    sdpol = p2_4d / amc_au
+    fdpol = p1_3d / np.sqrt(AMU_IN_ME)
+    sdpol = p2_4d / AMU_IN_ME
 
     return tuple([fdpol, sdpol])
 
@@ -407,6 +419,9 @@ def parse_dipole_moment(lines: list[str]) -> tuple[pd.DataFrame, str]:
 
     if not results:
         raise ValueError('no dipole derivatives: no "Electric Dipole" section with P rows')
+    # the values were converted with debye_to_au above: that holds only for Debye
+    if units_line is None or 'Debye' not in units_line:
+        raise ValueError(f'dipole derivatives: unit line {units_line!r}, expected "Unit of the property: Debye"')
     df = pd.DataFrame(results, columns=column_names)
 
     return df, units_line
@@ -416,7 +431,7 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
 
     results = []
     start = False
-    # units_line = None
+    units_line = None
     column_names = ["P", "i", "j", "k", "comp", "X", "Y", "Z"]
     last_ijk = [np.nan, np.nan, np.nan]  # last seen "i", "j", "k" values
 
@@ -466,6 +481,9 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
                 results.append(row)
     if not results:
         raise ValueError('no polarizability derivatives: no "Polarizability Tensor" section with P rows')
+    # the values are taken as atomic units, with no conversion
+    if units_line is None or 'a.u.' not in units_line:
+        raise ValueError(f'polarizability derivatives: unit line {units_line!r}, expected "Unit of the property: a.u."')
     df = pd.DataFrame(results, columns=column_names)
     array = df.to_numpy()
 
