@@ -1,0 +1,170 @@
+CQCParse — cleanup and stabilization TODO
+started 2026-10-25, branch cleanup_claude
+A separate list with one goal. The physics items stay in todo.txt; items named here by their todo.txt id (T4, R4,
+A6, ...) have their full entry there. Q items are new: found in a review of the code on 2026-10-25.
+
+
+Goal
+----
+Clean code, and a core that gives the right numbers or a clear error.
+"Core" = what wilson uses: parse_from_source, the two readers behind it, PKG_ROOT, setup_logger (todo.txt, Rules).
+
+Done when:
+    1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
+    2. CQCParse holds only code that the core or the tests use. Tools kept for the example files are marked as such
+       (Q3, Q4, Q5).
+    3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, an empty
+       section in a file (Q6, Q7, Q8, A6).
+    4. The unit conversion of each property is written out once, and checked against the other program (T4, R4).
+    5. wilson's tests pass with this branch (L1, T6).
+
+Not part of this goal (they stay in todo.txt): R2, N1-N3 (except N1's first step), X1, A3, A4, L2. These are new
+physics choices or wilson features, not fixes.
+
+
+How to work
+-----------
+The rules of todo.txt apply. In short:
+    - After each change: CQCParse's tests (248 pass, about 3 s) and the baseline (T2).
+    - A cleanup must not move a number. If the baseline moves during a cleanup, stop and find out why.
+    - A change that moves a number on purpose (only T4/R4 here): give the reason in the commit message, and run
+      wilson's tests too (T6).
+    - Before each delete: search the name in CQCParse, tests and wilson_gv/src. The dead-code check (Q4) follows
+      names, so a name used only as a string (getattr, a file name) would be missed.
+
+
+Order
+-----
+    1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
+    2. Q1      rich: a runtime import, but only a dev dependency.
+    3. Q2      One install file: pyproject.toml.
+    4. Q3      Star imports out of CQCParse.parsing and CQCParse.
+    5. Q4      Delete dead code.
+    6. Q5      The pickle builders: keep the polar.pkl one, apart from the reader. Do with R5.
+    7. Q6      Clear errors in parse_from_source and parse_gaussian16_output.
+    8. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
+    9. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
+   10. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
+   11. N1      First step: docstring note on the mode orders (todo.txt).
+   12. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
+               out (todo.txt). The only step here that may move numbers. Q8's units_line note belongs here.
+   13. Q9      [decide] Example files that nothing reads.
+
+
+Q. New findings (2026-10-25)
+----------------------------
+[ ] Q1  `import CQCParse` needs rich, but pyproject.toml lists rich only under the dev dependencies. A plain
+        `pip install .` does not install it. Checked: with rich blocked, `import CQCParse` raises ModuleNotFoundError.
+        Two imports: CQCParse/__init__.py imports debug.py (`from rich import print`), and logger.py imports
+        RichHandler. wilson calls setup_logger (logger.py).
+        Fix: add rich to [project] dependencies (one line). debug.py goes in Q4 anyway.
+[ ] Q2  Three install files disagree:
+            - pyproject.toml: version 0.1.0; numpy, scipy, pandas; build backend hatchling.
+            - setup.py: version 0.1.1, no dependencies, placeholder description and author.
+            - requirements.txt: pins numpy 1.26 and pandas 2.2 (and setuptools), no scipy.
+        `pip install .` (the README's way, and wilson_gv's README) reads only pyproject.toml. The hatchling backend
+        ignores setup.py, and nothing reads requirements.txt. uv.lock pins the versions.
+        Fix: delete setup.py and requirements.txt. Keep pyproject.toml.
+[ ] Q3  CQCParse/parsing/__init__.py has four star imports (`from .module import *`). They copy every function of
+        parseCFOUR_forWilson, parseCFOUR_extra, parseGaussian_forWilson and parseGaussian_extra into
+        CQCParse.parsing. The modules share names (parse_coriolis, GHz2Nu, convNu2Ene); the last import wins, so
+        CQCParse.parsing.parse_coriolis is the Gaussian one. A shadowed name like these already hid one bug (C3).
+        Who uses CQCParse.parsing directly: wilson only `from CQCParse.parsing import parse_from_source`; the tests
+        import everything else by the full module path.
+        Fix: keep only `from .parse_wilson_obtainer import parse_from_source`.
+        Same in CQCParse/__init__.py: it exports debug, change_idx_modes and change_idx_states, all dead (Q4).
+        Keep parsing, relay and utils.
+[ ] Q4  Dead code: no path to it from parse_from_source, setup_logger or PKG_ROOT, and no test uses it. wilson_gv
+        uses none of it (checked: wilson_gv imports from CQCParse only parse_from_source, PKG_ROOT, setup_logger,
+        relay, and the dead lines of L1). All of it stays in git history.
+            - debug.py: the whole file (9 functions).
+            - parsing/parseGaussian_extra.py: the whole file (.fchk readers and FormchkInterface; no .fchk file in
+              the repo).
+            - parsing/parseCFOUR_extra.py: pDIPDER, describe_structure, unpickle, dictinfo, hessianfromout,
+              solve_quadratic, gethessinmat, getrotproj, extract_anharmvib, computeRedMass4nm.
+              pNORMCO and get_anharmonic_fundamentals: used only by their tests (tests/test_parseCFOUR.py,
+              test_pNORMCO and test_get_anharmonic_fundamentals). Delete them with their tests; then the whole file
+              goes.
+            - parsing/parseGaussian_forWilson.py: get_detected_resonances_g16, remove_extra_g16, normal_modes_prec,
+              nm_matrix_check, reordered_modes, lower_triangular_to_full_matrix, parse_matrix_section,
+              parse_anharmonic_x_matrix, GHz2Nu.
+            - parsing/parseCFOUR_forWilson.py: get_detected_resonances_c4, getDipoleDers_anharm_au and
+              getPolarDers_pkl_au (older versions of the *_simple functions the reader uses), pTensor, GHz2Nu,
+              bohr_in_angstroms. Not the pickle builders: see Q5.
+              The "# used" / "# not used" comments there (left unchecked by L6): delete them; this list replaces
+              them.
+            - utils.py: change_idx_modes, change_idx_states, make_modes_idx.
+            - relay/modes_reindexing.py: reindex_result_data. clean_noise: used only by its test.
+            - relay/relay_data.py, DataVault: used only by its test (tests/test_relay_data.py). wilson's two uses
+              are dead lines (todo.txt, Rules). [decide] keep as a tool for finding calculation folders, or delete
+              with its test and files_examples/calculations.csv.
+        Tests: the count drops by the tests of deleted code. The baseline must not change.
+[ ] Q5  Pickle builders in parsing/parseCFOUR_forWilson.py. Nothing in the reader calls them; each writes a .pkl
+        file:
+            - polar.pkl: pklPolder -> getPolarDers -> getDisplacementsPolarData, getRotationMatrix. The CFOUR
+              reader reads polar.pkl (polgrad, polhess). These four are the only record of how it was made (R5).
+            - not read by anything: pklPoldata (polarData.pkl, polarData_raw.pkl), pklDimless_normal_modes
+              (dimensionless.pkl), pklOutFile (vibdata.pkl), getDipoleDers and pklDipole, pklCubic.
+        Fix: move the four polar.pkl functions out of the reader into their own module, e.g.
+        CQCParse/tools/build_polar_pkl.py, with the R5 docstring (step, formulas, OMAT rotation, which displaced
+        runs a user needs). Delete the other builders. Their .pkl files: Q9.
+        test_getRotationMatrix moves with getRotationMatrix.
+[ ] Q6  Bad input to parse_from_source gives no clear error. Run on Gaussian formaldehyde HF/cc-pVTZ:
+            - an unknown name, e.g. requested_data {'bogus_name': None}: no error. The result holds only
+              reindex_modes. So a misspelled name gives a missing key later, far from the cause.
+            - source_type 'Gaussian' (capital G) or any other unknown type: returns None, with no error.
+              The caller then fails, e.g. TypeError: 'NoneType' object is not iterable.
+            - parse_gaussian16_output wraps each section in try/except: print() the error, then raise
+              ValueError("smth went wrong"), with no file name and no section name (parse_wilson_obtainer.py
+              138-198).
+        Fix:
+            - unknown source_type: raise ValueError that names 'gaussian' and 'cfour'.
+            - unknown names: first list the names wilson's requests hold (wilson_data_obtainer.py). Raise
+              ValueError only for names that neither reader knows, so wilson's requests keep working.
+            - the try/except blocks: delete them (the original error is clearer), or raise with the section name
+              and the file path, `from e`. No print().
+            - stale comments: the FIXME at parse_wilson_obtainer.py:151 ("atoms may not be defined"): atoms is
+              always defined now; the real problem is 0 atoms (A6, N2). Point it there. The "todo: finish
+              parse_cfour_output" at line 87: check what is missing, then say it or delete the comment.
+        New test: each of the cases above raises ValueError.
+[ ] Q7  parse_from_source(..., reindex_modes=True) crashes unless the request holds every tensor. Run on Gaussian
+        formaldehyde HF/cc-pVTZ:
+            - request ['cff']: KeyError 'modes_mapping'.
+            - request ['cff', 'modes_mapping', 'normal_modes']: KeyError 'coriolis'.
+        Causes: the loop reindexes all 9 tensor names without checking that each is in the result; modes_mapping
+        and normal_modes must be requested by hand; the mode count comes from normal_modes, which fails on ACAC,
+        ACDM and CO (N2). No test runs this path. wilson never passes reindex_modes (no field in DataOriginInfo).
+        Whether reindex_modes stays at all is part of N1.
+        Now: raise a clear error (or fix the loop: skip missing names, read modes_mapping and the mode count
+        without asking the user for them). Add a test either way.
+[ ] Q8  Small fixes. None should move a number; the baseline checks that.
+            - zip() without strict=True on the core path, 4 places: getDipDers_log (parseGaussian_forWilson.py:175),
+              parse_mode_mapping (parseGaussian_forWilson.py:936), parse_cfour_output (parse_wilson_obtainer.py:334
+              and 344, state labels paired with energies). zip() stops at the shorter list, so a missing line in a
+              file drops data with no error. strict=True raises instead.
+            - parse_polarizability (parseGaussian_forWilson.py:439): `('|  X  |' in line or '|  Z  |')` is always
+              true (a non-empty string). Harmless today: in the example files, only X and Z rows reach this branch
+              (Y rows start with "P" and go to the branch above). Fix: `'|  X  |' in line or '|  Z  |' in line`.
+            - parse_polarizability (parseGaussian_forWilson.py:414): units_line is read but never used. For R4: check
+              that it says "a.u.", and raise otherwise.
+            - print('linear') in parse_coriolis (parseGaussian_forWilson.py:87), on every linear molecule. Delete,
+              or log at debug level. The other print() calls go with Q4 and Q6.
+            - convNu2Ene: two copies (utils.py and parseCFOUR_forWilson.py, same code). Keep the one in utils.py,
+              import it in parseCFOUR_forWilson.py.
+            - ruff (in the dev dependencies) reports 117 findings, mostly style, many in the code of Q4. Run it
+              after Q4; apply `ruff check --fix` (the safe fixes only) as its own commit.
+[ ] Q9  [decide] Example files that nothing reads. During a full test run, 33 of the 77 files in files_examples are
+        never opened:
+            - 4 Gaussian inputs (.com): keep; they show how each run was made.
+            - 29 CFOUR files the reader does not read: coriolis, corioliszeta, quadratic (in CCSDTcc_pVQZ,
+              HFcc_pVQZ, HFcc_pVTZ); dimensionless.pkl, polarData.pkl, polarData_raw.pkl (same 3 folders);
+              CCSDTcc_pVQZ/outfile0.out; HFcc_pVDZ DIPDER, DIPOL, FCMFINAL, POLAR; HFcc_pVQZ FCMFINAL, normcoord;
+              HFcc_pVTZ QUADRATURE, cubic.pkl, dipolexyz.pkl, vibdata.pkl.
+        Choose: keep them as raw program output (and say so in one line per folder), or delete them. Small (the
+        .pkl files are 200 KB in all). After Q5: the .pkl files of the deleted builders have no code left that
+        writes them.
+
+
+Done
+----
+(none yet)
