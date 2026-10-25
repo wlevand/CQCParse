@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from CQCParse.parsing.parseCFOUR_forWilson import getRotationMatrix, pMOLDEN, pQUADRATURE, parse_output_file
+from CQCParse.parsing.parseCFOUR_forWilson import pMOLDEN, pQUADRATURE, parse_output_file
 from CQCParse.utils import PKG_ROOT
 
 # formaldehyde, CFOUR VPT2 runs
@@ -11,11 +11,6 @@ C4_CCSDT = PKG_ROOT + '/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ'
 def read_lines(path):
     with open(path, 'r') as file:
         return file.readlines()
-
-def test_getRotationMatrix():
-    rotation_matrix = getRotationMatrix(C4_HF + '/outfile0.out')
-    ref_rotmat = np.array([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]])
-    assert np.allclose(rotation_matrix, ref_rotmat)
 
 def test_pMOLDEN_geometry_data():
     geometry_data, atoms, normal_modes_dict = pMOLDEN(C4_HF + '/MOLDEN')

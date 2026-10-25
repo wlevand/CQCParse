@@ -14,7 +14,7 @@
 #     - FCMFINAL                     --- non-mass-weighted Hessian matrix in columns (xyz)
 #     - DIPOL                        --- dipole moment (a.u.)
 #     - DIPDER                       --- dipole moment first order derivatives (cartesian)
-#     - POLAR                        --- static polarizability (a.u.)
+#     - POLAR                        --- static polarizability (a.u.); read by CQCParse.tools.build_polar_pkl
 #     - out                          --- the final output file in anharmonic parallel procedure:
 #                            1) All levels with up to three quanta frequencies; 2) equilibrium geometry;
 #                            3) normal coordinates, non-mass-weighted (a.u.); 4) F(IJKK)/a.u ; 5) F(IJKK)/cm-1 ;
@@ -25,7 +25,6 @@
 """
 
 import numpy as np
-import os
 import pickle
 from scipy import constants
 
@@ -169,46 +168,6 @@ def parse_output_file(filepath: str):
 
     else:
         print('\nNo anharmonic levels information in this file')
-
-def pTensor(filepath: str):
-    """
-    Parsing DIPOL or POLAR or FCMFINAL files
-
-    :return: np.ndarray tensor of dipole moment or polarizability
-    """
-    alines = []
-
-    with open(filepath, 'r') as file:
-        lines = file.readlines()
-    start = 1 if len(lines[0].strip().split())==2 else 0
-    alines.extend([np.array([float(k) for k in i.strip().split()]) for i in lines[start:]])
-
-    return np.array(alines) #.reshape((-1, 3 * na))
-
-def getRotationMatrix(filepath: str) -> np.array:
-    """
-    Parsing outfile0.out to get the rotation matrix for xyz axes
-    :param filepath:
-    :return: OMAT transformation (rotation) matrix from outfile which is printed when PRINT_LEVEL=1
-    """
-    with open(filepath, 'r') as file:
-        file_content = file.read()
-    if 'Transformation matrix between QCOM and QCOMP (OMAT)' in file_content:
-        start_index = file_content.find("(QCOM = OMAT * QCOMP,")
-        end_index = file_content.find("test:  OMAT * QCOMP = ", start_index)
-        omat_section = file_content[start_index:end_index]
-        newlinebreak = omat_section.find("\n")
-        coords_section = omat_section[newlinebreak:][1:-1].split('\n')
-
-        omat_array = []
-        for L in coords_section[:-1]:
-            ll = np.array([float(i) for i in L.strip().split() if '.' in i])
-            omat_array.append(ll)
-        omat_array = np.array(omat_array)
-
-        return omat_array
-    else:
-        print('No rotation matrix found in this outfile')
 
 def get_detected_resonances_c4(filepath: str):
 
@@ -423,143 +382,6 @@ def getPolarDers_pkl_au_simple(polar_pkl_file: str, fund_harmonic_energies_array
 
     return tuple([fdpol, sdpol])
 
-def getDisplacementsPolarData(polar_dir: str, raw: bool = False):
-    """
-    Collecting the POLAR files data and also rotates is according to the matrix from the corresponding outfile0.out
-    :param raw:
-    :param polar_dir: where polar calcs were done
-
-    :return:
-    """
-    import os
-    directories = [d for d in os.listdir(polar_dir) if os.path.isdir(os.path.join(polar_dir, d))]
-    allpolardata = {}
-    allpolardataRaw = {}
-
-    for directory in directories:
-        dir_path = os.path.join(polar_dir, directory)
-
-        polar_file_path = dir_path + '/POLAR'
-        poldata = pTensor(polar_file_path)
-        R = getRotationMatrix(dir_path + '/outfile0.out')
-
-        allpolardataRaw[directory] = (poldata, R)
-        # First, we transform one rank: temp = R α
-        temp = np.einsum('ij,jk->ik', R.T, poldata)
-        # Then, we transform the other rank: α' = temp R^T
-        alpha_prime = np.einsum('ij,jk->ik', temp, R)
-
-        # 'ij, j -> i'
-        # 'ij, jk -> ik', 'nk, ik -> in'
-        allpolardata[directory] = alpha_prime
-
-    if raw:
-        return allpolardataRaw
-    else:
-        return allpolardata
-
-def getPolarDers(polar_dir: str):
-    """
-    Computing polarizability derivatives
-    :param polar_dir: where optimization was done
-    :return:
-    """
-
-    data = getDisplacementsPolarData(polar_dir)
-    data['equil'] = pTensor(polar_dir + '/../anharm/POLAR')
-    print(f'Equilibrium polarizability in {polar_dir + "/../anharm/POLAR"}')
-    print(sorted(list(data.keys())))
-
-    import re
-    # Extract all numbers from directory names
-    numbers = set()
-    pattern = re.compile(r'\d+')
-    for name in list(data.keys()):
-        numbers.update(map(int, pattern.findall(name)))
-
-    min_num = min(numbers)
-    max_num = max(numbers)
-    size = max_num - min_num + 1
-
-    import os
-    directories = [d for d in os.listdir(polar_dir) if os.path.isdir(os.path.join(polar_dir, d))]
-    nums = [h.strip('np').split('_') for h in directories]
-    flattened_list = [item for sublist in nums for item in sublist]
-    flattened_list = set([int(g) for g in flattened_list])
-
-    firstder = {}
-
-    for f in flattened_list:
-        firstder[f] = (data[f'{f}p'] - data[f'{f}n']) / 0.02
-
-    secondders = {}
-
-    # (∂²α_ij/∂Q_k∂Q_l) ≈ [α_ij(Q_k + ΔQ_k, Q_l + ΔQ_l) - α_ij(Q_k + ΔQ_k, Q_l - ΔQ_l)
-    #   - α_ij(Q_k - ΔQ_k, Q_l + ΔQ_l) + α_ij(Q_k - ΔQ_k, Q_l - ΔQ_l)] / (4 * ΔQ_k * ΔQ_l)
-    for k in flattened_list:
-        for m in flattened_list:
-            if k < m:
-                val = (data[f'{k}_{m}pp'] - data[f'{k}_{m}pn'] - data[f'{k}_{m}np'] + data[f'{k}_{m}nn']) / (
-                            4 * 0.01 * 0.01)
-                secondders[(k, m)] = val
-                secondders[(m, k)] = val
-
-    # (∂²α_ij/∂Q_k²) ≈ [α_ij(Q_k + ΔQ_k) - 2α_ij(Q_k) + α_ij(Q_k - ΔQ_k)] / (ΔQ_k)²
-    for b in flattened_list:
-        secondders[(b, b)] = (data[f'{b}p'] - 2 * data['equil'] + data[f'{b}n']) / 0.01 ** 2
-
-    polder = []
-    for p in firstder:
-        polder.append(firstder[p])
-    first = np.array(polder)
-
-    second = np.zeros((size, size, 3, 3))
-    indices_to_insert = list(secondders.keys())
-    # Insert the matrices at the specified indices
-    for index, mat in zip(indices_to_insert, list(secondders.values())):
-        i, j = index
-        second[i - 7, j - 7] = mat
-
-    return first, second
-
-def pklPolder(polar_dir):
-    first, second = getPolarDers(polar_dir)
-    filenamec = 'polar.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump((first, second), file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    return filenamec
-
-def pklPoldata(polar_dir):
-    allpolardata = getDisplacementsPolarData(polar_dir)
-    rawdata = getDisplacementsPolarData(polar_dir, raw=True)
-
-    poldataeq = pTensor(polar_dir + '/../anharm/POLAR')
-    R = getRotationMatrix(polar_dir + '/../anharm/outfile0.out')
-    temp = np.einsum('ij,jk->ik', R.T, poldataeq)
-    alpha_prime = np.einsum('ij,jk->ik', temp, R)
-    allpolardata['equil'] = alpha_prime
-
-    rawdata['equil'] = (alpha_prime, R)
-    filenamec = 'polarData.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump(allpolardata, file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    filenamec2 = 'polarData_raw.pkl'
-
-    with open(filenamec2, 'wb') as file:
-        pickle.dump(rawdata, file)
-
-    print(f'\n --> {filenamec2} file created\n')
-
-    return filenamec
-
 def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """Dimensionless normal coordinates are here, in QUADRATURE file"""
 
@@ -610,25 +432,7 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.nd
     normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat))
     return np.array(undisplaced_matrix), freqs, normal_coordinates
 
-def pklDimless_normal_modes(quadratureFile):
-    equilibrium_geometry, freqs, normal_modes = pQUADRATURE(quadratureFile)
-    filenamec = 'dimensionless.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump((equilibrium_geometry, freqs, normal_modes), file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    return filenamec
-
-
-"""
-1-parse_output_file,
-2-pCubicORQuartic, 3-getCubicPost,
-4-getDipoleDers_anharm,
-'polar_pkl' file <- 5-getPolarDers(6-getDisplacementsPolarData, 
-                    7-getRotationMatrix, 8-pTensor), 
-                    9-pklPolder"""
+# polar.pkl, read by getPolarDers_pkl_au_simple, is built by CQCParse.tools.build_polar_pkl
 # -----------------------------------------------------------------------------
 
 def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
@@ -689,100 +493,6 @@ def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, 
 
     return geometry_data, atoms, normal_modes_dict
 
-
-def pklOutFile(outfile):
-    import pickle
-
-    data = parse_output_file(outfile)
-    filenamedata = 'vibdata.pkl'
-
-    with open(filenamedata, 'wb') as file:
-        pickle.dump(data, file)
-
-    print(f'\n --> {filenamedata} file created\n')
-    return os.getcwd()+'/'+filenamedata
-
-
-def getDipoleDers(filenamebase: str, outfile: str):
-    """
-    Getting dipole moment derivatives tensors
-    :param filenamebase: basename for dipole(xyz) files, e.g, 'dipole'
-    :param outfile: out file - output of the anharmonic parallel procedure
-    :return:  dmudqarray - first order derivatives of dipole moment, (3N-6, 3)
-              dmudqdarray - second order derivatives of dipole moment, (3N-6, 3N-6, 3)
-    """
-    dipx = pDipole(filenamebase + 'x')
-    dipy = pDipole(filenamebase + 'y')
-    dipz = pDipole(filenamebase + 'z')
-
-    things = parse_output_file(outfile)
-
-    labels = sorted(list(set([t[0] for t in things[0]])))
-    labels = [int(k) for k in labels]
-
-    dmudqdict = {}
-    dmudqdqdict = {}
-    dq = len(labels)
-    dmudqdqdict['x'] = np.zeros((dq, dq))
-    dmudqdqdict['y'] = np.zeros((dq, dq))
-    dmudqdqdict['z'] = np.zeros((dq, dq))
-
-    for L in labels:
-        if isinstance(L,int):
-            dmudqdict[L] = np.zeros(3)
-            if L in dipx:
-                dmudqdict[L][0] = dipx[L]
-            if L in dipy:
-                dmudqdict[L][1] = dipy[L]
-            if L in dipz:
-                dmudqdict[L][2] = dipz[L]
-
-    for L in dipx:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdqdict['x'][(L[0] - 7, L[1] - 7)] = dipx[L]
-
-    for L in dipy:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdqdict['y'][(L[0] - 7, L[1] - 7)] = dipy[L]
-
-    for L in dipz:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdqdict['z'][(L[0] - 7, L[1] - 7)] = dipz[L]
-
-    dmudqarray = np.array(list(dmudqdict.values()))
-    dmudqdarray = np.array(list(dmudqdqdict.values())).T
-
-    return dmudqarray, dmudqdarray
-
-def pklDipole(filenamebase, outfile):
-    import pickle
-
-    print('\nPickling in pklDipole in', os.getcwd())
-
-    dmudqarray, dmudqdarray = getDipoleDers(filenamebase, outfile)
-    filename = 'dipolexyz.pkl'
-
-    with open(filename, 'wb') as file:
-        pickle.dump((dmudqarray, dmudqdarray), file)
-
-    print(f'\n --> {filename} file created\n')
-
-    return os.getcwd()+'/'+filename
-
-def pklCubic(cubicfile):
-
-    cubic = pCubicORQuartic(cubicfile)
-    filenamec = 'cubic.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump(cubic, file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    return filenamec
 
 # -----------------------------------------------------------------------------
 

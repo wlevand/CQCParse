@@ -12,7 +12,8 @@ CQCParse is a Python package for Parsing of Computational Quantum Chemistry (**C
   `parse_from_source`:
   - Gaussian 16: the `.out` file of an `Opt` + `Freq=(Anharmonic,ReadAnharm)` job
   - CFOUR: the folder of an anharmonic run (`out`, `cubic`, `quartic`, `dipolex`/`y`/`z`, `polar.pkl`,
-    `MOLDEN`)
+    `MOLDEN`). `polar.pkl` is not a CFOUR file: `CQCParse.tools.build_polar_pkl` builds it from separate
+    polarizability runs at displaced geometries.
 - Not general: made for the outputs of these job types (examples in `CQCParse/files_examples`).
 - What it reads:
   - harmonic and anharmonic vibrational states (cm-1) and harmonic frequencies

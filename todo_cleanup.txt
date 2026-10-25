@@ -12,7 +12,7 @@ Clean code, and a core that gives the right numbers or a clear error.
 Done when:
     1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
     2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
-       tested: the polar.pkl builder (Q5) and the readers for validating wilson (Q10) (Q3, Q4 done).
+       tested: the polar.pkl builder (Q5, done) and the readers for validating wilson (Q10) (Q3, Q4 done).
     3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, an empty
        section in a file (Q6, Q7, Q8, A6).
     4. The unit conversion of each property is written out once, and checked against the other program (T4, R4).
@@ -25,7 +25,7 @@ physics choices or wilson features, not fixes.
 How to work
 -----------
 The rules of todo.txt apply. In short:
-    - After each change: CQCParse's tests (252 pass, about 3 s on an idle machine) and the baseline (T2).
+    - After each change: CQCParse's tests (256 pass, about 3 s on an idle machine) and the baseline (T2).
     - A cleanup must not move a number. If the baseline moves during a cleanup, stop and find out why.
     - A change that moves a number on purpose (only T4/R4 here): give the reason in the commit message, and run
       wilson's tests too (T6).
@@ -37,32 +37,20 @@ Order
 -----
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py.
-    2. Q5      The pickle builders: keep the polar.pkl one, apart from the reader. Do with R5.
-    3. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
-    4. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
-    5. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
-    6. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
-    7. N1      First step: docstring note on the mode orders (todo.txt).
-    8. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
+    2. Q7      reindex_modes=True crashes: give a clear error now, decide the rest with N1.
+    3. Q8      Small fixes: zip(strict=True), an always-true condition, print() calls, duplicate helpers.
+    4. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
+    5. A6      First step: raise an error when the Gaussian geometry is empty (todo.txt).
+    6. N1      First step: docstring note on the mode orders (todo.txt).
+    7. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
                out (todo.txt). The only step here that may move numbers. Q8's units_line note belongs here.
-    9. Q9      [decide] Example files that nothing reads.
-Done: Q1, Q2, Q3, Q4, Q6 (see Done).
+    8. Q9      [decide] Example files that nothing reads.
+    9. Q11     [decide] polarData.pkl's 'equil' entry is in another frame than the other entries.
+Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6 (see Done).
 
 
 Q. New findings (2026-10-25)
 ----------------------------
-[ ] Q5  Pickle builders in parsing/parseCFOUR_forWilson.py. Nothing in the reader calls them; each writes a .pkl
-        file:
-            - polar.pkl: pklPolder -> getPolarDers -> getDisplacementsPolarData, getRotationMatrix, pTensor (reads
-              the POLAR files). The CFOUR reader reads polar.pkl (polgrad, polhess). These five are the only record
-              of how it was made (R5).
-            - not read by anything: pklPoldata (polarData.pkl, polarData_raw.pkl), pklDimless_normal_modes
-              (dimensionless.pkl), pklOutFile (vibdata.pkl), getDipoleDers and pklDipole, pklCubic.
-        Fix: move the five polar.pkl functions out of the reader into their own module, e.g.
-        CQCParse/tools/build_polar_pkl.py, with the R5 docstring (step, formulas, OMAT rotation, which displaced
-        runs a user needs). Delete the other builders. Their .pkl files: Q9. The builders' print() calls: logger,
-        or keep them (a script's output), but not in the reader.
-        test_getRotationMatrix moves with getRotationMatrix. pQUADRATURE stays in the reader module (N3).
 [ ] Q7  parse_from_source(..., reindex_modes=True) crashes unless the request holds every tensor. Run on Gaussian
         formaldehyde HF/cc-pVTZ:
             - request ['cff']: KeyError 'modes_mapping'.
@@ -85,24 +73,32 @@ Q. New findings (2026-10-25)
             - parse_polarizability (parseGaussian_forWilson.py:408): units_line is read but never used. For R4: check
               that it says "a.u.", and raise otherwise.
             - print() in the core path: print('linear') in parse_coriolis (parseGaussian_forWilson.py:81), on every
-              linear molecule; parse_output_file (parseCFOUR_forWilson.py:171), getRotationMatrix (:211) and
-              pQUADRATURE (:681). Delete, or log at debug/warning level. The others: Q5 (the builders).
-              parse_wilson_obtainer.py has none since Q6.
+              linear molecule; parse_output_file (parseCFOUR_forWilson.py:170) and pMOLDEN (:485). Delete, or log
+              at debug/warning level (parse_output_file then returns None: better raise). parse_wilson_obtainer.py
+              has none since Q6, the polar.pkl builder none since Q5.
             - convNu2Ene: two copies (utils.py and parseCFOUR_forWilson.py, same code). Keep the one in utils.py,
               import it in parseCFOUR_forWilson.py.
             - ruff (in the dev dependencies) reports many findings, mostly style; rerun it now that Q4 is done.
               Apply `ruff check --fix` (the safe fixes only) as its own commit. Two left from before:
               test_wilson_obtainer.py:4 imports parse_cfour_output and parse_gaussian16_output, unused.
-[ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q4), 34 of the 76 files in
+[ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q5), 30 of the 76 files in
         files_examples are never opened:
             - 4 Gaussian inputs (.com): keep; they show how each run was made.
-            - 30 CFOUR files the reader does not read: coriolis, corioliszeta, quadratic (in CCSDTcc_pVQZ,
-              HFcc_pVQZ, HFcc_pVTZ); dimensionless.pkl, polarData.pkl, polarData_raw.pkl (same 3 folders);
-              CCSDTcc_pVQZ/outfile0.out; HFcc_pVDZ DIPDER, DIPOL, FCMFINAL, NORMCO (its test went with Q4), POLAR;
-              HFcc_pVQZ FCMFINAL, normcoord; HFcc_pVTZ QUADRATURE, cubic.pkl, dipolexyz.pkl, vibdata.pkl.
+            - 26 CFOUR files the reader does not read: coriolis, corioliszeta, quadratic (in CCSDTcc_pVQZ,
+              HFcc_pVQZ, HFcc_pVTZ); dimensionless.pkl, polarData.pkl (same 3 folders); CCSDTcc_pVQZ/outfile0.out;
+              HFcc_pVDZ DIPDER, DIPOL, FCMFINAL, NORMCO; HFcc_pVQZ FCMFINAL, normcoord; HFcc_pVTZ QUADRATURE,
+              cubic.pkl, dipolexyz.pkl, vibdata.pkl.
+        The .pkl files whose writers Q5 deleted (checked 2026-10-25, against the readers on the files in the repo):
+            - same data as a reader gives: vibdata.pkl = parse_output_file(out); cubic.pkl = pCubicORQuartic(cubic);
+              dipolexyz.pkl = the old getDipoleDers(dipole, out), which the reader's getDipoleDers_anharm matches
+              (dipgrad exactly, diphess within 3e-7 of 2e-2: the averaging of C1); dimensionless.pkl =
+              pQUADRATURE(QUADRATURE) in CCSDTcc_pVQZ and HFcc_pVTZ. These can go.
+            - the only copy: HFcc_pVQZ/dimensionless.pkl (that folder has no QUADRATURE). Keep, or replace by its
+              QUADRATURE file if it can be found.
+            - polarData.pkl: polarData_raw.pkl's tensors rotated (the same within 4e-15); the raw file is the one
+              the polar.pkl test reads. See Q11.
         Choose: keep them as raw program output (and say so in one line per folder), or delete them. Small (the
-        .pkl files are 200 KB in all). After Q5: the .pkl files of the deleted builders have no code left that
-        writes them.
+        .pkl files are 200 KB in all).
 [ ] Q10 Readers kept for validating wilson's results against the programs' own VPT2 (decided 2026-10-25: keep).
         Nothing calls them and no test checks them, so mark them and test them:
             - parse_anharmonic_x_matrix (parseGaussian_forWilson.py:682), with its helpers
@@ -117,7 +113,7 @@ Q. New findings (2026-10-25)
               `"Resonance Analysis" in file_content` tests the list of lines for an element equal to that string;
               no line is, so the body never runs. The files do have the section: formaldehyde HF/cc-pVTZ lists 1
               active Fermi resonance, ACAC 8.
-            - get_detected_resonances_c4 (parseCFOUR_forWilson.py:213): broken, always returns []. It reads the
+            - get_detected_resonances_c4 (parseCFOUR_forWilson.py:172): broken, always returns []. It reads the
               file as one string, then loops over it, so `line` is one character. In the 4 CFOUR examples, "Resonance
               between" does not occur anyway, so the right answer there is also []; no example tests a hit.
         Fix: the two loops (one line each); a test per reader (X matrix: shape, symmetry, parts sum to the total;
@@ -125,6 +121,17 @@ Q. New findings (2026-10-25)
         made-up one as in test_cfour_linear_mode_numbers); one docstring line on each: "Validation only: not used by
         parse_from_source."
         Later, maybe: return them through parse_from_source under new names, so wilson can compare by itself.
+[ ] Q11 [decide] polarData.pkl and polarData_raw.pkl (pklPoldata, CQCParse/tools/build_polar_pkl.py) store the
+        reference run as 'equil' ROTATED BY ITS OWN OMAT. That is a different frame than the other entries: in all 3
+        folders the unrotated reference equals the mean of each mode's two rotated displaced tensors within 1.5e-5
+        au, the rotated one is off by up to 5 au (its OMAT swaps x and y, flips z). getPolarDers (polar.pkl) uses
+        the unrotated one, so polar.pkl is right (it is rebuilt exactly, test_rebuild_polar_pkl; and T4's hand
+        check found polhess within 1.8e-4 of Gaussian's). Only a user of polarData*.pkl's 'equil' gets it wrong.
+        Now documented in pklPoldata's docstring.
+        Choose: fix pklPoldata (store the unrotated reference, with an identity OMAT in the raw file) and rewrite
+        the 3 pairs of files from themselves (R @ alpha' @ R.T); or keep, as documented. Also open: why the
+        reference needs no rotation. The data say so; the likely reason is that each displaced run's OMAT maps to
+        the reference run's frame, not to the input frame. Not checked in CFOUR's documentation.
 
 
 Done
@@ -243,3 +250,26 @@ Done
         file without frequencies: ValueError with the note; CFOUR folder without files: FileNotFoundError with the
         note). Tests 245 -> 252.
         wilson's full test run (T6 stand-ins): 963 pass, 30 fail, 1 collection error, as before.
+    Q5 (2026-10-25, with todo.txt R5)  The polar.pkl builder is its own module, CQCParse/tools/build_polar_pkl.py,
+        out of the reader; the other pickle writers are deleted, their data stays available through the readers.
+            - moved from parseCFOUR_forWilson.py: pTensor, getRotationMatrix, getDisplacementsPolarData,
+              getPolarDers, pklPolder, pklPoldata (writes polarData.pkl and polarData_raw.pkl: the inputs of
+              polar.pkl, so kept).
+            - getPolarDers split: polar_derivatives(rotated, reference, step=STEP) holds the finite differences, so
+              a test can run them without the runs. Same operations as before; also no longer hardcodes CFOUR mode 7
+              as index 0 (it takes the lowest mode in the run names), and sorts the modes (it relied on a set's
+              order).
+            - the module docstring is R5: what polar.pkl holds, the folder layout of the runs, the OMAT rotation,
+              the step and the formulas, and that the reference run is not rotated (checked, see Q11).
+            - print() -> logger.info; getRotationMatrix raises ValueError when outfile0.out has no OMAT (it printed
+              and returned None, and the rotation then failed on None).
+            - deleted (data still available, checked equal on the repo files, see Q9): pklDimless_normal_modes
+              (pQUADRATURE), pklOutFile (parse_output_file), getDipoleDers and pklDipole (the reader's
+              getDipoleDers_anharm), pklCubic (pCubicORQuartic). Also the old pipeline note string and the unused
+              `import os` in parseCFOUR_forWilson.py.
+            - README: polar.pkl is not a CFOUR file; the module builds it.
+        New tests (tests/test_build_polar_pkl.py): test_rebuild_polar_pkl (3 folders: polar.pkl rebuilt from
+        polarData_raw.pkl, first derivatives exactly, second within 1e-9), test_pTensor_polar,
+        test_getRotationMatrix (moved from test_parseCFOUR.py). Tests 252 -> 256; baseline unchanged.
+        Checked: a fresh wheel holds CQCParse/tools (with uv, rebuild with --reinstall-package cqcparse: uv reuses
+        a cached wheel while pyproject.toml is unchanged). wilson's full run: 963 pass, 30 fail, 1 error, as before.

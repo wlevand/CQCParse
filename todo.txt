@@ -37,12 +37,12 @@ Now, in this order. After each change that moves a number: CQCParse's tests, the
             The force constants are done (C3). Needs the mode signs and the axes.
     3. R4   Write out the unit conversion of dipgrad, diphess, polgrad, polhess, as reduced_to_au does for the
             force constants. Do with T4, which checks it.
-    4. R5   Say where CFOUR's polar.pkl comes from: built outside the reader, from runs not in the repo.
-    5. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
+    4. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
             cut-off and measure what changes. Then decide.
-    6. A6   Gaussian geometry is empty for ACAC and ACDM, silently. First: raise an error instead. Then the fix.
-    7. N1   First: say in parse_from_source's docstring that normal_modes is in another mode order (H) than the
+    5. A6   Gaussian geometry is empty for ACAC and ACDM, silently. First: raise an error instead. Then the fix.
+    6. N1   First: say in parse_from_source's docstring that normal_modes is in another mode order (H) than the
             rest (A). The choice itself waits for wilson G9.
+(R5 done with todo_cleanup.txt Q5, see Done.)
 
 Later, when wilson needs it:
     N1-N3   Normal modes: choose the mode order and the shape [decide], then fix the crashes. Before wilson G9.
@@ -220,12 +220,7 @@ are here. How many digits each value the readers use has in the file:
               factor sqrt(w_i) (w in Hartree, convNu2Ene). The same per-index factor as in reduced_to_au, written a
               second time, without a docstring. Could become one shared function.
         T4 checks the result (the hand check: within 1.8e-4).
-[ ] R5  CFOUR polgrad and polhess come from polar.pkl, built outside the reader by getPolarDers /
-        getDisplacementsPolarData (parseCFOUR_forWilson.py) from POLAR files of displaced runs, rotated back with
-        each run's OMAT matrix; finite differences with step 0.01 (first: (p - n)/0.02; second: (pp - pn - np +
-        nn)/(4 * 0.01^2); diagonal: (p - 2 eq + n)/0.01^2). The displaced runs are not in the repo, so nobody can
-        rebuild or check polar.pkl from here. Write this down next to the reader (docstring), with the step and
-        the formulas, and say which folders a user must have to rebuild it.
+    R5  Done 2026-10-25 (todo_cleanup.txt Q5): CQCParse/tools/build_polar_pkl.py, see Done.
 
 
 P. Speed
@@ -511,3 +506,11 @@ Done
     Examples (2026-10-23)  Added formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ,
         dftGaussian/FORM/HFcc_pVTZ): a complete CFOUR-Gaussian pair for T4. Both are in the baseline (T2) and the
         contract test (T3).
+    R5 (2026-10-25, with todo_cleanup.txt Q5)  Where polar.pkl comes from: the docstring of
+        CQCParse/tools/build_polar_pkl.py (the builder, moved there out of the reader). It gives the folder layout
+        a user needs (one run per displaced geometry, <k>p, <k>n, <k>_<l>pp/pn/np/nn, and ../anharm for the
+        reference), the OMAT rotation, the step 0.01 and the three formulas.
+        Not true any more: "nobody can rebuild or check polar.pkl from here". polarData_raw.pkl in CCSDTcc_pVQZ,
+        HFcc_pVQZ and HFcc_pVTZ holds every displaced run's POLAR and OMAT; test_rebuild_polar_pkl rebuilds each
+        polar.pkl from it (first derivatives exactly, second within 1e-9). HFcc_pVDZ has polar.pkl only.
+        Found: the reference run must not be rotated; polarData*.pkl store it rotated (todo_cleanup.txt Q11).
