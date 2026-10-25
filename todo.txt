@@ -225,6 +225,12 @@ are here. How many digits each value the readers use has in the file:
               factor sqrt(w_i) (w in Hartree, convNu2Ene). The same per-index factor as in reduced_to_au, written a
               second time, without a docstring. Could become one shared function.
         T4 checks the result (the hand check: within 1.8e-4).
+        Also check the unit the file states: parse_dipole_moment and parse_polarizability read the "Unit of the
+        property" line, and nothing checks it (getDipDers_log drops it; parse_polarizability never returns it). The
+        Debye -> au factor holds only for "Debye". All 7 examples: "Debye" (dipole), "a.u." (polarizability). Raise
+        for any other.
+        And rename the CFOUR *_simple functions: their other copies are gone since todo_cleanup Q4, so "_simple"
+        means nothing now.
     R5  Done 2026-10-25 (todo_cleanup.txt Q5): CQCParse/tools/build_polar_pkl.py, see Done.
 
 

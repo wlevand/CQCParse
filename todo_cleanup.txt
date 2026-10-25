@@ -9,18 +9,20 @@ Goal
 Clean code, and a core that gives the right numbers or a clear error.
 "Core" = what wilson uses: parse_from_source, the two readers behind it, PKG_ROOT, setup_logger (todo.txt, Rules).
 
-Done when:
-    1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
-    2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
-       tested: the polar.pkl builder (Q5, done) and the readers for validating wilson (Q10) (Q3, Q4 done).
-    3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, a
-       missing or empty section in a file (Q6, Q7, Q12 with A6's first step done; Q8's zip left).
-    4. The unit conversion of each property is written out once, and checked against the other program (T4, R4).
-    5. wilson's tests fail only for wilson's own reasons: today 17 failures and 1 collection error that CQCParse
-       main gives too (L1, T6).
+Done when ([x] met, [~] partly, [ ] open; as of Q12):
+    [x] 1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
+    [~] 2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
+           tested: the polar.pkl builder (Q5, done) and the readers for validating wilson (Q10, open).
+    [~] 3. Bad input gives a clear error, never a wrong or empty result: an unknown name, a wrong source_type, a
+           missing section in a file (Q6, Q7, Q12 done). Left: a section cut short (Q8's zip).
+    [ ] 4. The unit conversion of each property is written out once, and checked against the other program (T4, R4).
+    [ ] 5. wilson's tests fail only for wilson's own reasons: today 17 failures and 1 collection error that CQCParse
+           main gives too (L1, T6, in wilson_gv).
+    [ ] 6. The branch is on main, with a list of what changed for users (Q13).
 
-Not part of this goal (they stay in todo.txt): R2, N1-N3 (except N1's first step), X1, A3, A4, L2. These are new
-physics choices or wilson features, not fixes.
+Not part of this goal (they stay in todo.txt): R2, N1-N3 (except N1's first step), X1, A3, A4, L2, and A6's fix
+(reading the geometry of ACAC and ACDM: a clear error now, so no wrong data). These are new physics choices or
+features, not fixes.
 
 
 How to work
@@ -36,43 +38,45 @@ The rules of todo.txt apply. In short:
 
 Order
 -----
-Reviewed 2026-10-25 (after Q7): the two risks left of wrong numbers with no error are Q12 (missing sections give
-zeros) and T4/R4 (unit conversions of the dipole and polarizability derivatives nobody checks). The rest is small.
+Reviewed again after Q12: the one risk left of wrong numbers with no error is T4/R4 (the unit conversions of the
+dipole and polarizability derivatives: nothing checks them, and wilson's EVV terms are built from them). The rest
+is small. Functions are named, not line numbers: those move with every change.
     1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
                Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py. Independent of the
-               rest; any time, but before wilson uses this branch.
-    2. Q8      Small fixes: zip(strict=True) (the same kind of silent loss as Q12, for a section cut short), an
-               always-true condition, print('linear'), duplicate helper, ruff.
+               rest; any time, but before Q13.
+    2. Q8, N1  Small fixes, one sitting: zip(strict=True) (a section cut short), an always-true condition,
+               print('linear'), a duplicate helper, ruff; and N1's first step (a docstring note on the mode orders,
+               todo.txt). Q7's leftover goes with N1's choice, later.
     3. T4, R4  CFOUR vs Gaussian test of the dipole and polarizability derivatives; their unit conversion written
-               out (todo.txt). The only step here that may move numbers. Q8's units_line note belongs here.
-    4. N1      First step: docstring note on the mode orders (todo.txt). Q7's leftover goes with N1's choice.
-    5. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
-    6. Q9      [decide] Example files that nothing reads.
-    7. Q11     [decide] polarData.pkl's 'equil' entry is in another frame than the other entries.
+               out, with a check of the units the Gaussian file states (todo.txt). The only step here that may move
+               numbers.
+    4. Q10     Readers kept for validating wilson: fix the two resonance readers, add tests, mark them.
+    5. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
+               choice for polarData.pkl changes Q11.
+    6. Q13     Finish: merge to main, version, the list of changes for users.
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step) (see Done).
 
 
 Q. New findings (2026-10-25)
 ----------------------------
 [ ] Q8  Small fixes. None should move a number; the baseline checks that.
-            - zip() without strict=True on the core path, 4 places: getDipDers_log (parseGaussian_forWilson.py:182),
-              parse_mode_mapping (parseGaussian_forWilson.py:839), parse_cfour_output (parse_wilson_obtainer.py:357
-              and 367, state labels paired with energies). zip() stops at the shorter list, so a missing line in a
-              file drops data with no error. strict=True raises instead.
-            - parse_polarizability (parseGaussian_forWilson.py:454): `('|  X  |' in line or '|  Z  |')` is always
-              true (a non-empty string). Harmless today: in the example files, only X and Z rows reach this branch
-              (Y rows start with "P" and go to the branch above). Fix: `'|  X  |' in line or '|  Z  |' in line`.
-            - parse_polarizability (parseGaussian_forWilson.py:429): units_line is read but never used. For R4: check
-              that it says "a.u.", and raise otherwise.
-            - print('linear') in parse_coriolis (parseGaussian_forWilson.py:85), on every linear molecule: delete,
-              or log at debug level. The last print() in the core path; Q12 turned the other two into errors.
+            - zip() without strict=True on the core path, 4 places: getDipDers_log and parse_mode_mapping
+              (parseGaussian_forWilson.py), parse_cfour_output (2, state labels paired with energies). zip() stops
+              at the shorter list, so a missing line in a file drops data with no error. strict=True raises instead.
+            - parse_polarizability: `('|  X  |' in line or '|  Z  |')` is always true (a non-empty string).
+              Harmless today: in the example files, only X and Z rows reach this branch (Y rows start with "P" and
+              go to the branch above). Fix: `'|  X  |' in line or '|  Z  |' in line`.
+            - print('linear') in parse_coriolis (Gaussian), on every linear molecule: delete, or log at debug level.
+              The last print() in the core path; Q12 turned the other two into errors. Then tests/test_baseline.py's
+              parse() needs no redirect_stdout ("the readers print a lot").
             - convNu2Ene: two copies (utils.py and parseCFOUR_forWilson.py, same code). Keep the one in utils.py,
               import it in parseCFOUR_forWilson.py.
-            - ruff (in the dev dependencies): 79 findings after Q7 (117 before Q4), nearly all style: unused
+            - ruff (in the dev dependencies): 79 findings after Q12 (117 before Q4), nearly all style: unused
               unpacked variables 26, import order 20, module names 8. None that hides an error in CQCParse (the
               try-except-pass and blind excepts are in tests/test_baseline.py, on purpose). Apply `ruff check --fix`
-              (the safe fixes only) as its own commit. Also test_wilson_obtainer.py:4 imports parse_cfour_output and
+              (the safe fixes only) as its own commit. Also test_wilson_obtainer.py imports parse_cfour_output and
               parse_gaussian16_output, unused.
+            (The units_line note moved to R4: the unit check is part of the unit conversion.)
 [ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q5), 30 of the 76 files in
         files_examples are never opened:
             - 4 Gaussian inputs (.com): keep; they show how each run was made.
@@ -91,9 +95,16 @@ Q. New findings (2026-10-25)
               the polar.pkl test reads. See Q11.
         Choose: keep them as raw program output (and say so in one line per folder), or delete them. Small (the
         .pkl files are 200 KB in all).
+        Recommended: keep the raw CFOUR files (coriolis, corioliszeta, quadratic, NORMCO, ...: the program's own
+        output, maybe needed later, e.g. corioliszeta for X1 or N3); delete the derived .pkl files that a reader
+        rebuilds from files in the same folder (vibdata, cubic, dipolexyz, and dimensionless.pkl where QUADRATURE is
+        there) and polarData.pkl (polarData_raw.pkl holds the same, unrotated); keep HFcc_pVQZ/dimensionless.pkl
+        (the only copy). Then Q11 concerns only polarData_raw.pkl.
+        (The counts above are from before Q12: test_missing_sections.py now copies the HFcc_pVTZ folder, which opens
+        its files, but no reader reads the ones listed.)
 [ ] Q10 Readers kept for validating wilson's results against the programs' own VPT2 (decided 2026-10-25: keep).
         Nothing calls them and no test checks them, so mark them and test them:
-            - parse_anharmonic_x_matrix (parseGaussian_forWilson.py:722), with its helpers
+            - parse_anharmonic_x_matrix (parseGaussian_forWilson.py), with its helpers
               lower_triangular_to_full_matrix and parse_matrix_section: Gaussian's X matrix (anharmonic constants,
               cm-1). Returns a dict: coriolis_contributions, 3rd_deriv_contributions, 4th_deriv_contributions,
               total_anharmonic (n x n arrays) and matrix_size.
@@ -101,11 +112,11 @@ Q. New findings (2026-10-25)
               total_anharmonic within the file's print rounding (gap at most 8e-3 cm-1, ACDM; 4e-4 to 7e-4 for
               formaldehyde).
               To check before use: the mode order of the X matrix (A or H order, see N1).
-            - get_detected_resonances_g16 (parseGaussian_forWilson.py:150): broken, always returns None.
+            - get_detected_resonances_g16 (parseGaussian_forWilson.py): broken, always returns None.
               `"Resonance Analysis" in file_content` tests the list of lines for an element equal to that string;
               no line is, so the body never runs. The files do have the section: formaldehyde HF/cc-pVTZ lists 1
               active Fermi resonance, ACAC 8.
-            - get_detected_resonances_c4 (parseCFOUR_forWilson.py:183): broken, always returns []. It reads the
+            - get_detected_resonances_c4 (parseCFOUR_forWilson.py): broken, always returns []. It reads the
               file as one string, then loops over it, so `line` is one character. In the 4 CFOUR examples, "Resonance
               between" does not occur anyway, so the right answer there is also []; no example tests a hit.
         Fix: the two loops (one line each); a test per reader (X matrix: shape, symmetry, parts sum to the total;
@@ -124,19 +135,33 @@ Q. New findings (2026-10-25)
         the 3 pairs of files from themselves (R @ alpha' @ R.T); or keep, as documented. Also open: why the
         reference needs no rotation. The data say so; the likely reason is that each displaced run's OMAT maps to
         the reference run's frame, not to the input frame. Not checked in CFOUR's documentation.
+        Recommended: keep as documented. Nothing reads 'equil' (test_rebuild_polar_pkl undoes the rotation), and
+        rewriting example files from themselves adds a step nobody can check against the runs. Fix pklPoldata only
+        if it is run again on new runs. With Q9's recommendation, only polarData_raw.pkl is left.
+        Also, for whoever touches these files: polar.pkl is a pickle, which the reader loads (pickle.load runs code
+        from the file, and a pickle of numpy arrays can fail to load in another numpy version). A .npz file
+        (np.load with allow_pickle=False) would be safer. Not needed for wilson now.
+[ ] Q13 Finish (found in the review after Q12: nothing in the plan said how the work reaches users).
+            - after L1/T6 in wilson_gv: merge cleanup_claude into main.
+            - version: pyproject.toml says 0.1.0. Since then, for a user: errors where there were zeros or empty
+              results (Q6, Q7, Q12); names gone from CQCParse (debug, convNu2Ene, change_idx_modes,
+              change_idx_states, CQCParse.relay.DataVault, the parsing star exports: Q3, Q4); rich no longer
+              installed (Q4). Raise it, e.g. to 0.2.0.
+            - the list of these changes for users: in the README or the merge message (no todo names there: the
+              README is public).
 
 
 Done
 ----
-    Q1 (2026-10-25)  rich is a runtime dependency now. `import CQCParse` needs rich: CQCParse/__init__.py imports
-        debug.py (`from rich import print`), and logger.py imports RichHandler (wilson calls setup_logger). Before,
+    Q1 (2026-10-25; undone the same day by Q4 part 1, rich is gone)  rich made a runtime dependency.
+        `import CQCParse` needed rich: CQCParse/__init__.py imported
+        debug.py (`from rich import print`), and logger.py imported RichHandler (wilson calls setup_logger). Before,
         pyproject.toml listed rich only under the dev dependencies, so a plain `pip install .` left it out, and
         `import CQCParse` raised ModuleNotFoundError.
         Changes: pyproject.toml, rich moved from the dev group to [project] dependencies; uv.lock updated (same
         versions, rich moved to the runtime list).
         Checked: a non-editable install from uv.lock without the dev group (no pytest, no ruff) imports CQCParse,
         parse_from_source and setup_logger. Tests 248 pass, baseline unchanged.
-        Later the same day, Q4 part 1: rich is gone altogether, so this entry's change is undone.
     Q2 (2026-10-25)  One install file: pyproject.toml. Deleted:
             - setup.py: version 0.1.1 (pyproject.toml: 0.1.0), no dependencies, placeholder description and author.
               The hatchling build backend in pyproject.toml ignores it.
