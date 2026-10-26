@@ -281,16 +281,16 @@ X. Mixing origins (wilson S8)
 
 L. Legacy code and the rewrite
 ------------------------------
-[ ] L1  [wilson] CQCParse side done (see Done). Left, in wilson_gv's next PR: delete the dead import lines
+[x] L1  [wilson] CQCParse side done (see Done). Left, in wilson_gv's next PR: delete the dead import lines
         wilson_intensities/utils/utils.py:8 and 11, and the unused Conditions and prep_data_load that name the
         classes in type hints. Needed now: until then `import wilson_suite` fails with this branch
-        (ImportError: cannot import name 'CFOURParser' from 'CQCParse.parsing').
+        (ImportError: cannot import name 'CFOURParser' from 'CQCParse.parsing'). (cqcparse_cleanup branch)
         Same PR: DataVault is deleted here too (todo_cleanup.txt, Q4 part 2). Delete script_example.py:140-143
         (builds a vault, never uses it) and src/wilson_suite/parsing.py (nothing imports it).
-[ ] L2  [wilson] wilson_gv's setup.sh:14 clones the CQCParse branch `tests`, which does not exist (only main).
+[x] L2  [wilson] wilson_gv's setup.sh:14 clones the CQCParse branch `tests`, which does not exist (only main).
         setup.sh looks like a leftover of the old layout with one repo per package: it also clones the wilson-*
         repos, which are now folders in src/wilson_suite. wilson_gv's README clones CQCParse main. Fix or delete
-        setup.sh.
+        setup.sh. (cqcparse_cleanup branch)
 
 
 Done
