@@ -5,7 +5,8 @@ CQCParse is right. It covers the dipole and polarizability derivatives, so it ch
 test_cfour_matches_gaussian (tests/test_force_constants.py).
 
 Matching the two results:
-    - modes: by harmonic frequency (Gaussian's A order against CFOUR's ascending order);
+    - modes: by harmonic frequency (both readers number them by ascending frequency, but two close modes could
+      swap between the programs);
     - the axes and the sign of each mode: each program orients the molecule its own way, and the sign of a normal
       coordinate is arbitrary. The axes: the signed permutation of x, y, z (one of 48) that fits best; the mode
       signs: fitted to the first derivatives. For a symmetric molecule several axes fit equally well (a mirror
@@ -49,7 +50,8 @@ def relative_gap(a, b):
 
 @pytest.fixture(scope='module', params=['cc-pVTZ', 'cc-pVQZ'])
 def pair(request):
-    g16, c4 = parse(f'g16_FORM_HF_{request.param}', NAMES), parse(f'c4_FORM_HF_{request.param}', NAMES)
+    g16 = parse(f'g16_FORM_HF_{request.param}', NAMES + ['modes_mapping'])
+    c4 = parse(f'c4_FORM_HF_{request.param}', NAMES)
     n = len(g16['nc_sqrt_eigval'])
     w_g16 = np.array([g16['nc_sqrt_eigval'][m] for m in range(n)])
     w_c4 = np.array([c4['nc_sqrt_eigval'][m] for m in range(n)])
@@ -105,14 +107,15 @@ def test_harmonic_states(pair):
 
 def test_anharmonic_states(pair):
     """
-    The states of nu1, nu2 and nu3 only (Gaussian modes 0, 1, 2) agree within 1 cm-1. The others differ by the
-    programs' resonance treatment, not by the readers: Gaussian finds a Fermi resonance nu5 = nu3 + nu6 (gap 130
-    cm-1) and a 2-2 Darling-Dennison resonance of nu4 and nu6, and treats them variationally; CFOUR removes
-    resonant terms only below a gap of 50 cm-1 ("Delta_omega = 50 cm-1" in its out file). So nu5 differs by 29
-    cm-1, and states with nu4, nu5 or nu6 by up to 141 cm-1.
+    The states of nu1, nu2 and nu3 only (Gaussian's A modes 1-3, renumbered by modes_mapping) agree within 1 cm-1.
+    The others differ by the programs' resonance treatment, not by the readers: Gaussian finds a Fermi resonance
+    nu5 = nu3 + nu6 (gap 130 cm-1) and a 2-2 Darling-Dennison resonance of nu4 and nu6, and treats them
+    variationally; CFOUR removes resonant terms only below a gap of 50 cm-1 ("Delta_omega = 50 cm-1" in its out
+    file). So nu5 differs by 29 cm-1, and states with nu4, nu5 or nu6 by up to 141 cm-1.
     """
     c4, g16 = mapped_states(pair, 'anharmonic_states'), pair['g16']['anharmonic_states']
     assert c4.keys() == g16.keys()
-    plain = [k for k in g16 if set(k) <= {'0', '1', '2'}]
+    nu1_to_nu3 = {str(pair['g16']['modes_mapping'][a] - 1) for a in (1, 2, 3)}
+    plain = [k for k in g16 if set(k) <= nu1_to_nu3]
     assert len(plain) == 19
     assert max(abs(c4[k] - g16[k]) for k in plain) < 1

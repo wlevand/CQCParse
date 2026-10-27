@@ -12,6 +12,7 @@ from CQCParse.parsing.parseGaussian_forWilson import (
     parse_cubic_constants,
     parse_quartic_constants,
 )
+from CQCParse.relay.modes_reindexing import build_permutation, reindex_tensor
 from CQCParse.utils import reduced_to_au
 from tests.test_baseline import BASE, EXAMPLES, SOURCES, parse
 
@@ -34,9 +35,10 @@ def test_matches_gaussian_column_k(source, name, order):
     """
     cff and qff, converted from column FI, agree with Gaussian's own column K on every term, within K's rounding:
     half its last decimal (0.5e-5 in amu units), plus a little from the rounding of FI and of the frequencies.
-    This checks the formula independently of the readers, for cubic and quartic alike (todo R1, C3).
+    This checks the formula independently of the readers, for cubic and quartic alike (todo R1, C3). Column K is in
+    Gaussian's A numbering: renumbered to the readers' order by modes_mapping (todo N1).
     """
-    data = parse(source, BASE + [name])
+    data = parse(source, BASE + [name, 'modes_mapping'])
     n = len(data['nc_sqrt_eigval'])
     lines = [line.strip() for line in open(EXAMPLES + '/' + SOURCES[source][1])]
     if order == 3:
@@ -45,6 +47,7 @@ def test_matches_gaussian_column_k(source, name, order):
     else:
         rows = parse_quartic_constants(lines)[0][['I', 'J', 'K', 'L', 'K(I,J,K,L)']].to_numpy()
         from_k = get_quartic_post(n, rows)
+    from_k = reindex_tensor(from_k, build_permutation(data['modes_mapping'], n), list(range(order)))
     from_k = from_k / AMU_IN_ME ** (order / 2)
     rounding = 0.5e-5 / AMU_IN_ME ** (order / 2)
     assert np.abs(data[name] - from_k).max() <= 1.5 * rounding
@@ -57,7 +60,7 @@ def test_cfour_matches_gaussian(basis, name):
     Formaldehyde HF in both programs: after matching the modes by harmonic frequency, the force constants agree
     within 1e-3 of the largest term (todo C3: CFOUR qff was about 570x too large). Absolute values, because some
     modes have the opposite sign in the two programs. Measured: up to 2.1e-4, and 7.5e-4 for qff_rc HF/cc-pVQZ (one
-    small term, (4,4,5,6) in Gaussian's numbering, differs already in the two programs' files).
+    small term, (4,4,5,6) in Gaussian's A numbering, differs already in the two programs' files).
     """
     names = ['nc_sqrt_eigval', name]
     g16, c4 = parse(f'g16_FORM_HF_{basis}', names), parse(f'c4_FORM_HF_{basis}', names)

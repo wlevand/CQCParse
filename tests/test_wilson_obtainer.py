@@ -7,7 +7,7 @@ from CQCParse.parsing.parse_wilson_obtainer import (
     parse_from_source,
 )
 from CQCParse.utils import PKG_ROOT
-from tests.test_baseline import ALL_NAMES, BASE, parse
+from tests.test_baseline import ALL_NAMES, BASE, EXAMPLES, SOURCES, parse
 
 FORM_PAIR = ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ']
 
@@ -126,33 +126,46 @@ def test_reader_error_names_the_file(tmp_path):
 
 
 G16_FORM = PKG_ROOT + '/CQCParse/files_examples/dftGaussian/FORM/HFcc_pVTZ/g16_inputFull_3q.out'
-# what reindex_modes=True needs: every tensor it renumbers (cff_rc and qff_rc come with cff and qff), the mapping
-# and normal_modes
-REINDEX_REQUEST = BASE + ['modes_mapping', 'normal_modes', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess',
-                          'cff', 'qff']
 
 
-@pytest.mark.parametrize('names, missing', [(['cff'], ['modes_mapping', 'normal_modes', 'coriolis']),
-                                            (['cff', 'modes_mapping', 'normal_modes'], ['coriolis', 'qff'])])
-def test_reindex_needs_every_tensor(names, missing):
-    """reindex_modes=True with a request that lacks a name it needs: ValueError naming the missing ones (todo_cleanup
-    Q7). It was KeyError 'modes_mapping' and KeyError 'coriolis', after the whole file was read."""
-    with pytest.raises(ValueError, match='missing') as err:
-        parse_from_source(names, 'gaussian', G16_FORM, lvl_theory='', basis_set='', reindex_modes=True)
-    assert all(repr(n) in str(err.value) for n in missing)
+@pytest.mark.parametrize('source', list(SOURCES))
+def test_modes_in_ascending_frequency(source):
+    """Both readers number the modes by ascending harmonic frequency (todo N1)."""
+    w = parse(source, ['nc_sqrt_eigval'])['nc_sqrt_eigval']
+    assert sorted(w) == list(range(len(w)))
+    assert all(w[m] <= w[m + 1] for m in range(len(w) - 1))
 
 
-def test_reindex_full_request():
-    """With every name it needs, reindex_modes=True renumbers the tensors from A to H order (todo_cleanup Q7)."""
+@pytest.mark.parametrize('source', [s for s, (kind, *_) in SOURCES.items() if kind == 'gaussian'])
+def test_normal_modes_in_the_order_of_the_rest(source):
+    """Gaussian: normal_modes[k] is the vibration of nc_sqrt_eigval[k] (todo N1). normal_modes comes from the
+    harmonic section, whose "Frequencies ---" lines give each mode's frequency; nc_sqrt_eigval from the anharmonic
+    section, renumbered from Gaussian's A order."""
+    with open(EXAMPLES + '/' + SOURCES[source][1]) as file:
+        lines = [line.strip() for line in file]
+    start = next(i for i, line in enumerate(lines) if 'Harmonic frequencies (cm**-1)' in line)
+    end = next(i for i in range(start + 1, len(lines)) if 'Harmonic frequencies (cm**-1)' in lines[i])
+    printed = [float(v) for line in lines[start:end] if line.startswith('Frequencies ---') for v in line.split()[2:]]
+    result = parse(source, ['nc_sqrt_eigval', 'normal_modes'])
+    assert len(result['normal_modes']) == len(printed)
+    assert [result['nc_sqrt_eigval'][m] for m in range(len(printed))] == pytest.approx(printed, abs=1e-3)
+
+
+def test_reindex_modes_false():
+    """reindex_modes=False: every key in Gaussian's A order, normal_modes included. The default renumbers them by the
+    file's A to H table (todo N1), whatever the request: a name alone gives the same value (test_name_alone)."""
     from CQCParse.relay.modes_reindexing import build_permutation
-    plain = parse_from_source(REINDEX_REQUEST, 'gaussian', G16_FORM, lvl_theory='', basis_set='')
-    reindexed = parse_from_source(REINDEX_REQUEST, 'gaussian', G16_FORM, lvl_theory='', basis_set='',
-                                  reindex_modes=True)
-    perm = build_permutation(plain['modes_mapping'], len(plain['normal_modes']))
-    assert reindexed['reindex_modes'] is True
-    np.testing.assert_array_equal(reindexed['dipgrad'], plain['dipgrad'][perm])
-    np.testing.assert_array_equal(reindexed['cff_rc'], plain['cff_rc'][np.ix_(perm, perm, perm)])
-    assert sorted(reindexed['nc_sqrt_eigval'].values()) == sorted(plain['nc_sqrt_eigval'].values())
+    names = BASE + ['modes_mapping', 'normal_modes', 'dipgrad', 'cff_rc']
+    h = parse_from_source(names, 'gaussian', G16_FORM, lvl_theory='', basis_set='')
+    a = parse_from_source(names, 'gaussian', G16_FORM, lvl_theory='', basis_set='', reindex_modes=False)
+    perm = build_permutation(h['modes_mapping'], len(h['normal_modes']))
+    assert h['reindex_modes'] is True and a['reindex_modes'] is False
+    assert sorted(perm) == list(range(len(perm))) and list(perm) != sorted(perm)
+    np.testing.assert_array_equal(h['dipgrad'], a['dipgrad'][perm])
+    np.testing.assert_array_equal(h['cff_rc'], a['cff_rc'][np.ix_(perm, perm, perm)])
+    for a_mode, h_mode in h['modes_mapping'].items():
+        assert h['nc_sqrt_eigval'][h_mode - 1] == a['nc_sqrt_eigval'][a_mode - 1]
+        np.testing.assert_array_equal(h['normal_modes'][h_mode - 1], a['normal_modes'][a_mode - 1])
 
 
 def test_reindex_ignored_for_cfour():

@@ -23,10 +23,11 @@ CQCParse is a Python package for Parsing of Computational Quantum Chemistry (**C
   - equilibrium geometry, atoms and normal modes
 - The same keys and shapes from both programs for the properties above (not yet for the geometry and the normal
   modes). Modes are numbered 0 .. n-1, and each tensor has every index order filled.
-- Not yet the same mode order: Gaussian results come in Gaussian's anharmonic-section order (in the examples, the
-  Mulliken numbering: by symmetry species, then descending frequency), CFOUR results and Gaussian's normal modes in
-  ascending frequency. So mode k from the two programs can be a different vibration; see `parse_from_source`'s
-  docstring.
+- One mode order: both programs' results number the modes by ascending harmonic frequency, in every key. Gaussian
+  numbers most of its output in another order; the reader renumbers it (`reindex_modes=False` keeps Gaussian's
+  order). Two close modes can still swap between methods, so mode k from two results can be a different vibration;
+  see `parse_from_source`'s docstring.
+- The equilibrium geometry is in the frame of the normal modes, so the two can be drawn together.
 
 ## Installation
 

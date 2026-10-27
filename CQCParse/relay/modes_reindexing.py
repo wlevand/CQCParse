@@ -24,37 +24,24 @@ def reindex_tensor(tensor: np.ndarray, perm: np.ndarray, mode_axes: list[int]) -
 
 def reindex_dict(states_dict, mapping):
     """
-    Will updata mapping here for numbering from 0, if no 0 key in mapping
+    Renumber the mode labels of a dict from A to H. mapping: A -> H, counted from 1 (from 0 if it has the key 0).
+    Keys: a mode number (nc_sqrt_eigval), or a state, a tuple of mode numbers as strings sorted as strings, as the
+    readers write them (e.g. ('10', '2'); () for the ground state).
     """
+    shift = 0 if 0 in mapping else 1
+    to_h = {a - shift: h - shift for a, h in mapping.items()}
+
     new_dict = {}
-    
-    # to python numbering from 0
-    upd_mapping = {}
-
-    if 0 not in mapping:
-        for h in mapping:
-            upd_mapping[h - 1] = mapping[h] - 1
-    else:
-        upd_mapping = mapping
-
-    # for nc_sqrt_eigval dict
-    if all([isinstance(i, int) for i in list(states_dict.keys())]):
-        for k,v in states_dict.items():
-            new_k = upd_mapping[k]
-            new_dict[new_k] = v
-    
-    # for anharmonic_states, harmonic_states
-    if all([isinstance(i, tuple) and isinstance(i[0], str) for i in list(states_dict.keys())]):
-        for k,v in states_dict.items():
-            new_list_int = sorted([upd_mapping[int(i)] for i in k])
-            new_k = tuple([str(i) for i in new_list_int])
-            new_dict[new_k] = v
-
+    for key, value in states_dict.items():
+        if isinstance(key, tuple):
+            new_dict[tuple(sorted(str(to_h[int(m)]) for m in key))] = value
+        else:
+            new_dict[to_h[key]] = value
     return new_dict
 
 def validate_mapping(mapping: dict[int, int], nmodes: int):
-    assert len(mapping) == nmodes, f"Expected {nmodes} entries, got {len(mapping)}"
-    assert set(mapping.keys()) == set(range(1, nmodes + 1)), "A-indices not complete"
-    assert set(mapping.values()) == set(range(1, nmodes + 1)), "H-indices not complete"
+    """mapping: A -> H, both counted from 1, a permutation of the nmodes modes; else ValueError."""
+    if not (len(mapping) == nmodes and set(mapping) == set(mapping.values()) == set(range(1, nmodes + 1))):
+        raise ValueError(f'the A to H mode table is not a permutation of modes 1 .. {nmodes}: {mapping}')
 
 

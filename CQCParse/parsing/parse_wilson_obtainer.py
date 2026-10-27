@@ -7,8 +7,10 @@ SOURCE_TYPES = ('gaussian', 'cfour')
 KNOWN_NAMES = ('equilibrium_geometry', 'atoms', 'normal_modes',
                'harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
                'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc', 'modes_mapping')
-# reindex_modes=True renumbers every one of these, so a request with it must hold them all
-REINDEXED_TENSORS = ('coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc')
+# what Gaussian numbers in its A order (its anharmonic section): the tensors, with their mode axes, and the dicts
+REINDEXED_TENSORS = {'coriolis': (1, 2), 'dipgrad': (0,), 'diphess': (0, 1), 'polgrad': (0,), 'polhess': (0, 1),
+                     'cff': (0, 1, 2), 'cff_rc': (0, 1, 2), 'qff': (0, 1, 2, 3), 'qff_rc': (0, 1, 2, 3)}
+REINDEXED_DICTS = ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval')
 
 
 @contextmanager
@@ -36,7 +38,7 @@ def parse_from_source(requested_data: Collection[str],
                       base_file_loc: str,
                       lvl_theory: str,
                       basis_set: str,
-                      reindex_modes: bool = False,
+                      reindex_modes: bool = True,
                       linear: bool | None = None) -> dict[str, Any]:
     """
     VALUES MUST BE IN ATOMIC UNITS
@@ -48,19 +50,18 @@ def parse_from_source(requested_data: Collection[str],
     source_type: 'gaussian' or 'cfour' (SOURCE_TYPES); anything else raises ValueError.
     Errors from the readers keep their type, with a note that names base_file_loc.
     lvl_theory, basis_set: not used; kept because wilson passes them.
-    reindex_modes: Gaussian only, renumbers the modes from Gaussian's A order to its H order. The result's
-        'reindex_modes' says whether that was done. CFOUR has one mode order: its data is never reindexed, and its
-        'reindex_modes' is always False.
-        With Gaussian, requested_data must hold modes_mapping, normal_modes and every tensor of REINDEXED_TENSORS
-        (cff or cff_rc, qff or qff_rc: each brings the other); otherwise ValueError, before any file is read.
-    Mode order: Gaussian numbers the modes two ways. Without reindex_modes, every mode index of a Gaussian result
-        (the tensors, the states, nc_sqrt_eigval) is in its anharmonic-section (A) order: in all the example files
-        the Mulliken numbering, grouped by symmetry species, then descending frequency. normal_modes alone is in
-        its harmonic-section (H) order, ascending frequency. So do not combine normal_modes with the rest by index;
-        modes_mapping maps A to H (both counted from 1). CFOUR has one order, ascending frequency (as H), in every
-        key; its normal_modes keys are CFOUR's own mode numbers (from 7 for a nonlinear molecule).
+    Mode order: by default, every mode index of both readers is in ascending harmonic frequency, so mode k is the
+        same vibration in every key and in both programs' results. CFOUR has that order. Gaussian numbers the modes
+        two ways: its harmonic section (normal_modes) in that order, H; its anharmonic section (every other key with
+        mode indices) in its A order, in all the example files the Mulliken numbering (grouped by symmetry species,
+        then descending frequency). The Gaussian reader renumbers A to H, with the table the file prints;
+        modes_mapping returns that table, A to H, both counted from 1.
         Ascending frequency is not a fixed label: two close modes can swap between methods, so mode k of two
         results can be different vibrations.
+        CFOUR's normal_modes keys are its own mode numbers (from 7 for a nonlinear molecule).
+    reindex_modes: True (the default), the order above. False, Gaussian only: every key in Gaussian's A order,
+        normal_modes included. The result's 'reindex_modes' is True when Gaussian data was renumbered to H order;
+        for CFOUR, which is never renumbered, it is always False.
     linear: ignored, kept so that old calls still work (passing it gives a DeprecationWarning). Both readers decide
         from the file whether the molecule is linear (is_linear: 3N-5 vibrational modes).
     """
@@ -75,64 +76,14 @@ def parse_from_source(requested_data: Collection[str],
     if unknown:
         raise ValueError(f'unknown names in requested_data: {unknown}; known: {KNOWN_NAMES}')
 
-    if reindex_modes and source_type == 'gaussian':
-        # the reindexing below renumbers every tensor of REINDEXED_TENSORS, and takes the mode count from
-        # normal_modes; reindexing only the names asked for is not done yet. cff_rc counts for cff and qff_rc for
-        # qff: the reader returns both of a pair
-        needed = ('modes_mapping', 'normal_modes', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'qff')
-        missing = [k for k in needed if k not in requested_data and k + '_rc' not in requested_data]
-        if missing:
-            raise ValueError(f'reindex_modes=True renumbers all of {REINDEXED_TENSORS}, so requested_data must hold '
-                             f'them, and modes_mapping and normal_modes; missing: {missing}')
-
     if source_type == 'gaussian':
 
         with _source_note(source_type, base_file_loc):
             results_dict = parse_gaussian16_output(requested_data=requested_data,
-                                                   log_file=base_file_loc)
-
-            # reindexing if requested
-            if reindex_modes:
-                from CQCParse.relay.modes_reindexing import (
-                    build_permutation,
-                    reindex_dict,
-                    reindex_tensor,
-                    validate_mapping,
-                )
-                """
-                'normal_modes' -- already in H numbering
-                'modes_mapping' -- contains mapping A to H
-                Need to reindex:
-                 'anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval'  -- dicts
-                 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'cff_rc', 'qff', 'qff_rc' -- tensors
-                """
-                # results_dict needs to have `modes_mapping` key
-                validate_mapping(results_dict['modes_mapping'], len(results_dict['normal_modes']))
-
-                perm = build_permutation(results_dict['modes_mapping'], nmodes=len(results_dict['normal_modes']))
-
-                for key in REINDEXED_TENSORS:
-
-                    if key == 'coriolis':
-                        results_dict[key] = reindex_tensor(results_dict[key], perm, [1,2])
-                    elif 'grad' in key:
-                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0])
-                    elif 'hess' in key:
-                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1])
-                    elif 'cff' in key:
-                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2])
-                    elif 'qff' in key:
-                        results_dict[key] = reindex_tensor(results_dict[key], perm, [0,1,2,3])
-
-                for key in ['anharmonic_states', 'harmonic_states', 'nc_sqrt_eigval']:
-                    if key in results_dict:
-                        results_dict[key] = reindex_dict(results_dict[key], results_dict['modes_mapping'])
-
-                results_dict['reindex_modes'] = True
-            else:
-                # to keep track of transformations
-                results_dict['reindex_modes'] = False
-
+                                                   log_file=base_file_loc,
+                                                   reindex_modes=reindex_modes)
+        # to keep track of transformations
+        results_dict['reindex_modes'] = reindex_modes
         return results_dict
     
     elif source_type == 'cfour':
@@ -151,9 +102,12 @@ def parse_from_source(requested_data: Collection[str],
 
 
 def parse_gaussian16_output(requested_data: dict,
-                            log_file: str):
+                            log_file: str,
+                            reindex_modes: bool = True):
     """
-    
+    Mode order: H, ascending harmonic frequency (reindex_modes, the default), or Gaussian's A order; see
+    parse_from_source.
+
     Units:
         "harmonic_states": "cm-1",
         "anharmonic_states": "cm-1",
@@ -176,6 +130,7 @@ def parse_gaussian16_output(requested_data: dict,
     modes (is_linear).
     """
     results = {}
+    len_nmodes = None
 
     with open(log_file, 'r') as file:
         log_lines = [i.strip() for i in file]
@@ -285,6 +240,29 @@ def parse_gaussian16_output(requested_data: dict,
     if 'modes_mapping' in requested_data:
         from .parseGaussian_forWilson import parse_mode_mapping
         results['modes_mapping'] = parse_mode_mapping(log_lines)
+
+    # one mode order for the whole result: every key read above is in A order, but normal_modes in H order
+    a_ordered = [k for k in results if k in REINDEXED_TENSORS or k in REINDEXED_DICTS]
+    if a_ordered if reindex_modes else 'normal_modes' in results:
+        from CQCParse.relay.modes_reindexing import build_permutation, reindex_dict, reindex_tensor, validate_mapping
+
+        from .parseGaussian_forWilson import parse_mode_mapping
+        mapping = results.get('modes_mapping') or parse_mode_mapping(log_lines)   # A to H, both from 1
+        n = len(mapping)
+        validate_mapping(mapping, n)
+        counts = [len_nmodes, len(results['normal_modes']) if 'normal_modes' in results else None]
+        if any(count is not None and count != n for count in counts):
+            raise ValueError(f'the A to H mode table has {n} modes, the file {[c for c in counts if c is not None]}')
+
+        if reindex_modes:
+            perm = build_permutation(mapping, n)
+            for key in a_ordered:
+                if key in REINDEXED_TENSORS:
+                    results[key] = reindex_tensor(results[key], perm, REINDEXED_TENSORS[key])
+                else:
+                    results[key] = reindex_dict(results[key], mapping)
+        else:
+            results['normal_modes'] = {a - 1: results['normal_modes'][h - 1] for a, h in sorted(mapping.items())}
 
     return results
 

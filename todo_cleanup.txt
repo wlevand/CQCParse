@@ -22,8 +22,8 @@ Done when ([x] met, [~] partly, [ ] open):
            counts in todo.txt Tests). One of them, test_getting_data, fails before it calls CQCParse (T7).
     [ ] 6. This branch and wilson_gv's cqcparse_cleanup are on main, with a list of what changed for users (Q13).
 
-Not part of this goal (they stay in todo.txt): R2, N1 (except its first step), N3, X1, A3, A4.
-These are new physics choices or features, not fixes. (A6 and N2, outside this goal too, are done.)
+Not part of this goal (they stay in todo.txt): R2, N3, X1, A3, A4.
+These are new physics choices or features, not fixes. (A6, N2 and N1, outside this goal too, are done.)
 
 
 How to work
@@ -45,8 +45,8 @@ numbers: those move with every change.
     1. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
                choice for polarData.pkl changes Q11.
     2. Q13     Finish: the merge, the version, the list of changes for users.
-Also decided, outside this goal: N1's change (H order, Gaussian reindexed by default, with Q7's leftover as its
-first part), in todo.txt N1; it needs wilson's references rerun.
+Also done, outside this goal: N1's change (H order, Gaussian renumbered by default, with Q7's leftover), in
+todo.txt N1; wilson's references: todo.txt T9.
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step),
 Q10, and todo.txt T4 and R4 (see Done here and in todo.txt). In wilson_gv (branch cqcparse_cleanup):
 todo.txt L1, L2 and T6 (see todo.txt Done).
@@ -121,6 +121,10 @@ Q. New findings
             - then update wilson_gv's issue #71: G8 is fixed (C3), and add todo.txt T7 and L7.
             - version: pyproject.toml says 0.1.0, as on main. Raise it, e.g. to 0.2.0. What changed for a user
               since main (the Done entries of both files):
+                - mode order (N1): every mode index of both readers in ascending harmonic frequency, so Gaussian
+                  values come with other mode labels than before (the normal modes excepted). reindex_modes is
+                  True by default; False gives Gaussian's own order in every key, normal_modes included. The
+                  result's 'reindex_modes' is True for Gaussian. The validation readers take the same switch.
                 - numbers (sizes in todo.txt Done): CFOUR qff was far too large (C3); Gaussian cff and qff are
                   converted from column FI, no longer read from the 5-decimal column K (R1); CFOUR diphess, qff and
                   qff_rc are the mean of the two index orders the files list (C1). Gaussian normal_modes have 5
@@ -129,9 +133,9 @@ Q. New findings
                   reindex_modes, always False (A5); CFOUR returns harmonic_states only when harmonic_states or
                   nc_sqrt_eigval is asked for (C2); both readers find a linear molecule from the file (C4).
                 - errors where there were zeros, empty arrays or None: an unknown name or source_type (Q6), a
-                  reindex_modes request it cannot serve (Q7), a missing section (Q12), a section cut short where
-                  data are paired (Q8), Gaussian unit lines other than Debye or a.u. (R4), a Gaussian geometry not
-                  in the frame of the normal modes (A6). Errors keep their type and name the file (Q6).
+                  missing section (Q12), a section cut short where data are paired (Q8), Gaussian unit lines other
+                  than Debye or a.u. (R4), a Gaussian geometry not in the frame of the normal modes (A6). Errors
+                  keep their type and name the file (Q6).
                 - requests that failed before and work now: B, coriolis or a force constant without
                   nc_sqrt_eigval (A2); CFOUR HFcc_pVQZ, which has no MOLDEN, for every name but the geometry and
                   normal modes (C2); the geometry of ACAC and ACDM, and the normal modes of ACAC, ACDM and CO (A6,
@@ -139,8 +143,8 @@ Q. New findings
                 - calls: parse_from_source's linear argument is ignored, with a DeprecationWarning, and
                   parse_cfour_output lost linear_molecule (C4); setup_logger lost use_rich and no_color (Q4);
                   get_cubic_post, get_quartic_post, getCubicPost and getQuarticPost lost recipcm and reduced
-                  (C3 + R1); get_normal_modes takes the file's lines, not its name (N2). The readers print nothing
-                  (L4, Q6, Q8, Q12).
+                  (C3 + R1); get_normal_modes takes the file's lines, not its name (N2); parse_gaussian16_output
+                  takes reindex_modes (N1). The readers print nothing (L4, Q6, Q8, Q12).
                 - validation readers (Q10): get_detected_resonances_g16 returns (I, J, K) triples (it returned
                   None); get_detected_resonances_c4 returns the resonance lines (it returned []);
                   parse_anharmonic_x_matrix raises without its section (it returned empty lists).
@@ -153,8 +157,9 @@ Q. New findings
                   getPolarDers_pkl_au_simple -> getPolarDers_pkl_au (R4); the polar.pkl builder ->
                   CQCParse.tools.build_polar_pkl (Q5).
                 - new: CQCParse.utils.reduced_to_au, dimensionless_to_mass_weighted, HARTREE_CM, AMU_IN_ME
-                  (C3 + R1, R4); SOURCE_TYPES, KNOWN_NAMES, REINDEXED_TENSORS in parse_wilson_obtainer (Q6, Q7);
-                  ECKART_TOLERANCE in parseGaussian_forWilson (A6).
+                  (C3 + R1, R4); SOURCE_TYPES, KNOWN_NAMES, REINDEXED_TENSORS (a dict of mode axes since N1) and
+                  REINDEXED_DICTS in parse_wilson_obtainer (Q6, Q7, N1); ECKART_TOLERANCE in parseGaussian_forWilson
+                  (A6).
                 - install: needs only numpy, scipy and pandas; rich is gone (Q4); setup.py and requirements.txt
                   are gone (Q2).
                 - speed: large Gaussian files load several times faster (P1, P2).
@@ -185,13 +190,15 @@ Short entries. The full ones (measurements, before and after, the checks run) ar
     Q6  Bad input to parse_from_source raises ValueError: an unknown name or source_type (SOURCE_TYPES,
         KNOWN_NAMES). A reader's error keeps its type, with a note naming the file (_source_note).
     Q7  reindex_modes=True raises before any file is read when the request lacks modes_mapping, normal_modes or a
-        tensor of REINDEXED_TENSORS. Left for N1: reindex only the names asked for.
+        tensor of REINDEXED_TENSORS. N1 replaced that: every request is renumbered, with the table the reader reads
+        itself.
     Q8  zip(strict=True) where data are paired (5 places); parse_polarizability's always-true condition fixed;
         the readers print nothing; parse_from_source's docstring gives each key's mode order (N1's first step).
         `ruff check --fix`, safe fixes only, as its own commit; ruff's other findings are style, none hides an
         error.
     Q10 The validation readers (parse_anharmonic_x_matrix, get_detected_resonances_g16 and _c4) fixed, marked
-        "Validation only" and tested (tests/test_validation_readers.py). Their mode order: Gaussian's A order.
+        "Validation only" and tested (tests/test_validation_readers.py). Their mode order: H since N1
+        (reindex_modes=False: Gaussian's A order).
         Later, maybe: return them through parse_from_source, so wilson can compare by itself.
     Q12 A missing section in a file raises ValueError naming it, in both readers (was zeros, empty arrays or
         None). Tests: tests/test_missing_sections.py. Not covered: a section cut short (Q8 covers part), a dipole
@@ -225,7 +232,7 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
     - Decided by the owner: the goal and the order of the work; what to keep (the validation readers, the polar.pkl
       builder, the data of the other pickles); deleting DataVault; N1's mode order (H); when to commit.
 
-2026-10-26 to 2026-10-27: checks, the two todo files, and the first part of A6.
+2026-10-26 to 2026-10-27: checks, the two todo files, A6, N2 and N1.
     - Claude Code: ran CQCParse's tests and wilson_gv's full test suite (its branch cqcparse_cleanup, with this
       branch and with CQCParse main); compared both todo files with that branch and with wilson_gv's issue #71;
       updated both todo files (L1, L2, T6 done; new todo.txt T7 and L7; the merge order in Q13); drafted an
@@ -236,7 +243,12 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
       size); wrote the tests in tests/test_parseGaussian.py (19 cases); rewrote the baseline for the 7 Gaussian
       sources (normal_modes; the new geometries and modes).
     - Claude Code, in wilson_gv on the owner's request: T8, one line of test_integration.py (the pinned
-      normal_modes[0]); ran wilson's full test suite. The owner commits it.
+      normal_modes[0]); ran wilson's full test suite. The owner committed it (af4f892).
+    - Claude Code, N1: one mode order in parse_gaussian16_output and the validation readers (reindex_modes, default
+      True), reindex_dict and validate_mapping in relay/modes_reindexing.py; the tests that pinned A-order numbers
+      now go through modes_mapping; new tests of the order (27 cases; 3 of Q7's removed); the baseline of the 7
+      Gaussian sources rewritten after checking that every value is the old one renumbered; README. wilson_gv
+      only run (T9).
     - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e).
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).

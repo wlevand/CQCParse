@@ -38,19 +38,32 @@ def test_x_matrix(source):
 @pytest.mark.parametrize('source', ['g16_FORM_HF_cc-pVTZ', 'g16_FORM_B3LYP_cc-pVQZ'])
 def test_x_matrix_order_matches_states(source):
     """
-    The X matrix is in Gaussian's A order, the order of anharmonic_states: E(2 nu_i) - 2 E(nu_i) = 2 X_ii and
-    E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij, within the states' 3 decimals. Modes 0, 1, 2 only (nu1-nu3): nu4-nu6
-    are in Gaussian's resonance treatment (see tests/test_cfour_vs_gaussian.py).
+    The X matrix is in the order of anharmonic_states (H, todo N1): E(2 nu_i) - 2 E(nu_i) = 2 X_ii and
+    E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij, within the states' 3 decimals. nu1-nu3 only (Gaussian's A modes 1-3):
+    nu4-nu6 are in Gaussian's resonance treatment (see tests/test_cfour_vs_gaussian.py).
     """
     x = parse_anharmonic_x_matrix(lines_of(source))['total_anharmonic']
-    states = parse(source, BASE)['anharmonic_states']
+    data = parse(source, BASE + ['modes_mapping'])
+    states = data['anharmonic_states']
+    nu1_to_nu3 = [data['modes_mapping'][a] - 1 for a in (1, 2, 3)]
 
     def energy(*modes):
         return states[tuple(sorted(str(m) for m in modes))]
-    for i in range(3):
+    for n, i in enumerate(nu1_to_nu3):
         assert (energy(i, i) - 2 * energy(i)) / 2 == pytest.approx(x[i, i], abs=5e-3)
-        for j in range(i):
+        for j in nu1_to_nu3[:n]:
             assert energy(i, j) - energy(i) - energy(j) == pytest.approx(x[i, j], abs=5e-3)
+
+
+@pytest.mark.parametrize('source', GAUSSIAN_SOURCES)
+def test_x_matrix_reindex_modes(source):
+    """reindex_modes=False: Gaussian's A order, as the file prints it; the default renumbers it to H (todo N1)."""
+    h_of_a = {a - 1: h - 1 for a, h in parse(source, ['modes_mapping'])['modes_mapping'].items()}
+    a_of_h = sorted(h_of_a, key=h_of_a.get)
+    x_h = parse_anharmonic_x_matrix(lines_of(source))
+    x_a = parse_anharmonic_x_matrix(lines_of(source), reindex_modes=False)
+    for key in ('coriolis_contributions', '3rd_deriv_contributions', '4th_deriv_contributions', 'total_anharmonic'):
+        np.testing.assert_array_equal(x_h[key], x_a[key][np.ix_(a_of_h, a_of_h)])
 
 
 def test_x_matrix_missing_section():
@@ -63,13 +76,22 @@ def test_x_matrix_missing_section():
                                                   ('g16_ACAC_B3LYP_cc-pVQZ', 8, (1, 3, 6)),
                                                   ('g16_ACDM_B3LYP_cc-pVQZ', 27, None)])
 def test_fermi_resonances_g16(source, count, first):
-    """One (I, J, K) per row of Gaussian's Fermi table, modes from 0 in A order. It returned None before (todo_cleanup
-    Q10): it tested the list of lines for an element equal to "Resonance Analysis"."""
-    found = get_detected_resonances_g16(lines_of(source))
-    assert len(found) == count
-    assert all(len(r) == 3 and all(0 <= m < 42 for m in r) for r in found)
+    """One (I, J, K) per row of Gaussian's Fermi table, modes from 0. With reindex_modes=False in Gaussian's A order,
+    as the table prints them (first: its first row); by default the same triples renumbered to H (todo N1). It
+    returned None before (todo_cleanup Q10): it tested the list of lines for an element equal to "Resonance
+    Analysis"."""
+    found_a = get_detected_resonances_g16(lines_of(source), reindex_modes=False)
+    assert len(found_a) == count
+    assert all(len(r) == 3 and all(0 <= m < 42 for m in r) for r in found_a)
     if first:
-        assert found[0] == first
+        assert found_a[0] == first
+    h_of_a = {a - 1: h - 1 for a, h in parse(source, ['modes_mapping'])['modes_mapping'].items()}
+    assert get_detected_resonances_g16(lines_of(source)) == [tuple(h_of_a[m] for m in r) for r in found_a]
+
+
+def test_fermi_resonances_g16_docstring_example():
+    """Formaldehyde HF/cc-pVTZ: nu5 ~ nu3 + nu6 is (5, 2, 1) in H order."""
+    assert get_detected_resonances_g16(lines_of('g16_FORM_HF_cc-pVTZ')) == [(5, 2, 1)]
 
 
 def test_fermi_resonances_g16_no_section():

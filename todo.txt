@@ -34,12 +34,10 @@ Now, in this order. After each change that moves a number: CQCParse's tests, the
 (T6).
     1. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
             cut-off and measure what changes. Then decide.
-    2. N1   Decided: H order for both readers, Gaussian reindexed by default (see N1). The docstring note on today's
-            mixed orders is done. Left: the change, in N1's order; it needs wilson's references rerun [wilson].
-(Done: R5 with todo_cleanup.txt Q5; T4, R4, A6, N2; in wilson_gv: L1, L2, T6. See Done.)
+(Done: R5 with todo_cleanup.txt Q5; T4, R4, A6, N2, N1; in wilson_gv: L1, L2, T6, T8. See Done.)
 
 Later, when wilson needs it:
-    N3      Normal modes: one shape for both readers [decide]. Before wilson G9. (N1's order: decided, see "Now".)
+    N3      Normal modes: one shape for both readers [decide]. Before wilson G9.
     X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8: without them, mixed data
             gives wrong numbers with no error. T4's mode matching is the start.
     A4      B for linear molecules: choose what B holds [decide]. Only for linear molecules with 2+ modes; wilson
@@ -47,8 +45,9 @@ Later, when wilson needs it:
     A3      The names 'geo' and 'linear'. Only when wilson starts to read them.
 
 In wilson_gv, not in this repo:
+    T9      N1's mode order: rerun wilson's per-mode reference values and pins (25 tests fail until then).
     T7      wilson's test of the load through CQCParse fails at a fixture, before it calls CQCParse.
-    L7     Two leftovers of the old layout (tests/suitests, a workflow file that never runs). Housekeeping.
+    L7    Two leftovers of the old layout (tests/suitests, a workflow file that never runs). Housekeeping.
     (L1, L2, T6 and T8: done on wilson_gv's branch cqcparse_cleanup.)
 
 Dropped (see Done): R3 (Coriolis digits: negligible for wilson) and L3 (the rewrite: no gain for wilson
@@ -57,11 +56,12 @@ or the numbers now; do targeted cleanups such as R4 instead).
 
 Tests
 -----
-    pass 341, xfail 0, fail 0 (tests/, 341 tests, about 4 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 365, xfail 0, fail 0 (tests/, 365 tests, about 4 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
-    wilson_gv cqcparse_cleanup (b99c25e and T8) with this branch: 976 pass, 17 fail, 1 skipped, 1 collection error.
+    wilson_gv cqcparse_cleanup (af4f892) with this branch: 951 pass, 42 fail, 1 skipped, 1 collection error; the
+        extra 25 are T9 (976 and 17 once T9 is done; with this branch before N1, 976 and 17).
     wilson_gv PR #69 (bf07c05) with CQCParse main: 976 pass, 17 fail, 1 skipped, 1 collection error.
     cqcparse_cleanup with CQCParse main: 963 pass, 30 fail; the extra 13 are T6's reference tests, which expect
         this branch's cff.
@@ -125,10 +125,16 @@ T. Tests and baseline
 [ ] T7  [wilson] test_getting_data (wilson_utils/tests/test_wilson_data_obtainer.py) is wilson's test of the load
         through parse_from_source; it expects cff_rc next to cff, and reindex_modes (A1, A5). It fails at
         its fixture (evv_experiment in fixtures.py, cf_uv; see Tests) before it calls CQCParse, with CQCParse main
-        too. So it checks nothing of CQCParse today. Other wilson tests do load CQCParse data and pass (T6's
-        reference tests; refac_rsp_eval/tests/test_integration.py). After wilson fixes the fixture: run it with this
-        branch.
+        too. So it checks nothing of CQCParse today. Other wilson tests do load CQCParse data (T6's reference tests;
+        refac_rsp_eval/tests/test_integration.py). After wilson fixes the fixture: run it with this branch.
     T8  Done, see Done.
+[ ] T9  [wilson] N1 renumbered Gaussian's modes to H order, so wilson's per-mode values from Gaussian data carry
+        other mode labels. 25 tests in refac_rsp_eval/tests fail on that (wilson_gv af4f892): test_evv_reference
+        (10), test_pipeline (8), test_hand_calculation (5), test_integration (2: the pinned eigenvals, and
+        test_evaluate_term). test_grid_reference passes: the spectra did not change, as a renumbering must not
+        change them. Fix as in T6: rerun make_evv_reference.py, check that the grid reference stays the same, update
+        the values pinned by hand (e.g. test_eval_molsys_data's eigenvals, now ascending), commit with the reason
+        "CQCParse N1: Gaussian modes in ascending harmonic frequency".
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
@@ -199,51 +205,10 @@ None open.
 
 N. Normal modes (wilson G9)
 ---------------------------
-Gaussian numbers modes two ways: the harmonic section (H order) and the anharmonic section (A order). Inside one
-Gaussian origin every property is in A order, except normal_modes.
-wilson's load does not ask for normal_modes, and the evaluator does not read them (MolSystemData's docstring). One
-wilson test does: refac_rsp_eval/tests/test_integration.py asks wilson_data_obtainer for them (Gaussian
-formaldehyde, B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order (5 decimals since
-N2: T8). N1 and N3 change it [wilson].
-[ ] N1  Mode order. DECIDED: H order (ascending harmonic frequency) is the common order of
-        parse_from_source, for both readers; Gaussian data is reindexed from A to H by default. Not done yet.
-        Why: results from different programs must be comparable mode by mode. CFOUR's order is ascending frequency
-        already (T4: CFOUR's order = Gaussian's H order for formaldehyde), so only Gaussian needs the reindex, and
-        that code exists (relay/modes_reindexing.py, tested by tests/test_reindexing.py; its path through
-        parse_from_source since todo_cleanup Q7).
-        The two Gaussian orders, checked on all 7 Gaussian examples:
-            H = ascending harmonic frequency.
-            A = the Mulliken convention: grouped by symmetry species, descending frequency within each (the
-                nu1, nu2, ... numbering of the literature). Formaldehyde B3LYP/cc-pVQZ in A order: A1 2879, A1 1820,
-                A1 1535, B1 1203, B2 2934, B2 1269 cm-1. ACAC: A' modes, then A''. ACDM (no symmetry): descending.
-        Caveat, for X1: ascending frequency can swap two close modes between methods or basis sets (e.g.
-        formaldehyde B1 1203 and B2 1269 cm-1), so mode k of two outputs can be different vibrations, with no
-        error. Comparing across programs still needs matching by vibration (T4's matching, X1). The Mulliken order
-        would not swap this way, but CFOUR would need its own reindex from symmetry labels, and B1/B2 depend on
-        the axis choice (T4: for a symmetric molecule a fit of the axes is not unique).
-        Now: without reindex_modes, normal_modes is in H order and the rest in A order (formaldehyde:
-        normal_modes[0] is the B1 mode, 1203 cm-1; nc_sqrt_eigval[0] the A1 C-H stretch, 2879 cm-1). wilson cannot
-        ask for reindex_modes (no field in DataOriginInfo).
-        Until the change (the first step, DONE with todo_cleanup Q8): parse_from_source's docstring says
-        which order each key is in, so nobody combines them by index without modes_mapping; the README says the
-        two programs' orders differ.
-        The change, in order:
-            1. Q7's leftover (todo_cleanup.txt): reindex only the names in the result, not all 9 tensors, and read
-               modes_mapping and the mode count from the file without asking for them; the mode count from the
-               harmonic fundamentals, not from normal_modes (a request need not hold normal_modes).
-            2. Reindex Gaussian by default: reindex_modes=True as the default, or drop the argument (wilson never
-               passes it). The result's 'reindex_modes' is then True for Gaussian.
-            3. Everything else with mode indices: the validation readers (todo_cleanup Q10) are in A order, checked:
-               the X matrix and the Fermi triples of get_detected_resonances_g16; bring them to H too. And
-               modes_mapping itself.
-            4. Tests: the baseline changes for every Gaussian source (values only move between mode indices);
-               rewrite it with that reason. test_matches_gaussian_column_k compares with the file's own A-numbered
-               I, J, K: give it the mapping. test_cfour_matches_gaussian matches modes by frequency: unchanged.
-            5. [wilson] wilson's per-mode reference values (Gaussian data) change their mode labels; the spectra do
-               not. Rerun make_evv_reference.py and the grid reference, as in T6. test_integration.py pins
-               normal_modes[0], already in H order: unchanged.
-        Still open here: modes_mapping is Gaussian only (CFOUR has one mode order), the last key the two readers
-        do not share (A5). With everything in H order it stays useful as the record of Gaussian's A numbering.
+Both readers number every mode index by ascending harmonic frequency (N1). wilson's load does not ask for
+normal_modes, and the evaluator does not read them (MolSystemData's docstring). One wilson test does:
+refac_rsp_eval/tests/test_integration.py asks wilson_data_obtainer for them (Gaussian formaldehyde, B3LYP/cc-pVQZ)
+and pins normal_modes[0], a flat vector of 12 values (T8). N3 changes it [wilson].
 [ ] N3  One shape for both readers. Now a dict {mode: vector}: Gaussian keys 0 .. n-1 and flat vectors (3 x atoms);
         CFOUR keys from 7 (7-12 for formaldehyde) and vectors of shape (atoms, 3). wilson's MolSystemData.eigenvecs
         is typed as a numpy array, but stores the dict as it comes (from_datadict, system_data.py).
@@ -259,8 +224,11 @@ X. Mixing origins (wilson S8)
         the axis orientation. CFOUR and Gaussian formaldehyde differ in mode order and in the sign of 2 modes (T4);
         for the axes the identity fits, but a mirror plane makes a flipped axis fit equally, so a fit alone does
         not fix the axes. Inside one origin none of this matters.
-        Mode order: N1 makes both readers give H order (ascending frequency). That is not enough on its own: two
-        close modes can swap between methods (see N1's caveat), so mixing still needs a match by vibration.
+        Mode order: both readers give ascending harmonic frequency (N1). That is not enough on its own: two close
+        modes can swap between methods or basis sets (e.g. formaldehyde B1 1203 and B2 1269 cm-1), so mode k of two
+        outputs can be different vibrations, with no error. Mixing still needs a match by vibration (T4's
+        matching). Gaussian's A order (the Mulliken numbering, reindex_modes=False) would not swap this way, but
+        CFOUR would need its own numbering from symmetry labels, and B1/B2 depend on the axis choice.
         An old problem comes back with wilson S8: the overwrite in wilson (wilson_data_obtainer,
         dict.update: a second origin's keys replace the first's, e.g. cff_rc, reindex_modes) [wilson]. The other
         one, the crash of A2, is fixed.
@@ -354,6 +322,13 @@ N. Normal modes
     N2  Gaussian normal_modes from the 5-decimal table (Freq=HPModes; else the 2-decimal one), in blocks of any
         number of modes (CO: 1), with the atom count from NAtoms=. All 7 examples read; the values moved by up to
         0.005, the rounding of the 2-decimal table (wilson: T8).
+    N1  One mode order, ascending harmonic frequency (H), in every key of both readers. Gaussian prints all but the
+        normal modes in its A order (in the examples the Mulliken numbering: by symmetry species, then descending
+        frequency); parse_gaussian16_output renumbers what it returns, with the A to H table it reads itself,
+        whatever the request (Q7's leftover). reindex_modes=False: A order in every key, normal_modes included. The
+        validation readers follow the same switch. Checked: every Gaussian value of the old baseline is the new
+        one renumbered by the table; nc_sqrt_eigval ascends in all 11 sources; normal_modes[k] has the frequency
+        of nc_sqrt_eigval[k] (tests/test_wilson_obtainer.py). wilson: T9.
 
 L. Legacy code
     L1  The legacy parser classes deleted (GaussianDataParser, CFOURdataParser, ParsedData and the class path of

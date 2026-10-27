@@ -22,7 +22,7 @@
       "qff": "ndarray float64 (1, 1, 1, 1)",
       "qff_rc": "ndarray float64 (1, 1, 1, 1)",
       "modes_mapping": "dict, 1 entries",
-      "reindex_modes": "bool False"
+      "reindex_modes": "bool True"
     },
     "errors": {}
   },
@@ -49,7 +49,7 @@
       "qff": "ndarray float64 (18, 18, 18, 18)",
       "qff_rc": "ndarray float64 (18, 18, 18, 18)",
       "modes_mapping": "dict, 18 entries",
-      "reindex_modes": "bool False"
+      "reindex_modes": "bool True"
     },
     "errors": {}
   },
@@ -76,7 +76,7 @@
       "qff": "ndarray float64 (42, 42, 42, 42)",
       "qff_rc": "ndarray float64 (42, 42, 42, 42)",
       "modes_mapping": "dict, 42 entries",
-      "reindex_modes": "bool False"
+      "reindex_modes": "bool True"
     },
     "errors": {}
   },
@@ -103,7 +103,7 @@
       "qff": "ndarray float64 (6, 6, 6, 6)",
       "qff_rc": "ndarray float64 (6, 6, 6, 6)",
       "modes_mapping": "dict, 6 entries",
-      "reindex_modes": "bool False"
+      "reindex_modes": "bool True"
     },
     "errors": {}
   },
@@ -130,7 +130,7 @@
       "qff": "ndarray float64 (6, 6, 6, 6)",
       "qff_rc": "ndarray float64 (6, 6, 6, 6)",
       "modes_mapping": "dict, 6 entries",
-      "reindex_modes": "bool False"
+      "reindex_modes": "bool True"
     },
     "errors": {}
   },
@@ -157,7 +157,7 @@
       "qff": "ndarray float64 (6, 6, 6, 6)",
       "qff_rc": "ndarray float64 (6, 6, 6, 6)",
       "modes_mapping": "dict, 6 entries",
-      "reindex_modes": "bool False"
+      "reindex_modes": "bool True"
     },
     "errors": {}
   },
@@ -184,7 +184,7 @@
       "qff": "ndarray float64 (6, 6, 6, 6)",
       "qff_rc": "ndarray float64 (6, 6, 6, 6)",
       "modes_mapping": "dict, 6 entries",
-      "reindex_modes": "bool False"
+      "reindex_modes": "bool True"
     },
     "errors": {}
   },

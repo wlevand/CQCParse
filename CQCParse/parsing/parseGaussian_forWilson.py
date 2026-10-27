@@ -149,15 +149,22 @@ def parse_Na(lines: list[str]) -> int:
     raise ValueError('No "NAtoms=" line in the Gaussian output')
 
 
-def get_detected_resonances_g16(file_content: list[str]) -> list[tuple[int, int, int]]:
+def _h_of_a(lines: list[str]) -> dict[int, int]:
+    """Gaussian's A mode numbers to its H ones, both counted from 0 (parse_mode_mapping's table counts from 1)."""
+    return {a - 1: h - 1 for a, h in parse_mode_mapping(lines).items()}
+
+
+def get_detected_resonances_g16(file_content: list[str],
+                                reindex_modes: bool = True) -> list[tuple[int, int, int]]:
     """
     Validation only: not used by parse_from_source. For checking wilson's VPT2 against Gaussian's own.
 
     The Fermi resonances Gaussian's VPT2 found and treated, nu_I ~ nu_J + nu_K: one (I, J, K) per row of the
-    "Fermi resonances" table in the "Resonance Analysis" section. Modes counted from 0 in Gaussian's A order, the
-    order of the other mode indices of parse_from_source; wilson's identify_fermi gives the same kind of triple.
-    Darling-Dennison resonances are not read.
-    Example, formaldehyde HF/cc-pVTZ: [(4, 2, 5)], nu5 ~ nu3 + nu6 (130 cm-1 apart).
+    "Fermi resonances" table in the "Resonance Analysis" section. Modes counted from 0, in the mode order of
+    parse_from_source: H, ascending harmonic frequency, or with reindex_modes=False Gaussian's A order, as the table
+    prints them. wilson's identify_fermi gives the same kind of triple. Darling-Dennison resonances are not read.
+    Example, formaldehyde HF/cc-pVTZ: [(5, 2, 1)] in H order, (4, 2, 5) in A order: nu5 ~ nu3 + nu6 (130 cm-1
+    apart).
     Returns [] for a line "No Fermi resonance ..." (wording assumed from Gaussian's "No 1-1 Darling-Dennison
     resonance found"; no example file has it).
     Raises ValueError if the file has no "Resonance Analysis" section (e.g. CO: 1 mode), or if the table holds
@@ -177,6 +184,9 @@ def get_detected_resonances_g16(file_content: list[str]) -> list[tuple[int, int,
             total = int(line.split()[-1])
             if len(resonances) != total:
                 raise ValueError(f'Fermi resonance table: {len(resonances)} rows, "{line}"')
+            if reindex_modes:
+                h_of_a = _h_of_a(lines)
+                resonances = [tuple(h_of_a[m] for m in r) for r in resonances]
             return resonances
         elif in_table and line:
             i, j, k = (int(x) - 1 for x in line.split()[:3])
@@ -890,17 +900,19 @@ def parse_matrix_section(lines, start_search, end_search, section_title_pattern=
     return matrix_data
 
 
-def parse_anharmonic_x_matrix(file_lines):
+def parse_anharmonic_x_matrix(file_lines, reindex_modes: bool = True):
     """
     Validation only: not used by parse_from_source. For checking wilson's VPT2 against Gaussian's own.
 
     Parse the Anharmonic X Matrix section from Gaussian output file lines: the anharmonic constants X_ij in cm-1,
-    in Gaussian's A order (the order of the other mode indices of parse_from_source). Checked on formaldehyde:
-    E(2 nu_i) - 2 E(nu_i) = 2 X_ii and E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij from the anharmonic states, to
-    the states' rounding, for the modes outside Gaussian's resonance treatment.
+    in the mode order of parse_from_source: H, ascending harmonic frequency, or with reindex_modes=False Gaussian's
+    A order, as the file prints them. Checked on formaldehyde: E(2 nu_i) - 2 E(nu_i) = 2 X_ii and
+    E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij from the anharmonic states, to the states' rounding, for the modes
+    outside Gaussian's resonance treatment.
 
     Args:
         file_lines (list): List of strings, each representing a line from the file
+        reindex_modes (bool): H order (the default) or A order, as above
 
     Returns:
         dict: Dictionary containing parsed anharmonic X matrix data with keys:
@@ -986,9 +998,16 @@ def parse_anharmonic_x_matrix(file_lines):
             file_lines, total_start, "end_of_section", "Total Anharmonic X Matrix"
         )
         result['total_anharmonic'] = lower_triangular_to_full_matrix(p)
-    
+
     result['matrix_size'] = result['total_anharmonic'].shape
-    
+
+    if reindex_modes:
+        h_of_a = _h_of_a(file_lines)
+        a_of_h = sorted(h_of_a, key=h_of_a.get)
+        for key, matrix in result.items():
+            if isinstance(matrix, np.ndarray):
+                result[key] = matrix[np.ix_(a_of_h, a_of_h)]
+
     return result
 
 def parse_mode_mapping(file_lines: list[str]) -> dict[int, int]:
