@@ -538,113 +538,252 @@ def parse_polarizability(lines: list[str]) -> pd.DataFrame:
 
 
 # ------------------ Normal modes ----------------------------------
-def nm_parse_lines(filename):
+# Eckart's rotation condition, sum_i m_i (r_i - r_com) x d_i = 0 for each normal mode d, holds when the geometry r and
+# the modes share a frame. Measured per mode relative to sum_i m_i |r_i - r_com| |d_i| (_eckart_residuals): about 1e-5
+# in the right frame with the 5-decimal modes of the examples, 7e-4 for a frame turned by about 1e-3 rad, 0.1 or more
+# for a wrong one. The 2-decimal modes give about 1e-2 even in the right frame, so they are not checked.
+ECKART_TOLERANCE = 2e-4
+
+
+def _table_row(line: str, n_ints: int) -> tuple[list[int], list[float]] | None:
+    """A row of a normal-mode table: n_ints integers, then decimal numbers. None for any other line."""
+    tokens = line.split()
+    if (len(tokens) <= n_ints or not all(t.isdigit() for t in tokens[:n_ints])
+            or not all('.' in t for t in tokens[n_ints:])):
+        return None
+    return [int(t) for t in tokens[:n_ints]], [float(t) for t in tokens[n_ints:]]
+
+
+def _read_normal_modes(lines: list[str], n_atoms: int) -> tuple[np.ndarray, bool]:
     """
-    from freq output file returns lines with NM displacements
+    The normal modes of the first frequency section, shape (modes, n_atoms, 3), and whether they have 5 decimals.
+
+    Freq=HPModes prints a 5-decimal table first: blocks of up to 5 modes under "Coord Atom Element:", one row per
+    coordinate (1-3 for x, y, z; atom; atomic number; one value per mode). Then, and without HPModes only, the
+    2-decimal table: blocks of up to 3 modes under "Atom  AN  X Y Z ...", one row per atom (atom; atomic number;
+    x, y, z of each mode). The last block of either table may hold fewer modes (CO: 1).
     """
-    allines = []
-    with open(filename) as infile:
-        copy = False
-        for line in infile:
-            if line.strip() == "Atom  AN      X      Y      Z        X      Y      Z        X      Y      Z":
-                copy = True
+    start = next((i for i, line in enumerate(lines) if 'Harmonic frequencies (cm**-1)' in line), None)
+    if start is None:
+        raise ValueError('no normal-mode table: no "Harmonic frequencies" section')
+    end = next((i for i in range(start, len(lines)) if '- Thermochemistry -' in lines[i]), len(lines))
+    first_end = next((i for i in range(start + 1, end) if 'Harmonic frequencies (cm**-1)' in lines[i]), end)
+
+    blocks = []
+    for high_precision, header, n_ints, stop in ((True, 'Coord Atom Element:', 3, first_end),
+                                                 (False, 'Atom  AN', 2, end)):
+        i = start
+        while i < stop:
+            i += 1
+            if not lines[i - 1].strip().startswith(header):
                 continue
-            elif line.startswith(" Frequencies --  "):
-                copy = False
+            rows = []
+            while i < stop and (row := _table_row(lines[i], n_ints)):
+                rows.append(row)
+                i += 1
+            if not rows:
+                raise ValueError(f'an empty normal-mode block after "{header}"')
+            n_modes = len(rows[0][1]) // (1 if high_precision else 3)
+            block = np.zeros((n_modes, n_atoms, 3))
+            for ints, values in rows:
+                if high_precision:
+                    coord, atom, _ = ints
+                    block[:, atom - 1, coord - 1] = values
+                else:
+                    atom, _ = ints
+                    block[:, atom - 1, :] = np.reshape(values, (n_modes, 3))
+            if len(rows) != (3 * n_atoms if high_precision else n_atoms):
+                raise ValueError(f'a normal-mode block with {len(rows)} rows, for {n_atoms} atoms')
+            blocks.append(block)
+        if blocks:
+            break
+
+    if not blocks:
+        raise ValueError('no normal-mode table ("Coord Atom Element:" or "Atom  AN  X Y Z") in the frequency section')
+    modes = np.concatenate(blocks)
+    if len(modes) not in (3 * n_atoms - 6, 3 * n_atoms - 5):
+        raise ValueError(f'{len(modes)} normal modes read for {n_atoms} atoms, expected {3 * n_atoms - 6} or '
+                         f'{3 * n_atoms - 5}')
+    return modes, high_precision
+
+
+def get_normal_modes(lines: list[str], Na: int) -> np.ndarray:
+    """
+    The normal modes of the first frequency section, one row per mode: x, y, z of atom 1, then of atom 2, ...
+    Gaussian's normalized Cartesian displacements, in the frame of its standard orientation, which get_equil_geo's
+    geometry shares. From the 5-decimal table (Freq=HPModes), else from the 2-decimal one (_read_normal_modes).
+    """
+    modes, _ = _read_normal_modes(lines, Na)
+    return modes.reshape(len(modes), 3 * Na)
+
+
+def _rotational_constants(line: str) -> np.ndarray:
+    """The nonzero values of a 'Rotational constant(s) (GHZ):' line, sorted. A linear molecule has a 0 in the line
+    after a geometry block, and a single value in the thermochemistry."""
+    values = np.array([float(v) for v in line.split(':')[1].split()])
+    return np.sort(values[values > 0])
+
+
+def _same_rotational_constants(a: np.ndarray, b: np.ndarray, atol: float) -> bool:
+    """Every value has its match in the other array (a linear molecule: the same value twice, then once)."""
+    close = np.abs(a[:, None] - b[None, :]) <= atol
+    return bool(close.any(axis=1).all() and close.any(axis=0).all())
+
+
+def _masses(lines: list[str], start: int) -> np.ndarray:
+    """The atomic masses (amu) Gaussian used: the thermochemistry's 'Atom k has atomic number Z and mass M' lines."""
+    masses = []
+    for line in lines[start:]:
+        if 'has atomic number' in line and 'and mass' in line:
+            masses.append(float(line.split('and mass')[1]))
+        elif masses:
+            break
+    return np.array(masses)
+
+
+def _rotational_constants_ghz(masses: np.ndarray, geometry: np.ndarray) -> np.ndarray:
+    """The nonzero rotational constants (GHz) of a geometry in angstrom, sorted."""
+    from scipy import constants
+
+    r = geometry - masses @ geometry / masses.sum()
+    inertia = sum(m * (x @ x * np.eye(3) - np.outer(x, x)) for m, x in zip(masses, r, strict=True))
+    moments = np.linalg.eigvalsh(inertia)
+    factor = constants.h / (8 * np.pi**2 * constants.atomic_mass * 1e-20) / 1e9
+    return np.sort(factor / moments[moments > 1e-8])
+
+
+def _eckart_residuals(masses: np.ndarray, geometry: np.ndarray, modes: np.ndarray) -> np.ndarray:
+    """Per mode, |sum_i m_i (r_i - r_com) x d_i| / sum_i m_i |r_i - r_com| |d_i| (see ECKART_TOLERANCE)."""
+    r = geometry - masses @ geometry / masses.sum()
+    torque = np.einsum('i,kij->kj', masses, np.cross(r[None], modes))
+    scale = np.einsum('i,i,ki->k', masses, np.linalg.norm(r, axis=1), np.linalg.norm(modes, axis=2))
+    return np.linalg.norm(torque, axis=1) / scale
+
+
+def _anharmonic_geometry(lines: list[str]) -> np.ndarray | None:
+    """The equilibrium geometry of the anharmonic analysis: column Se of "Average Cartesian Coordinates" (angstrom,
+    origin at the center of mass). None without that table."""
+    start = next((i for i, line in enumerate(lines) if line.strip() == 'Average Cartesian Coordinates'), None)
+    if start is None:
+        return None
+    coords = {}
+    for line in lines[start + 3:]:    # the title, dashes, the column titles, then e.g. "X(1)  (Angs)  -0.037321 ..."
+        tokens = line.split()
+        if len(tokens) < 3 or tokens[1] != '(Angs)':
+            break
+        coords[int(tokens[0][2:-1]) - 1, 'XYZ'.index(tokens[0][0])] = float(tokens[2])
+    n_atoms = max(atom for atom, _ in coords) + 1
+    return np.array([[coords[atom, axis] for axis in range(3)] for atom in range(n_atoms)])
+
+
+def _turn_onto_modes(masses: np.ndarray, geometry: np.ndarray, modes: np.ndarray) -> np.ndarray:
+    """The geometry turned (a proper rotation) so that it best meets Eckart's condition with the modes. The fit
+    starts from each of the 24 turns that map the axes onto each other, since one start can end at a wrong turn."""
+    import itertools
+
+    from scipy.optimize import minimize
+    from scipy.spatial.transform import Rotation
+
+    def cost(rotvec):
+        turned = geometry @ Rotation.from_rotvec(rotvec).as_matrix().T
+        return np.sum(_eckart_residuals(masses, turned, modes) ** 2)
+
+    best = None
+    for perm in itertools.permutations(range(3)):
+        for signs in itertools.product((1, -1), repeat=3):
+            start = np.diag(signs)[:, perm]
+            if np.linalg.det(start) < 0:
                 continue
-
-            elif line.startswith(" - Thermochemistry"):
-                return allines
-
-            if copy:
-                allines.append(line)
-
-    return allines
-
-
-def nm_floats(filename):
-    """
-    from lines with NM displacements returns numbers (floats)
-    """
-    import re
-    nums = []
-    allines = nm_parse_lines(filename)
-
-    for line in allines:
-        x = re.findall(r"[-+]?\d*\.\d+|\d+", line)
-        for i in x:
-            try:
-                int(i)
-            except ValueError:
-                nums.append(float(i))
-    return nums
-
-
-def get_normal_modes(filename, Na):
-    """
-    from freq output file returns 2D array (array of vectorised 3Na-6 NMs as rows of 3Na)
-    """
-
-    # Ntot = (3 * Na - 6) * Na
-    floats = nm_floats(filename)
-    if not floats:
-        raise ValueError('no normal-mode table with 3 modes per block ("Atom  AN  X Y Z  X Y Z  X Y Z"): the reader '
-                         'reads only those, so not a molecule with fewer than 3 modes')
-    m1 = np.reshape(np.array(floats), (-1, Na, 3, 3))
-    result = np.transpose(m1, (0, 2, 1, 3)).reshape(-1, 3, Na, 3)
-    modes = result.reshape(-1, 3 * Na)
-
-    # a last block of 1 or 2 modes has another header and is not read
-    if len(modes) not in (3 * Na - 6, 3 * Na - 5):
-        raise ValueError(f'{len(modes)} normal modes read for {Na} atoms, expected {3 * Na - 6} or {3 * Na - 5}: '
-                         f'the reader reads only blocks of 3 modes')
-
-    return modes
+            fit = minimize(cost, Rotation.from_matrix(start).as_rotvec(), method='BFGS')
+            if best is None or fit.fun < best.fun:
+                best = fit
+    return geometry @ Rotation.from_rotvec(best.x).as_matrix().T
 
 
 def get_equil_geo(allines):
+    """
+    Atoms and equilibrium geometry (angstrom): the geometry at which Gaussian computed the frequencies, in the frame of
+    the normal modes (get_normal_modes), so that the two can be drawn together.
 
-    opt = False
-    collect = False
+    Read from the last "Standard orientation" block before the first "Harmonic frequencies" line ("Input orientation"
+    with NoSymm); without a frequency section, the last such block in the file. In an Opt+Freq output it is the
+    optimized geometry as the frequency step prints it; a Freq-only output (e.g. ACDM) prints it once, at the start.
+
+    The block must have the rotational constants that Gaussian prints with the frequencies (the thermochemistry).
+    It does not in the ACAC example: its block is the start geometry of an optimization, while its frequencies come
+    from the checkpoint geometry (Geom=AllCheck in the archive line), which the file never prints as a block. Then the
+    geometry is the anharmonic analysis's ("Average Cartesian Coordinates", column Se), which must have those
+    rotational constants, turned into the frame of the modes (_turn_onto_modes) with its origin at the center of
+    nuclear charge, as in Gaussian's standard orientation.
+
+    Check, with 5-decimal modes (Freq=HPModes): the geometry and the modes share a frame (ECKART_TOLERANCE). Any
+    check that fails raises ValueError. Elements known: H, C, N and O.
+    """
+    harmonic = next((i for i, line in enumerate(allines) if 'Harmonic frequencies (cm**-1)' in line), len(allines))
+    start = next((i for i in range(harmonic - 1, -1, -1)
+                  if 'Standard orientation:' in allines[i] or 'Input orientation:' in allines[i]), None)
+    if start is None:
+        raise ValueError('no geometry: no "Standard orientation" or "Input orientation" block before the frequencies')
 
     elements = []
+    numbers = []
     dictelem = {'6': 'C', '7': 'N', '8': 'O', '1': 'H'}
     coords = []
 
-    countlines = 0
-
-    for line in allines:
-        if 'Optimization completed.' in line.strip():
-            opt = True
+    # the block: its title, a dashed line, two lines of column titles, a dashed line, one row per atom, a dashed line
+    dashes = 0
+    for end in range(start + 1, len(allines)):
+        line = allines[end].strip()
+        if line.startswith('---'):
+            dashes += 1
+            if dashes == 3:
+                break
             continue
-
-        if opt and len(line.strip().split())==1 and collect:
-            countlines+=1
-            continue
-
-        if 'Standard orientation:' in line.strip() and opt:
-            collect = True
-            continue
-
-        if 'Rotational constants (GHZ):' in line.strip() and collect:
-            break
-
-        if collect and len(line.strip().split())>2 and countlines==2:
-            atomic_number = line.strip().split()[1]
+        if dashes == 2:
+            _, atomic_number, _, x, y, z = line.split()
             if atomic_number not in dictelem:
                 raise ValueError(f'atomic number {atomic_number}: get_equil_geo knows only {dictelem}')
             elements.append(dictelem[atomic_number])
-            coords.append([float(line.strip().split()[-3]),
-                           float(line.strip().split()[-2]),
-                           float(line.strip().split()[-1])])
+            numbers.append(int(atomic_number))
+            coords.append([float(x), float(y), float(z)])
 
-    if not elements:
-        raise ValueError('no optimized geometry: no "Standard orientation" after "Optimization completed."')
-    if len(elements) != parse_Na(allines):
-        raise ValueError(f'{len(elements)} atoms in the optimized geometry, NAtoms= says {parse_Na(allines)}')
-    coords = np.array(coords)
+    n_atoms = parse_Na(allines)
+    if len(elements) != n_atoms:
+        raise ValueError(f'{len(elements)} atoms in the geometry block, NAtoms= says {n_atoms}')
+    geometry = np.array(coords)
+    if harmonic == len(allines):
+        return elements, geometry
 
-    return elements, coords
+    modes, high_precision = _read_normal_modes(allines, n_atoms)
+    masses = _masses(allines, harmonic)
+    if len(masses) != n_atoms:
+        raise ValueError(f'{len(masses)} atomic masses in the thermochemistry, NAtoms= says {n_atoms}')
+    block = next((line for line in allines[end:harmonic] if 'Rotational constants (GHZ):' in line), None)
+    freqs = next((line for line in allines[harmonic:] if 'Rotational constant' in line and '(GHZ):' in line), None)
+
+    # the thermochemistry prints 5 decimals
+    if block and freqs and not _same_rotational_constants(_rotational_constants(block),
+                                                          _rotational_constants(freqs), atol=1e-5):
+        at_freqs = _rotational_constants(freqs)
+        anharmonic = _anharmonic_geometry(allines)
+        if anharmonic is None or not high_precision:
+            raise ValueError('the last geometry block before the frequencies is not the geometry of the frequencies '
+                             '(other rotational constants), and the file lacks the "Average Cartesian Coordinates" '
+                             'table or the 5-decimal normal modes (Freq=HPModes) to take the geometry from there')
+        at_anharmonic = _rotational_constants_ghz(masses, anharmonic)
+        if not _same_rotational_constants(at_anharmonic, at_freqs, atol=1e-4 * at_freqs.max()):
+            raise ValueError(f'neither the last geometry block before the frequencies nor the anharmonic analysis\'s '
+                             f'geometry has the rotational constants of the frequencies, {at_freqs} GHz')
+        geometry = _turn_onto_modes(masses, anharmonic, modes)
+        z = np.array(numbers)
+        geometry -= z @ geometry / z.sum()
+
+    residual = _eckart_residuals(masses, geometry, modes).max()
+    if high_precision and residual > ECKART_TOLERANCE:
+        raise ValueError(f'the geometry is not in the frame of the normal modes: Eckart residual {residual:.1e}, '
+                         f'above {ECKART_TOLERANCE}')
+
+    return elements, geometry
 
 
 def lower_triangular_to_full_matrix(lower_triangular_list):

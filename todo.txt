@@ -34,15 +34,12 @@ Now, in this order. After each change that moves a number: CQCParse's tests, the
 (T6).
     1. R2   [decide] Gaussian leaves out force constants below a cut-off. First one test: rerun ACAC with a lower
             cut-off and measure what changes. Then decide.
-    2. A6   Gaussian geometry of ACAC and ACDM: an error now (first step, todo_cleanup Q12), no longer empty arrays.
-            Left: the fix, reading the geometry from where these two files hold it.
-    3. N1   Decided: H order for both readers, Gaussian reindexed by default (see N1). The docstring note on today's
+    2. N1   Decided: H order for both readers, Gaussian reindexed by default (see N1). The docstring note on today's
             mixed orders is done. Left: the change, in N1's order; it needs wilson's references rerun [wilson].
-(Done: R5 with todo_cleanup.txt Q5; T4 and R4; in wilson_gv: L1, L2, T6. See Done.)
+(Done: R5 with todo_cleanup.txt Q5; T4, R4, A6, N2; in wilson_gv: L1, L2, T6. See Done.)
 
 Later, when wilson needs it:
-    N2, N3  Normal modes: choose the shape [decide], then read the files that fail now. Before wilson G9. (N1's
-            order: decided, see "Now".)
+    N3      Normal modes: one shape for both readers [decide]. Before wilson G9. (N1's order: decided, see "Now".)
     X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8: without them, mixed data
             gives wrong numbers with no error. T4's mode matching is the start.
     A4      B for linear molecules: choose what B holds [decide]. Only for linear molecules with 2+ modes; wilson
@@ -51,7 +48,8 @@ Later, when wilson needs it:
 
 In wilson_gv, not in this repo:
     T7      wilson's test of the load through CQCParse fails at a fixture, before it calls CQCParse.
-    L7      Two leftovers of the old layout (tests/suitests, a workflow file that never runs). Housekeeping.
+    T8      Update the normal_modes[0] that test_integration.py pins: 5 decimals now (N2).
+    L7     Two leftovers of the old layout (tests/suitests, a workflow file that never runs). Housekeeping.
     (L1, L2 and T6: done on wilson_gv's branch cqcparse_cleanup.)
 
 Dropped (see Done): R3 (Coriolis digits: negligible for wilson) and L3 (the rewrite: no gain for wilson
@@ -60,12 +58,13 @@ or the numbers now; do targeted cleanups such as R4 instead).
 
 Tests
 -----
-    pass 323, xfail 0, fail 0 (tests/, 323 tests, about 3 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 341, xfail 0, fail 0 (tests/, 341 tests, about 4 s; 11 are the baseline, T2; 143 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
-    wilson_gv cqcparse_cleanup (b99c25e) with this branch: 976 pass, 17 fail, 1 skipped, 1 collection error.
-    wilson_gv PR #69 (bf07c05) with CQCParse main: the same.
+    wilson_gv cqcparse_cleanup (b99c25e) with this branch: 975 pass, 18 fail, 1 skipped, 1 collection error; the
+        18th is T8 (976 and 17 once T8 is done).
+    wilson_gv PR #69 (bf07c05) with CQCParse main: 976 pass, 17 fail, 1 skipped, 1 collection error.
     cqcparse_cleanup with CQCParse main: 963 pass, 30 fail; the extra 13 are T6's reference tests, which expect
         this branch's cff.
     The 17 failures and the collection error have one cause, wilson's own: evv_experiment (fixtures.py) calls
@@ -129,8 +128,13 @@ T. Tests and baseline
         through parse_from_source; it expects cff_rc next to cff, and reindex_modes (A1, A5). It fails at
         its fixture (evv_experiment in fixtures.py, cf_uv; see Tests) before it calls CQCParse, with CQCParse main
         too. So it checks nothing of CQCParse today. Other wilson tests do load CQCParse data and pass (T6's
-        reference tests, refac_rsp_eval/tests/test_integration.py). After wilson fixes the fixture: run it with
-        this branch.
+        reference tests; refac_rsp_eval/tests/test_integration.py, but for T8). After wilson fixes the fixture: run
+        it with this branch.
+[ ] T8  [wilson] test_eval_molsys_data (refac_rsp_eval/tests/test_integration.py) pins normal_modes[0] of Gaussian
+        formaldehyde B3LYP/cc-pVQZ with 2 decimals; the reader gives 5 since N2. The new value, from wilson's own
+        copy of the file:
+            [0.04294, -0., 0., -0.17408, 0., -0., 0.69565, -0., -0., 0.69565, 0., 0.]
+        It fails until then (see Tests).
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
@@ -151,23 +155,6 @@ A. What parse_from_source returns
         takes 0 or 3 values and raises otherwise. It matters in wilson S3 for linear molecules
         with 2 or more modes (CO has 1). Decide what B holds for a linear molecule, the same in both readers.
         Both readers know whether the molecule is linear since C4.
-[ ] A6  Gaussian equilibrium_geometry and atoms: no geometry for ACAC and ACDM. get_equil_geo
-        (parseGaussian_forWilson.py) takes the first "Standard orientation" after "Optimization completed.", and
-        these two files have none there:
-            - ACAC: the only "Standard orientation" (line 201) comes before "Optimization completed." (line 22703).
-            - ACDM: the file is a Freq job only; its only "Standard orientation" (line 250) comes before
-              "Optimization completed." (line 98997).
-        The 5 other files are fine. Found with C4, which first used the atom count from get_equil_geo (now from the
-        NAtoms= line, parse_Na).
-        First step done (todo_cleanup.txt Q12): get_equil_geo raises ValueError when it finds no atoms ('no
-        optimized geometry: no "Standard orientation" after "Optimization completed."'), when the count differs
-        from parse_Na's, and for an element it does not know (it knows H, C, N and O; the error names the atomic
-        number). Before, ACAC and ACDM gave empty arrays with no error, and other elements a KeyError. In the
-        baseline, equilibrium_geometry and atoms of ACAC and ACDM are errors now.
-        For wilson: none (it does not read the geometry).
-        Left, the fix: find where these two files hold the optimized geometry, and read it from there; check that
-        the atom count matches parse_Na. Then N2's errors on ACAC and ACDM go too (checked: with the NAtoms count,
-        get_normal_modes reads 18 and 42 modes).
 
 
 R. Precision of the numbers in the files
@@ -222,8 +209,8 @@ Gaussian numbers modes two ways: the harmonic section (H order) and the anharmon
 Gaussian origin every property is in A order, except normal_modes.
 wilson's load does not ask for normal_modes, and the evaluator does not read them (MolSystemData's docstring). One
 wilson test does: refac_rsp_eval/tests/test_integration.py asks wilson_data_obtainer for them (Gaussian
-formaldehyde, B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order. N1 and N3 change it
-[wilson].
+formaldehyde, B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 values, in H order (5 decimals since
+N2: T8). N1 and N3 change it [wilson].
 [ ] N1  Mode order. DECIDED: H order (ascending harmonic frequency) is the common order of
         parse_from_source, for both readers; Gaussian data is reindexed from A to H by default. Not done yet.
         Why: results from different programs must be comparable mode by mode. CFOUR's order is ascending frequency
@@ -248,8 +235,8 @@ formaldehyde, B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 value
         two programs' orders differ.
         The change, in order:
             1. Q7's leftover (todo_cleanup.txt): reindex only the names in the result, not all 9 tensors, and read
-               modes_mapping and the mode count from the file without asking for them. The mode count must not
-               come from normal_modes (it fails on ACAC, ACDM and CO, N2): take it from the harmonic fundamentals.
+               modes_mapping and the mode count from the file without asking for them; the mode count from the
+               harmonic fundamentals, not from normal_modes (a request need not hold normal_modes).
             2. Reindex Gaussian by default: reindex_modes=True as the default, or drop the argument (wilson never
                passes it). The result's 'reindex_modes' is then True for Gaussian.
             3. Everything else with mode indices: the validation readers (todo_cleanup Q10) are in A order, checked:
@@ -263,19 +250,13 @@ formaldehyde, B3LYP/cc-pVQZ) and pins normal_modes[0], a flat vector of 12 value
                normal_modes[0], already in H order: unchanged.
         Still open here: modes_mapping is Gaussian only (CFOUR has one mode order), the last key the two readers
         do not share (A5). With everything in H order it stays useful as the record of Gaussian's A numbering.
-[ ] N2  Gaussian normal_modes fails on ACAC, ACDM and CO (get_normal_modes, parseGaussian_forWilson.py). Since
-        todo_cleanup Q12 all three raise ValueError with the cause; before, CO returned 0 modes with no error.
-            - ACAC and ACDM: at get_equil_geo, no optimized geometry (A6). get_normal_modes takes its atom count
-              from get_equil_geo; with the count from parse_Na it reads them (A6).
-            - CO: at get_normal_modes, no table of 3 modes (CO has 1 mode; get_normal_modes reads only tables of 3
-              modes, "Atom  AN  X Y Z  X Y Z  X Y Z").
-        get_normal_modes also raises when the mode count is not 3N-6 or 3N-5: a molecule whose last table holds 1
-        or 2 modes (another header) lost those modes with no error before (from reading the code; every example has
-        a multiple of 3 modes, except CO). Left: read tables of 1 and 2 modes too.
 [ ] N3  One shape for both readers. Now a dict {mode: vector}: Gaussian keys 0 .. n-1 and flat vectors (3 x atoms);
         CFOUR keys from 7 (7-12 for formaldehyde) and vectors of shape (atoms, 3). wilson's MolSystemData.eigenvecs
         is typed as a numpy array, but stores the dict as it comes (from_datadict, system_data.py).
         Choose one, e.g. an array (modes, atoms, 3) with modes 0 .. n-1, in one unit.
+        Already shared: both readers give the geometry in the frame of the normal modes, so the two can be drawn
+        together (Gaussian: A6; CFOUR: both from MOLDEN, Eckart residual 3e-7). The unit differs: angstrom and
+        Bohr (A3).
 
 
 X. Mixing origins (wilson S8)
@@ -349,6 +330,13 @@ A. What parse_from_source returns
         UnboundLocalError). The mode count is the number of harmonic fundamentals.
     A5  CFOUR returns reindex_modes too, always False (one mode order), so both readers return the same keys.
         wilson's test_getting_data expects the key.
+    A6  Gaussian equilibrium_geometry is the geometry of the frequencies, in the frame of the normal modes, so the
+        two can be drawn together (get_equil_geo): the last "Standard orientation" block before the frequencies, if
+        it has the rotational constants printed with them. Else the anharmonic analysis's geometry ("Average
+        Cartesian Coordinates", Se), turned into the frame of the modes: in ACAC, whose block is the start of an
+        optimization while its frequencies come from the checkpoint geometry. Checked in every file: geometry and
+        5-decimal modes meet Eckart's condition (ECKART_TOLERANCE), and the geometry gives B
+        (tests/test_parseGaussian.py). ACAC and ACDM have a geometry now; the 5 other files are unchanged.
 
 R. Precision
     C3 + R1  One conversion of the force constants to au for both readers: CQCParse.utils.reduced_to_au (its
@@ -365,6 +353,11 @@ R. Precision
 P. Speed
     P1  parse_section's duplicate check uses a set: ACDM frequencies 1.93 s -> 0.10 s.
     P2  getPolarDers_log reads the table in one pass: ACDM 1.28 s -> 0.05 s.
+
+N. Normal modes
+    N2  Gaussian normal_modes from the 5-decimal table (Freq=HPModes; else the 2-decimal one), in blocks of any
+        number of modes (CO: 1), with the atom count from NAtoms=. All 7 examples read; the values moved by up to
+        0.005, the rounding of the 2-decimal table (wilson: T8).
 
 L. Legacy code
     L1  The legacy parser classes deleted (GaussianDataParser, CFOURdataParser, ParsedData and the class path of

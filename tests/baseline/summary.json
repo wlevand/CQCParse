@@ -7,6 +7,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (2, 3)",
       "atoms": "list, 2 items",
+      "normal_modes": "dict, 1 entries of shape (6,)",
       "anharmonic_states": "dict, 3 entries",
       "harmonic_states": "dict, 3 entries",
       "nc_sqrt_eigval": "dict, 1 entries",
@@ -23,9 +24,7 @@
       "modes_mapping": "dict, 1 entries",
       "reindex_modes": "bool False"
     },
-    "errors": {
-      "normal_modes": "ValueError: no normal-mode table with 3 modes per block (\"Atom  AN  X Y Z  X Y Z  X Y Z\"): the reader reads only those, so not a molecule with fewer than 3 modes"
-    }
+    "errors": {}
   },
   "g16_ACAC_B3LYP_cc-pVQZ": {
     "source_type": "gaussian",
@@ -33,6 +32,9 @@
     "lvl_theory": "B3LYP",
     "basis_set": "cc-pVQZ",
     "returned": {
+      "equilibrium_geometry": "ndarray float64 (8, 3)",
+      "atoms": "list, 8 items",
+      "normal_modes": "dict, 18 entries of shape (24,)",
       "anharmonic_states": "dict, 1329 entries",
       "harmonic_states": "dict, 1329 entries",
       "nc_sqrt_eigval": "dict, 18 entries",
@@ -49,11 +51,7 @@
       "modes_mapping": "dict, 18 entries",
       "reindex_modes": "bool False"
     },
-    "errors": {
-      "equilibrium_geometry": "ValueError: no optimized geometry: no \"Standard orientation\" after \"Optimization completed.\"",
-      "atoms": "ValueError: no optimized geometry: no \"Standard orientation\" after \"Optimization completed.\"",
-      "normal_modes": "ValueError: no optimized geometry: no \"Standard orientation\" after \"Optimization completed.\""
-    }
+    "errors": {}
   },
   "g16_ACDM_B3LYP_cc-pVQZ": {
     "source_type": "gaussian",
@@ -61,6 +59,9 @@
     "lvl_theory": "B3LYP",
     "basis_set": "cc-pVQZ",
     "returned": {
+      "equilibrium_geometry": "ndarray float64 (16, 3)",
+      "atoms": "list, 16 items",
+      "normal_modes": "dict, 42 entries of shape (48,)",
       "anharmonic_states": "dict, 14189 entries",
       "harmonic_states": "dict, 14189 entries",
       "nc_sqrt_eigval": "dict, 42 entries",
@@ -77,11 +78,7 @@
       "modes_mapping": "dict, 42 entries",
       "reindex_modes": "bool False"
     },
-    "errors": {
-      "equilibrium_geometry": "ValueError: no optimized geometry: no \"Standard orientation\" after \"Optimization completed.\"",
-      "atoms": "ValueError: no optimized geometry: no \"Standard orientation\" after \"Optimization completed.\"",
-      "normal_modes": "ValueError: no optimized geometry: no \"Standard orientation\" after \"Optimization completed.\""
-    }
+    "errors": {}
   },
   "g16_FORM_B3LYP_cc-pVDZ": {
     "source_type": "gaussian",

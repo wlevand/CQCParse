@@ -22,9 +22,8 @@ Done when ([x] met, [~] partly, [ ] open):
            counts in todo.txt Tests). One of them, test_getting_data, fails before it calls CQCParse (T7).
     [ ] 6. This branch and wilson_gv's cqcparse_cleanup are on main, with a list of what changed for users (Q13).
 
-Not part of this goal (they stay in todo.txt): R2, N1-N3 (except N1's first step), X1, A3, A4, and A6's fix
-(reading the geometry of ACAC and ACDM: a clear error now, so no wrong data). These are new physics choices or
-features, not fixes.
+Not part of this goal (they stay in todo.txt): R2, N1 (except its first step), N3, X1, A3, A4.
+These are new physics choices or features, not fixes. (A6 and N2, outside this goal too, are done.)
 
 
 How to work
@@ -124,33 +123,38 @@ Q. New findings
               since main (the Done entries of both files):
                 - numbers (sizes in todo.txt Done): CFOUR qff was far too large (C3); Gaussian cff and qff are
                   converted from column FI, no longer read from the 5-decimal column K (R1); CFOUR diphess, qff and
-                  qff_rc are the mean of the two index orders the files list (C1).
+                  qff_rc are the mean of the two index orders the files list (C1). Gaussian normal_modes have 5
+                  decimals (were 2, N2).
                 - keys: a request for cff or cff_rc returns both, the same for qff and qff_rc (A1); CFOUR returns
                   reindex_modes, always False (A5); CFOUR returns harmonic_states only when harmonic_states or
                   nc_sqrt_eigval is asked for (C2); both readers find a linear molecule from the file (C4).
                 - errors where there were zeros, empty arrays or None: an unknown name or source_type (Q6), a
-                  reindex_modes request it cannot serve (Q7), a missing section (Q12; A6 and N2 for ACAC, ACDM
-                  and CO), a section cut short where data are paired (Q8), Gaussian unit lines other than Debye or
-                  a.u. (R4). Errors keep their type and name the file (Q6).
+                  reindex_modes request it cannot serve (Q7), a missing section (Q12), a section cut short where
+                  data are paired (Q8), Gaussian unit lines other than Debye or a.u. (R4), a Gaussian geometry not
+                  in the frame of the normal modes (A6). Errors keep their type and name the file (Q6).
                 - requests that failed before and work now: B, coriolis or a force constant without
                   nc_sqrt_eigval (A2); CFOUR HFcc_pVQZ, which has no MOLDEN, for every name but the geometry and
-                  normal modes (C2).
+                  normal modes (C2); the geometry of ACAC and ACDM, and the normal modes of ACAC, ACDM and CO (A6,
+                  N2). Gaussian's geometry is the one of the frequencies, in the frame of the normal modes (A6).
                 - calls: parse_from_source's linear argument is ignored, with a DeprecationWarning, and
                   parse_cfour_output lost linear_molecule (C4); setup_logger lost use_rich and no_color (Q4);
                   get_cubic_post, get_quartic_post, getCubicPost and getQuarticPost lost recipcm and reduced
-                  (C3 + R1). The readers print nothing (L4, Q6, Q8, Q12).
+                  (C3 + R1); get_normal_modes takes the file's lines, not its name (N2). The readers print nothing
+                  (L4, Q6, Q8, Q12).
                 - validation readers (Q10): get_detected_resonances_g16 returns (I, J, K) triples (it returned
                   None); get_detected_resonances_c4 returns the resonance lines (it returned []);
                   parse_anharmonic_x_matrix raises without its section (it returned empty lists).
                 - names gone: L1's classes (GaussianDataParser, CFOURdataParser, ParsedData and the rest of
                   parser_template, gaussian_parser, cfour_parser); the modules simple_parsed_data, mockparser,
                   retrieve_data, parseGaussian_extra, parseCFOUR_extra, relay_data with DataVault, and debug (L4-L6,
-                  Q4); convNu2Ene (R4); the functions deleted in L4, L5, Q4 and Q5; the parsing star exports (Q3).
+                  Q4); convNu2Ene (R4); nm_parse_lines and nm_floats (N2); the functions deleted in L4, L5, Q4 and
+                  Q5; the parsing star exports (Q3).
                 - renamed or moved: getDipoleDers_anharm_au_simple -> getDipoleDers_anharm_au,
                   getPolarDers_pkl_au_simple -> getPolarDers_pkl_au (R4); the polar.pkl builder ->
                   CQCParse.tools.build_polar_pkl (Q5).
                 - new: CQCParse.utils.reduced_to_au, dimensionless_to_mass_weighted, HARTREE_CM, AMU_IN_ME
-                  (C3 + R1, R4); SOURCE_TYPES, KNOWN_NAMES, REINDEXED_TENSORS in parse_wilson_obtainer (Q6, Q7).
+                  (C3 + R1, R4); SOURCE_TYPES, KNOWN_NAMES, REINDEXED_TENSORS in parse_wilson_obtainer (Q6, Q7);
+                  ECKART_TOLERANCE in parseGaussian_forWilson (A6).
                 - install: needs only numpy, scipy and pandas; rich is gone (Q4); setup.py and requirements.txt
                   are gone (Q2).
                 - speed: large Gaussian files load several times faster (P1, P2).
@@ -221,11 +225,16 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
     - Decided by the owner: the goal and the order of the work; what to keep (the validation readers, the polar.pkl
       builder, the data of the other pickles); deleting DataVault; N1's mode order (H); when to commit.
 
-2026-10-26 to 2026-10-27: checks and the two todo files; no code changed.
+2026-10-26 to 2026-10-27: checks, the two todo files, and the first part of A6.
     - Claude Code: ran CQCParse's tests and wilson_gv's full test suite (its branch cqcparse_cleanup, with this
       branch and with CQCParse main); compared both todo files with that branch and with wilson_gv's issue #71;
       updated both todo files (L1, L2, T6 done; new todo.txt T7 and L7; the merge order in Q13); drafted an
       update text for issue #71 (not posted by Claude Code). wilson_gv was only read and run, never changed.
+    - Claude Code, A6 and N2: analyzed the geometry blocks, the "Average Cartesian Coordinates" and both normal-mode
+      tables of the 7 Gaussian examples; rewrote get_equil_geo (the geometry of the frequencies, in the frame of
+      the modes, with the Eckart check and the fit for ACAC) and the normal-mode reader (5 decimals, blocks of any
+      size); wrote the tests in tests/test_parseGaussian.py (19 cases); rewrote the baseline for the 7 Gaussian
+      sources (normal_modes; the new geometries and modes).
     - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e).
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).

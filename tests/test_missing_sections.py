@@ -40,7 +40,7 @@ def g16_freqs_only(tmp_path):
     ('cff', 'CUBIC FORCE CONSTANTS'), ('qff', 'QUARTIC FORCE CONSTANTS'),
     ('modes_mapping', 'The connection between this new numbering'),
     ('equilibrium_geometry', 'Standard orientation'), ('atoms', 'Standard orientation'),
-    ('normal_modes', 'Standard orientation')])
+    ('normal_modes', 'normal-mode table')])
 def test_gaussian_missing_section(g16_freqs_only, name, section):
     with pytest.raises(ValueError, match=section):
         parse('gaussian', g16_freqs_only, name)
@@ -65,12 +65,6 @@ def test_gaussian_unexpected_unit(tmp_path, name, unit, other):
     path.write_text(text.replace(f'Unit of the property: {unit}', f'Unit of the property: {other}'))
     with pytest.raises(ValueError, match='unit line'):
         parse('gaussian', path, name)
-
-
-def test_gaussian_normal_modes_one_mode():
-    """CO has 1 mode: no table of 3 modes, which is all the reader reads (todo N2). It returned 0 modes."""
-    with pytest.raises(ValueError, match='normal-mode table'):
-        parse('gaussian', EXAMPLES + '/co/g16_inputFull_3q.out', 'normal_modes')
 
 
 def edit_copy(tmp_path, filename, keep):

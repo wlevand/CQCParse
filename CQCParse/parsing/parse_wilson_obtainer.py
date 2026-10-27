@@ -192,16 +192,10 @@ def parse_gaussian16_output(requested_data: dict,
             results['atoms'] = atoms
 
     if 'normal_modes' in requested_data:
-        from .parseGaussian_forWilson import get_equil_geo, get_normal_modes
+        from .parseGaussian_forWilson import get_normal_modes, parse_Na
 
-        if 'atoms' not in results:
-            atoms, _ = get_equil_geo(log_lines)
-        else:
-            atoms = results['atoms']
-
-        # get_equil_geo finds 0 atoms in files with no "Standard orientation" after "Optimization completed.";
-        # get_normal_modes then fails on its reshape
-        nmodes = get_normal_modes(filename=log_file, Na=len(atoms))
+        # only the atom count is needed, not the geometry (which get_equil_geo refuses for ACAC)
+        nmodes = get_normal_modes(log_lines, parse_Na(log_lines))
         nmodes = {i: nm for i, nm in enumerate(nmodes)}
         results['normal_modes'] = nmodes
 
