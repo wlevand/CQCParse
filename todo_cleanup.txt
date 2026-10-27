@@ -229,12 +229,14 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
     - Claude Code: ran CQCParse's tests and wilson_gv's full test suite (its branch cqcparse_cleanup, with this
       branch and with CQCParse main); compared both todo files with that branch and with wilson_gv's issue #71;
       updated both todo files (L1, L2, T6 done; new todo.txt T7 and L7; the merge order in Q13); drafted an
-      update text for issue #71 (not posted by Claude Code). wilson_gv was only read and run, never changed.
+      update text for issue #71 (not posted by Claude Code). wilson_gv was only read and run, except T8.
     - Claude Code, A6 and N2: analyzed the geometry blocks, the "Average Cartesian Coordinates" and both normal-mode
       tables of the 7 Gaussian examples; rewrote get_equil_geo (the geometry of the frequencies, in the frame of
       the modes, with the Eckart check and the fit for ACAC) and the normal-mode reader (5 decimals, blocks of any
       size); wrote the tests in tests/test_parseGaussian.py (19 cases); rewrote the baseline for the 7 Gaussian
       sources (normal_modes; the new geometries and modes).
+    - Claude Code, in wilson_gv on the owner's request: T8, one line of test_integration.py (the pinned
+      normal_modes[0]); ran wilson's full test suite. The owner commits it.
     - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e).
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).

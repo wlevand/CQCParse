@@ -48,9 +48,8 @@ Later, when wilson needs it:
 
 In wilson_gv, not in this repo:
     T7      wilson's test of the load through CQCParse fails at a fixture, before it calls CQCParse.
-    T8      Update the normal_modes[0] that test_integration.py pins: 5 decimals now (N2).
     L7     Two leftovers of the old layout (tests/suitests, a workflow file that never runs). Housekeeping.
-    (L1, L2 and T6: done on wilson_gv's branch cqcparse_cleanup.)
+    (L1, L2, T6 and T8: done on wilson_gv's branch cqcparse_cleanup.)
 
 Dropped (see Done): R3 (Coriolis digits: negligible for wilson) and L3 (the rewrite: no gain for wilson
 or the numbers now; do targeted cleanups such as R4 instead).
@@ -62,8 +61,7 @@ Tests
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
-    wilson_gv cqcparse_cleanup (b99c25e) with this branch: 975 pass, 18 fail, 1 skipped, 1 collection error; the
-        18th is T8 (976 and 17 once T8 is done).
+    wilson_gv cqcparse_cleanup (b99c25e and T8) with this branch: 976 pass, 17 fail, 1 skipped, 1 collection error.
     wilson_gv PR #69 (bf07c05) with CQCParse main: 976 pass, 17 fail, 1 skipped, 1 collection error.
     cqcparse_cleanup with CQCParse main: 963 pass, 30 fail; the extra 13 are T6's reference tests, which expect
         this branch's cff.
@@ -128,13 +126,9 @@ T. Tests and baseline
         through parse_from_source; it expects cff_rc next to cff, and reindex_modes (A1, A5). It fails at
         its fixture (evv_experiment in fixtures.py, cf_uv; see Tests) before it calls CQCParse, with CQCParse main
         too. So it checks nothing of CQCParse today. Other wilson tests do load CQCParse data and pass (T6's
-        reference tests; refac_rsp_eval/tests/test_integration.py, but for T8). After wilson fixes the fixture: run
-        it with this branch.
-[ ] T8  [wilson] test_eval_molsys_data (refac_rsp_eval/tests/test_integration.py) pins normal_modes[0] of Gaussian
-        formaldehyde B3LYP/cc-pVQZ with 2 decimals; the reader gives 5 since N2. The new value, from wilson's own
-        copy of the file:
-            [0.04294, -0., 0., -0.17408, 0., -0., 0.69565, -0., -0., 0.69565, 0., 0.]
-        It fails until then (see Tests).
+        reference tests; refac_rsp_eval/tests/test_integration.py). After wilson fixes the fixture: run it with this
+        branch.
+    T8  Done, see Done.
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
@@ -312,6 +306,8 @@ T. Tests and baseline
     T6  wilson_gv b99c25e: wilson's reference values rewritten for R1's cff (evv_reference.json,
         grid_reference.npz). Coefficients moved by up to 2.1e-5 of the largest one, spectra by up to 1.1e-4 of the
         largest amplitude. It needs CQCParse from 2ca6fa6 (C3 + R1) on.
+    T8  wilson_gv cqcparse_cleanup: test_eval_molsys_data (refac_rsp_eval/tests/test_integration.py) pins the
+        5-decimal normal_modes[0] of N2.
 
 C. CFOUR reader
     C1  Values the files list twice, once per index order, are averaged: diphess (was not symmetric) and qff,
