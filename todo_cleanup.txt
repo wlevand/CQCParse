@@ -1,7 +1,7 @@
 CQCParse — cleanup and stabilization TODO
-started 2026-10-25, branch cleanup_claude
+branch cleanup_claude
 A separate list with one goal. The physics items stay in todo.txt; items named here by their todo.txt id (T4, R4,
-A6, ...) have their full entry there. Q items are new: found in a review of the code on 2026-10-25.
+A6, ...) have their full entry there. Q items are new: found in a review of the code.
 
 
 Goal
@@ -9,7 +9,7 @@ Goal
 Clean code, and a core that gives the right numbers or a clear error.
 "Core" = what wilson uses: parse_from_source, the two readers behind it, PKG_ROOT, setup_logger (todo.txt, Rules).
 
-Done when ([x] met, [~] partly, [ ] open; as of Q10):
+Done when ([x] met, [~] partly, [ ] open):
     [x] 1. `import CQCParse` works after a plain `pip install .` (Q1, Q2).
     [x] 2. CQCParse holds only code that the core or the tests use. Tools kept on purpose are marked as such and
            tested: the polar.pkl builder (Q5) and the readers for validating wilson (Q10).
@@ -18,9 +18,11 @@ Done when ([x] met, [~] partly, [ ] open; as of Q10):
            reader counts its rows, so a section cut short elsewhere can still pass.
     [x] 4. The unit conversion of each property is written out once, and checked against the other program (T4, R4,
            todo.txt). Not compared across programs: coriolis, and the geometry and normal modes (N3).
-    [ ] 5. wilson's tests fail only for wilson's own reasons: today 17 failures and 1 collection error that CQCParse
-           main gives too (L1, T6, in wilson_gv).
-    [ ] 6. The branch is on main, with a list of what changed for users (Q13).
+    [x] 5. wilson's tests fail only for wilson's own reasons, on wilson_gv's branch cqcparse_cleanup (L1, T6;
+           wilson_gv b99c25e): 17 failures and 1 collection error, all from one wilson fixture, the same with
+           CQCParse main. One of them, test_getting_data, fails before it calls CQCParse (todo.txt T7).
+    [ ] 6. The branch is on main, with a list of what changed for users (Q13); right after, wilson_gv's
+           cqcparse_cleanup on wilson main (its own PR, after wilson's PR #69; see Q13).
 
 Not part of this goal (they stay in todo.txt): R2, N1-N3 (except N1's first step), X1, A3, A4, L2, and A6's fix
 (reading the geometry of ACAC and ACDM: a clear error now, so no wrong data). These are new physics choices or
@@ -41,22 +43,21 @@ The rules of todo.txt apply. In short:
 Order
 -----
 After T4/R4 no known risk is left of wrong numbers with no error, in what wilson reads (the unit conversions are
-checked against the other program now). What is left is small, or in wilson_gv, or a decision. Functions are
-named, not line numbers: those move with every change.
-    1. L1, T6  [wilson] In wilson_gv: delete the dead import lines, update the 13 reference values (todo.txt).
-               Since Q4 part 2, also script_example.py:140-143 and src/wilson_suite/parsing.py. Independent of the
-               rest; any time, but before Q13.
-    2. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
+checked against the other program now). What is left is a decision and the merge. Functions are named, not line
+numbers: those move with every change.
+    1. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
                choice for polarData.pkl changes Q11.
-    3. Q13     Finish: merge to main, version, the list of changes for users.
+    2. Q13     Finish: merge to main (after wilson_gv's PR #69, then wilson_gv's cqcparse_cleanup right after),
+               version, the list of changes for users.
 Also decided, outside this goal: N1's change (H order, Gaussian reindexed by default, with Q7's leftover as its
 first part), in todo.txt N1; it needs wilson's references rerun.
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step),
-Q10, and todo.txt T4 and R4 (see Done here and in todo.txt).
+Q10, and todo.txt T4 and R4 (see Done here and in todo.txt). In wilson_gv (branch cqcparse_cleanup):
+todo.txt L1, L2 and T6 (see todo.txt Done).
 
 
-Q. New findings (2026-10-25)
-----------------------------
+Q. New findings
+---------------
 [ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q5), 30 of the 76 files in
         files_examples are never opened:
             - 4 Gaussian inputs (.com): keep; they show how each run was made.
@@ -64,7 +65,7 @@ Q. New findings (2026-10-25)
               HFcc_pVQZ, HFcc_pVTZ); dimensionless.pkl, polarData.pkl (same 3 folders); CCSDTcc_pVQZ/outfile0.out;
               HFcc_pVDZ DIPDER, DIPOL, FCMFINAL, NORMCO; HFcc_pVQZ FCMFINAL, normcoord; HFcc_pVTZ QUADRATURE,
               cubic.pkl, dipolexyz.pkl, vibdata.pkl.
-        The .pkl files whose writers Q5 deleted (checked 2026-10-25, against the readers on the files in the repo):
+        The .pkl files whose writers Q5 deleted (checked against the readers on the files in the repo):
             - same data as a reader gives: vibdata.pkl = parse_output_file(out); cubic.pkl = pCubicORQuartic(cubic);
               dipolexyz.pkl = the old getDipoleDers(dipole, out), which the reader's getDipoleDers_anharm matches
               (dipgrad exactly, diphess within 3e-7 of 2e-2: the averaging of C1); dimensionless.pkl =
@@ -100,7 +101,28 @@ Q. New findings (2026-10-25)
         from the file, and a pickle of numpy arrays can fail to load in another numpy version). A .npz file
         (np.load with allow_pickle=False) would be safer. Not needed for wilson now.
 [ ] Q13 Finish (found in the review after Q12: nothing in the plan said how the work reaches users).
-            - after L1/T6 in wilson_gv: merge cleanup_claude into main.
+            - merge. L1 and T6 are done on wilson_gv's branch cqcparse_cleanup. Facts, checked against
+              wilson_gv's GitHub main (df46d62):
+                - cqcparse_cleanup is rsp_eval_refactor (bf07c05) plus 5 commits. rsp_eval_refactor is PR #69,
+                  still open, 48 commits ahead of wilson main; the reference files of T6 exist only there.
+                - PR #69 as it is works with CQCParse main as it is: 976 pass, 17 fail, 1 error (wilson's own, see
+                  todo.txt Tests). With this branch it fails on import (L1's dead imports).
+                - wilson main still has L1's dead imports too, so it fails on `import wilson_suite` from the moment
+                  CQCParse main has this branch, until L1 reaches wilson main. Its README installs CQCParse main,
+                  no version pinned.
+                - bf07c05 (wilson_gv) expects PR #69 to be squash-merged.
+              Order, with PR #69 unchanged (decided: cqcparse_cleanup does not go into PR #69):
+                1. PR #69 into wilson main, whenever it is ready.
+                2. cqcparse_cleanup as its own PR. It can be opened now with base rsp_eval_refactor, so it shows
+                   only its 5 commits. After step 1: `git fetch`, then
+                   `git rebase --onto origin/main bf07c05 cqcparse_cleanup` (a squash leaves bf07c05 off main), and
+                   change the PR's base to main.
+                3. cleanup_claude into CQCParse main, as a merge commit (as PR #4), not a squash: wilson_gv's T6
+                   commit (b99c25e) names this branch's 2ca6fa6 (C3 + R1), which a squash would drop from main's
+                   history.
+                4. the wilson PR of step 2, right after step 3. Between 3 and 4, wilson main fails on import.
+              So this branch's merge waits for PR #69.
+            - then update wilson_gv's issue #71: G8 is fixed (C3), and add todo.txt T7 and L7.
             - version: pyproject.toml says 0.1.0. Since then, for a user: errors where there were zeros or empty
               results (Q6, Q7, Q12), and for a Gaussian file whose unit lines are not Debye / a.u. (R4); names gone
               from CQCParse (debug, convNu2Ene (from utils too, R4), change_idx_modes, change_idx_states,
@@ -114,7 +136,7 @@ Q. New findings (2026-10-25)
 
 Done
 ----
-    Q1 (2026-10-25; undone the same day by Q4 part 1, rich is gone)  rich made a runtime dependency.
+    Q1 (undone by Q4 part 1: rich is gone)  rich made a runtime dependency.
         `import CQCParse` needed rich: CQCParse/__init__.py imported
         debug.py (`from rich import print`), and logger.py imported RichHandler (wilson calls setup_logger). Before,
         pyproject.toml listed rich only under the dev dependencies, so a plain `pip install .` left it out, and
@@ -123,13 +145,13 @@ Done
         versions, rich moved to the runtime list).
         Checked: a non-editable install from uv.lock without the dev group (no pytest, no ruff) imports CQCParse,
         parse_from_source and setup_logger. Tests 248 pass, baseline unchanged.
-    Q2 (2026-10-25)  One install file: pyproject.toml. Deleted:
+    Q2  One install file: pyproject.toml. Deleted:
             - setup.py: version 0.1.1 (pyproject.toml: 0.1.0), no dependencies, placeholder description and author.
               The hatchling build backend in pyproject.toml ignores it.
             - requirements.txt: pinned numpy 1.26, pandas 2.2 and setuptools, no scipy. Nothing read it.
         `pip install .` (this README and wilson_gv's README) reads only pyproject.toml. uv.lock pins the versions.
         Nothing in the repo named either file. Tests 248 pass, baseline unchanged.
-    Q4, part 1 (2026-10-25)  rich removed; CQCParse needs only numpy, scipy and pandas.
+    Q4, part 1  rich removed; CQCParse needs only numpy, scipy and pandas.
         rich was used in two places:
             - debug.py: colored print helpers. Nothing called them. Deleted, and its import and export in
               CQCParse/__init__.py.
@@ -147,7 +169,7 @@ Done
         Tests).
         Later, if wanted: delete setup_logger too; wilson's test would use
         logging.getLogger('CQCParse').setLevel(logging.ERROR). One more wilson change.
-    Q4, part 2 (2026-10-25)  DataVault deleted: relay/relay_data.py, tests/test_relay_data.py and
+    Q4, part 2  DataVault deleted: relay/relay_data.py, tests/test_relay_data.py and
         files_examples/calculations.csv (DataVault's only input). relay/ keeps modes_reindexing.py; its __init__.py
         now exports nothing. Why:
             1. Nothing used it. In wilson, script_example.py:140-143 builds a vault and never uses it;
@@ -158,12 +180,12 @@ Done
                None for HF (it picked the program from the method name).
             3. A catalog of runs is not parsing. If one is wanted, build it in wilson and return DataOriginInfo
                directly: one format, nothing to translate. The code is in git history (before this commit).
-        [wilson] Delete script_example.py:140-143 and src/wilson_suite/parsing.py, in L1's PR (todo.txt, L1). Until
-        then script_example.py fails on import, as wilson's utils.py does already. No wilson test uses DataVault.
+        [wilson] Done on wilson_gv's branch cqcparse_cleanup: src/wilson_suite/parsing.py deleted
+        (7376963), script_example.py deleted whole (5379a71). No wilson test used DataVault.
         Checked: tests 248 -> 247 (test_DV_make_data_input_dict gone), baseline unchanged; import CQCParse and
         CQCParse.relay.modes_reindexing work. Nothing else in the repo named the three files (todo.txt only, in
         dated entries).
-    Q4, part 3 + Q3 (2026-10-25)  The rest of the dead code deleted, and the star imports gone. Dead = no path to it
+    Q4, part 3 + Q3  The rest of the dead code deleted, and the star imports gone. Dead = no path to it
         from parse_from_source, setup_logger, PKG_ROOT, the tests, or the code kept on purpose (Q5's builders,
         Q10's readers, pQUADRATURE); wilson_gv uses none of it. A name-based check; each name also searched in
         CQCParse, tests and wilson_gv. All of it is in git history (before this commit).
@@ -198,7 +220,7 @@ Done
         Checked: tests 247 -> 245, baseline unchanged; ruff finds no undefined name. wilson's tests that use
         CQCParse (8 files, 131 tests, with the T6 stand-ins): the same 9 fail with this commit and with the one
         before (R1's 3 in test_hand_calculation, cf_uv in test_anharm_analyzer, 5 others), so none is new.
-    Q6 (2026-10-25)  Bad input to parse_from_source gives a clear error. Before, on Gaussian formaldehyde
+    Q6  Bad input to parse_from_source gives a clear error. Before, on Gaussian formaldehyde
         HF/cc-pVTZ: an unknown name was ignored (the result held only reindex_modes); source_type 'Gaussian' returned
         None; any error inside parse_gaussian16_output was printed, then raised as ValueError("smth went wrong"),
         with no file and no section.
@@ -228,7 +250,7 @@ Done
         file without frequencies: ValueError with the note; CFOUR folder without files: FileNotFoundError with the
         note). Tests 245 -> 252.
         wilson's full test run (T6 stand-ins): 963 pass, 30 fail, 1 collection error, as before.
-    Q5 (2026-10-25, with todo.txt R5)  The polar.pkl builder is its own module, CQCParse/tools/build_polar_pkl.py,
+    Q5 (with todo.txt R5)  The polar.pkl builder is its own module, CQCParse/tools/build_polar_pkl.py,
         out of the reader; the other pickle writers are deleted, their data stays available through the readers.
             - moved from parseCFOUR_forWilson.py: pTensor, getRotationMatrix, getDisplacementsPolarData,
               getPolarDers, pklPolder, pklPoldata (writes polarData.pkl and polarData_raw.pkl: the inputs of
@@ -251,7 +273,7 @@ Done
         test_getRotationMatrix (moved from test_parseCFOUR.py). Tests 252 -> 256; baseline unchanged.
         Checked: a fresh wheel holds CQCParse/tools (with uv, rebuild with --reinstall-package cqcparse: uv reuses
         a cached wheel while pyproject.toml is unchanged). wilson's full run: 963 pass, 30 fail, 1 error, as before.
-    Q7 (2026-10-25)  reindex_modes=True with a request it cannot serve gives a clear error. Before, on Gaussian
+    Q7  reindex_modes=True with a request it cannot serve gives a clear error. Before, on Gaussian
         formaldehyde HF/cc-pVTZ, after the whole file was read: request ['cff'] -> KeyError 'modes_mapping';
         ['cff', 'modes_mapping', 'normal_modes'] -> KeyError 'coriolis'. Cause: the loop renumbers all 9 tensors
         without checking that each is there, and takes the mode count from normal_modes.
@@ -268,12 +290,12 @@ Done
         test_reindex_full_request (the first test of this path: dipgrad and cff_rc renumbered by modes_mapping's
         permutation), test_reindex_ignored_for_cfour. Tests 256 -> 260; baseline unchanged. wilson's full run as
         before.
-        Left, with N1's change (decided 2026-10-25: H order, Gaussian reindexed by default; todo.txt N1, step 1):
+        Left, with N1's change (decided: H order, Gaussian reindexed by default; todo.txt N1, step 1):
         reindex only the names asked for, and read modes_mapping and the mode count without asking for them.
         normal_modes fails on ACAC and ACDM and gives 0 modes on CO (N2), so reindex_modes fails there too (the
         reshape error; on CO validate_mapping's), now with the file named. (Since Q12 all three raise at the
         reading already, with the cause.)
-    Q12 (2026-10-25, with todo.txt A6's first step)  A missing section in a file raises ValueError naming it; the
+    Q12 (with todo.txt A6's first step)  A missing section in a file raises ValueError naming it; the
         file is in the note of Q6. Found in the review after Q7. For wilson the zeros were the danger: e.g. a cff of
         zeros gives EVV terms without the cubic part, and no error.
         Before (each name asked for with nc_sqrt_eigval):
@@ -311,7 +333,7 @@ Done
         Not covered: a section that is there but cut short (Q8's zip(strict=True) covers part of it); B in a
         linear CFOUR molecule (no example; A4); a dipole file empty because every derivative along that axis is
         zero by symmetry (not checked whether that can happen; not in the examples; pDipole would raise wrongly).
-    Q8, all but ruff (2026-10-25, with todo.txt N1's first step)  Small fixes; no number moved (baseline
+    Q8, all but ruff (with todo.txt N1's first step)  Small fixes; no number moved (baseline
         unchanged).
             - zip(strict=True) where data are paired, 5 places: getDipDers_log and parse_mode_mapping (Gaussian),
               parse_cfour_output (state labels with harmonic and with anharmonic energies), pQUADRATURE. zip()
@@ -331,13 +353,13 @@ Done
         which printed 'linear'). Tests 282 -> 285. wilson's full run: 963 pass, 30 fail, 1 error, as before.
         ruff now: no zip() without strict, no unused import; the one F841 left is units_line in
         parse_polarizability, for R4.
-    Q8, ruff (2026-10-25)  `ruff check --fix`, the safe fixes only, as its own commit (style, no behavior): 25 fixes
+    Q8, ruff  `ruff check --fix`, the safe fixes only, as its own commit (style, no behavior): 25 fixes
         in 12 files. 20 import blocks sorted; 4 `for ... in file.readlines()` -> `for ... in file` (the same lines);
         re.M -> re.MULTILINE (the same flag). Tests 285 pass, baseline unchanged; wilson's full run as before.
         Left in ruff's report (51, none applied): unused unpacked variables, module names (N999: parseCFOUR_forWilson
         and the like are not snake_case; renaming them would change import paths), and other style findings that
         need a hand or an "unsafe" fix. None hides an error.
-    Q10 (2026-10-25)  The readers kept for checking wilson's VPT2 against the programs' own: fixed, marked
+    Q10  The readers kept for checking wilson's VPT2 against the programs' own: fixed, marked
         ("Validation only: not used by parse_from_source." in each docstring) and tested. parse_from_source does not
         use them.
             - parse_anharmonic_x_matrix (Gaussian's X matrix, cm-1): worked already. Its mode order, open before:
@@ -369,7 +391,7 @@ Done
 
 LLM use (Claude Code)
 ---------------------
-Claude Code, model Claude Opus 5.5, 2026-10-22 to 2026-10-25. The owner made every commit; Claude Code ran no git
+Claude Code, model Claude Opus 5.5, 2026-10-22 to 2026-10-27. The owner made every commit; Claude Code ran no git
 commit or push in this repo.
     - 2026-10-22: a review of the repository, read only.
     - "T3 tests" (2026-10-23 evening): wrote test_contract.py, changed test_baseline.py and todo.txt; copied the new
@@ -392,5 +414,12 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
       numbering); CFOUR vs Gaussian, measured before T4's bounds were set.
     - Decided by the owner: the goal and the order of the work; what to keep (the validation readers, the polar.pkl
       builder, the data of the other pickles); deleting DataVault; N1's mode order (H); when to commit.
+
+2026-10-26 to 2026-10-27: checks and the two todo files; no code changed.
+    - Claude Code: ran CQCParse's tests and wilson_gv's full test suite (its branch cqcparse_cleanup, with this
+      branch and with CQCParse main); compared both todo files with that branch and with wilson_gv's issue #71;
+      updated both todo files (L1, L2, T6 done; new todo.txt T7 and L7; the merge order in Q13); drafted an
+      update text for issue #71 (not posted by Claude Code). wilson_gv was only read and run, never changed.
+    - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e).
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).
