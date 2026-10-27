@@ -19,7 +19,7 @@ Done when ([x] met, [~] partly, [ ] open):
     [x] 4. The unit conversion of each property is written out once, and checked against the other program (T4, R4,
            todo.txt). Not compared across programs: coriolis, and the geometry and normal modes (N3).
     [x] 5. wilson's tests fail only for wilson's own reasons, on wilson_gv's branch cqcparse_cleanup (L1, T6;
-           counts in todo.txt Tests). One of them, test_getting_data, fails before it calls CQCParse (T7).
+           counts in todo.txt Tests). test_getting_data checks the load through CQCParse again (T7).
     [ ] 6. This branch and wilson_gv's cqcparse_cleanup are on main, with a list of what changed for users (Q13).
 
 Not part of this goal (they stay in todo.txt): R2, N3, X1, A3, A4.
@@ -46,7 +46,7 @@ numbers: those move with every change.
                choice for polarData.pkl changes Q11.
     2. Q13     Finish: the merge, the version, the list of changes for users.
 Also done, outside this goal: N1's change (H order, Gaussian renumbered by default, with Q7's leftover), in
-todo.txt N1; wilson's references: todo.txt T9.
+todo.txt N1; wilson's references: todo.txt T9 (done).
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step),
 Q10, and todo.txt T4 and R4 (see Done here and in todo.txt). In wilson_gv (branch cqcparse_cleanup):
 todo.txt L1, L2 and T6 (see todo.txt Done).
@@ -118,7 +118,8 @@ Q. New findings
                    history.
                 4. the wilson PR of step 2, right after step 3. Between 3 and 4, wilson main fails on import.
               So this branch's merge waits for PR #69.
-            - then update wilson_gv's issue #71: G8 is fixed (C3), and add todo.txt T7 and L7.
+            - then update wilson_gv's issue #71: G8 is fixed (C3), G9 too (A6, N2), N1 changed the mode labels of
+              Gaussian data (T9 relabeled wilson's references), and add todo.txt T10.
             - version: pyproject.toml says 0.1.0, as on main. Raise it, e.g. to 0.2.0. What changed for a user
               since main (the Done entries of both files):
                 - mode order (N1): every mode index of both readers in ascending harmonic frequency, so Gaussian
@@ -247,8 +248,13 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
     - Claude Code, N1: one mode order in parse_gaussian16_output and the validation readers (reindex_modes, default
       True), reindex_dict and validate_mapping in relay/modes_reindexing.py; the tests that pinned A-order numbers
       now go through modes_mapping; new tests of the order (27 cases; 3 of Q7's removed); the baseline of the 7
-      Gaussian sources rewritten after checking that every value is the old one renumbered; README. wilson_gv
-      only run (T9).
-    - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e).
+      Gaussian sources rewritten after checking that every value is the old one renumbered; README.
+    - Claude Code, in wilson_gv on the owner's request: T9, worked out and checked on a copy first, then
+      evv_reference.json rewritten by make_evv_reference.py and the modes picked by hand renumbered in
+      test_integration.py and test_pipeline.py; ran wilson's full test suite. The owner committed it (7c5f47d).
+    - Claude Code, in wilson_gv on the owner's request: T7, test_getting_data split (the workflow part moved to
+      wilson_main/tests/test_workflow_abstractions.py) and the obtainer tests written; ran wilson's full test
+      suite, also with CQCParse main. The owner committed it (04e0684).
+    - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e), L7 (070f53e, 1313abb).
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).
