@@ -40,62 +40,18 @@ The rules of todo.txt apply. In short:
 Order
 -----
 After T4/R4 no known risk is left of wrong numbers with no error, in what wilson reads (the unit conversions are
-checked against the other program now). What is left is a decision and the merge. Functions are named, not line
-numbers: those move with every change.
-    1. Q9, Q11 [decide] The example files nothing reads, and polarData*.pkl's 'equil' frame. One decision: Q9's
-               choice for polarData.pkl changes Q11.
-    2. Q13     Finish: the merge, the version, the list of changes for users.
+checked against the other program now). What is left is the merge. Functions are named, not line numbers: those
+move with every change.
+    1. Q13     Finish: the merge, the version, the list of changes for users.
 Also done, outside this goal: N1's change (H order, Gaussian renumbered by default, with Q7's leftover), in
 todo.txt N1; wilson's references: todo.txt T9 (done).
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step),
-Q10, and todo.txt T4 and R4 (see Done here and in todo.txt). In wilson_gv (branch cqcparse_cleanup):
+Q9, Q10, Q11, and todo.txt T4 and R4 (see Done here and in todo.txt). In wilson_gv (branch cqcparse_cleanup):
 todo.txt L1, L2 and T6 (see todo.txt Done).
 
 
 Q. New findings
 ---------------
-[ ] Q9  [decide] Example files that nothing reads. During a full test run (after Q5), 30 of the 76 files in
-        files_examples are never opened:
-            - 4 Gaussian inputs (.com): keep; they show how each run was made.
-            - 26 CFOUR files the reader does not read: coriolis, corioliszeta, quadratic (in CCSDTcc_pVQZ,
-              HFcc_pVQZ, HFcc_pVTZ); dimensionless.pkl, polarData.pkl (same 3 folders); CCSDTcc_pVQZ/outfile0.out;
-              HFcc_pVDZ DIPDER, DIPOL, FCMFINAL, NORMCO; HFcc_pVQZ FCMFINAL, normcoord; HFcc_pVTZ QUADRATURE,
-              cubic.pkl, dipolexyz.pkl, vibdata.pkl.
-        The .pkl files whose writers Q5 deleted (checked against the readers on the files in the repo):
-            - same data as a reader gives: vibdata.pkl = parse_output_file(out); cubic.pkl = pCubicORQuartic(cubic);
-              dipolexyz.pkl = the old getDipoleDers(dipole, out), which the reader's getDipoleDers_anharm matches
-              (dipgrad exactly, diphess within 3e-7 of 2e-2: the averaging of C1); dimensionless.pkl =
-              pQUADRATURE(QUADRATURE) in CCSDTcc_pVQZ and HFcc_pVTZ. These can go.
-            - the only copy: HFcc_pVQZ/dimensionless.pkl (that folder has no QUADRATURE). Keep, or replace by its
-              QUADRATURE file if it can be found.
-            - polarData.pkl: polarData_raw.pkl's tensors rotated (the same within 4e-15); the raw file is the one
-              the polar.pkl test reads. See Q11.
-        Choose: keep them as raw program output (and say so in one line per folder), or delete them. Small (the
-        .pkl files are 200 KB in all).
-        Recommended: keep the raw CFOUR files (coriolis, corioliszeta, quadratic, NORMCO, ...: the program's own
-        output, maybe needed later, e.g. corioliszeta for X1 or N3); delete the derived .pkl files that a reader
-        rebuilds from files in the same folder (vibdata, cubic, dipolexyz, and dimensionless.pkl where QUADRATURE is
-        there) and polarData.pkl (polarData_raw.pkl holds the same, unrotated); keep HFcc_pVQZ/dimensionless.pkl
-        (the only copy). Then Q11 concerns only polarData_raw.pkl.
-        (Rechecked after Q10: the same 30. test_missing_sections.py copies the HFcc_pVTZ folder, but no test reads
-        the files listed.)
-[ ] Q11 [decide] polarData.pkl and polarData_raw.pkl (pklPoldata, CQCParse/tools/build_polar_pkl.py) store the
-        reference run as 'equil' ROTATED BY ITS OWN OMAT. That is a different frame than the other entries: in all 3
-        folders the unrotated reference equals the mean of each mode's two rotated displaced tensors within 2.5e-5
-        au, the rotated one is off by up to 5 au (its OMAT swaps x and y, flips z). getPolarDers (polar.pkl) uses
-        the unrotated one, so polar.pkl is right (it is rebuilt exactly, test_rebuild_polar_pkl; and T4's hand
-        check found polhess within 1.8e-4 of Gaussian's). Only a user of polarData*.pkl's 'equil' gets it wrong.
-        Now documented in pklPoldata's docstring.
-        Choose: fix pklPoldata (store the unrotated reference, with an identity OMAT in the raw file) and rewrite
-        the 3 pairs of files from themselves (R @ alpha' @ R.T); or keep, as documented. Also open: why the
-        reference needs no rotation. The data say so; the likely reason is that each displaced run's OMAT maps to
-        the reference run's frame, not to the input frame. Not checked in CFOUR's documentation.
-        Recommended: keep as documented. Nothing reads 'equil' (test_rebuild_polar_pkl undoes the rotation), and
-        rewriting example files from themselves adds a step nobody can check against the runs. Fix pklPoldata only
-        if it is run again on new runs. With Q9's recommendation, only polarData_raw.pkl is left.
-        Also, for whoever touches these files: polar.pkl is a pickle, which the reader loads (pickle.load runs code
-        from the file, and a pickle of numpy arrays can fail to load in another numpy version). A .npz file
-        (np.load with allow_pickle=False) would be safer. Not needed for wilson now.
 [ ] Q13 Finish (found in the review after Q12: nothing in the plan said how the work reaches users).
             - merge. L1 and T6 are done on wilson_gv's branch cqcparse_cleanup. Facts, checked against
               wilson_gv's GitHub main (df46d62):
@@ -197,10 +153,25 @@ Short entries. The full ones (measurements, before and after, the checks run) ar
         the readers print nothing; parse_from_source's docstring gives each key's mode order (N1's first step).
         `ruff check --fix`, safe fixes only, as its own commit; ruff's other findings are style, none hides an
         error.
+    Q9  Example files that nothing reads (30 of the 76 in files_examples, in a full test run). Kept: the 4 Gaussian
+        inputs (.com: how each run was made) and the raw CFOUR files (coriolis, corioliszeta, quadratic, NORMCO, ...:
+        the program's own output, maybe needed later, e.g. corioliszeta for X1 or N3). Deleted, 8 files: the .pkl
+        files a reader rebuilds from a file in the same folder (vibdata, cubic, dipolexyz; dimensionless in
+        CCSDTcc_pVQZ and HFcc_pVTZ) and polarData.pkl (polarData_raw.pkl holds the same, unrotated). Kept:
+        HFcc_pVQZ/dimensionless.pkl, the only copy (that folder has no QUADRATURE; replace it by that file if it
+        can be found).
     Q10 The validation readers (parse_anharmonic_x_matrix, get_detected_resonances_g16 and _c4) fixed, marked
         "Validation only" and tested (tests/test_validation_readers.py). Their mode order: H since N1
         (reindex_modes=False: Gaussian's A order).
         Later, maybe: return them through parse_from_source, so wilson can compare by itself.
+    Q11 polarData_raw.pkl keeps 'equil' as pklPoldata writes it (polarData.pkl too, deleted from the examples in
+        Q9): the reference run rotated by its own OMAT, not the frame of the other entries (off by up to 5 au;
+        unrotated, it matches the mean of each mode's two displaced tensors within 2.5e-5 au). Documented in
+        pklPoldata's docstring. Nothing reads 'equil'; polar.pkl uses the unrotated reference and is right. Fix
+        pklPoldata only if it is run on new runs.
+        Open, not needed: why the reference needs no rotation (likely: each displaced run's OMAT maps to the
+        reference run's frame; not checked in CFOUR's documentation). Later, maybe: polar.pkl as a .npz file
+        (np.load with allow_pickle=False) instead of a pickle.
     Q12 A missing section in a file raises ValueError naming it, in both readers (was zeros, empty arrays or
         None). Tests: tests/test_missing_sections.py. Not covered: a section cut short (Q8 covers part), a dipole
         file empty because every derivative along one axis is zero by symmetry (pDipole would raise).
@@ -208,7 +179,7 @@ Short entries. The full ones (measurements, before and after, the checks run) ar
 
 LLM use (Claude Code)
 ---------------------
-Claude Code, model Claude Opus 5.5, 2026-10-22 to 2026-10-27. The owner made every commit; Claude Code ran no git
+Claude Code, model Claude Opus 5.5, 2026-10-22 to 2026-10-28. The owner made every commit; Claude Code ran no git
 commit or push in this repo.
     - 2026-10-22: a review of the repository, read only.
     - "T3 tests" (2026-10-23 evening): wrote test_contract.py, changed test_baseline.py and todo.txt; copied the new
@@ -256,5 +227,9 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
       wilson_main/tests/test_workflow_abstractions.py) and the obtainer tests written; ran wilson's full test
       suite, also with CQCParse main. The owner committed it (04e0684).
     - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e), L7 (070f53e, 1313abb).
+
+2026-10-28: Q9 and Q11.
+    - Claude Code: explained Q9 and Q11; after the owner's decisions (the recommendation of each), deleted Q9's 8
+      .pkl files, changed one line of pklPoldata's docstring, moved both to Done; ran CQCParse's tests (365 pass).
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).

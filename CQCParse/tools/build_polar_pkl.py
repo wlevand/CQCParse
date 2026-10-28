@@ -176,7 +176,7 @@ def pklPoldata(polar_dir):
         polarData.pkl      {run folder: rotated POLAR}
     Both also hold 'equil', the reference run, ROTATED BY ITS OWN OMAT. That is not the frame of the other entries
     (see the module docstring): to use it with them, undo the rotation, R @ alpha' @ R.T with (alpha', R) =
-    polarData_raw['equil']. Kept as is, so that the example files stay what this function writes.
+    polarData_raw['equil']. Kept as is, so that the example polarData_raw.pkl files stay what this function writes.
     """
     allpolardata = getDisplacementsPolarData(polar_dir)
     rawdata = getDisplacementsPolarData(polar_dir, raw=True)
