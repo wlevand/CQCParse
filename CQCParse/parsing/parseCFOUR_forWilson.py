@@ -14,7 +14,7 @@
 #     - FCMFINAL                     --- non-mass-weighted Hessian matrix in columns (xyz)
 #     - DIPOL                        --- dipole moment (a.u.)
 #     - DIPDER                       --- dipole moment first order derivatives (cartesian)
-#     - POLAR                        --- static polarizability (a.u.)
+#     - POLAR                        --- static polarizability (a.u.); read by CQCParse.tools.build_polar_pkl
 #     - out                          --- the final output file in anharmonic parallel procedure:
 #                            1) All levels with up to three quanta frequencies; 2) equilibrium geometry;
 #                            3) normal coordinates, non-mass-weighted (a.u.); 4) F(IJKK)/a.u ; 5) F(IJKK)/cm-1 ;
@@ -24,156 +24,14 @@
 #     - quartic                      --- quartic force constants in cm-1 in dimensionless normal modes
 """
 
-import numpy as np
-import os
-import pickle
-from scipy import constants
-from scipy.constants import physical_constants
-
 import logging
+import pickle
+
+import numpy as np
+
+from CQCParse.utils import dimensionless_to_mass_weighted
+
 logger = logging.getLogger("CQCParse")
-
-bohr_in_angstroms = physical_constants['Bohr radius'][0]/10**(-10)
-
-def GHz2Nu(ghz: float | np.ndarray) -> float | np.ndarray:
-    """Conversion from GHz to cm-1"""
-    return ghz*10**9/(constants.c*100)
-
-def convNu2Ene(reciprocal_cm: float | np.ndarray) -> float | np.ndarray:
-    """Convert wavenumber (cm-1) to energy (Hartree)"""
-    hartree2J = constants.physical_constants['hartree-joule relationship'][0]
-    return reciprocal_cm * (100 * constants.h * constants.c / hartree2J)
-
-
-class CFOURdataParser:
-    """
-    A class that contains parsed CFOUR output data
-
-    {'source': 'cfour', 'type': 'out',
-    'files': {'mol_code': 'FORM', 'method': 'CCSDT', 'basis': 'cc_pVQZ',
-    'out': 'out',
-    'cubic': 'cubic',
-    'dipolexyz': 'dipole',
-    'polar': 'polar.pkl',
-    'out_anharm_final': 'out',
-    'polar_pkl': 'polar.pkl'
-    }}
-    """
-    def __init__(self, all_files_dict: dict = None):
-
-        if all_files_dict is None:
-            self.all_files_dict = {}
-        else:
-            self.all_files_dict = all_files_dict
-
-        self.nModesStart = None
-        
-        files = self.all_files_dict.get('files')
-        if files is not None:
-            self.molecule = files.get('mol_code')
-        else:
-            self.molecule = None
-        
-        self.program = self.all_files_dict.get('source')
-
-        self.dipgrad = None
-        self.diphess = None
-        self.polgrad = None
-        self.polhess = None
-
-        self.fundamentals_harmonic_int = None
-        self.fundamentals_harmonic_str = None
-        self.fundamentals_anharmonic_str = None
-        self.harmonic_states = None
-        self.anharmonic_states = None
-        self.cff = None
-        self.qff = None
-
-        self.cubic_cm_1, self.quartic_cm_1 = None, None
-        self.B, self.coriolis = None, None
-
-        self.equilibrium_geometry = None
-        self.Q_normal_coordinates = None
-        self.q_normal_coordinates_dimensionless = None
-
-        self.atoms = None
-        self.basis = None
-        self.lot = None
-        self.nmodes = None
-
-        self.DD11 = False
-        self.DD13 = False
-        self.DD22 = False
-
-    def addFilesDict(self, all_files_dict: dict):
-        """
-        Upd/attach a new dict as self.all_files_dict (source files for data)
-        """
-        self.all_files_dict = all_files_dict
-
-    def getData(self, linear_molecule: bool = False):
-        """Collect the data into the attributes.
-        Uses methods:
-            parse_output_file,
-            pCubicORQuartic, getCubicPost,
-            getDipoleDers_anharm,
-            'polar_pkl' file <- getPolarDers(getDisplacementsPolarData,
-                                getRotationMatrix, pTensor),
-                                pklPolder
-        """
-
-        self.nModesStart = 6 if linear_molecule else 7
-
-        # geometry_data, atoms, normal_modes_dict
-        d = pMOLDEN(self.all_files_dict['files']['molden'])
-        self.normal_modes = {k-self.nModesStart: v.flatten() for k, v in d[-1].items() if k>=self.nModesStart}
-        self.elements, self.coords = d[1], d[0]
-        self.number_atoms = len(d[1])
-
-        parsed_data = parse_output_file(self.all_files_dict['files']['out_anharm_final'])
-        vib_energy_levels_list, labelsTable, anharmonic_freqs, anharmonic_ints, harmonic_freqs = parsed_data
-
-        anharm_states_dict = dict(zip(vib_energy_levels_list, anharmonic_freqs))
-        anharm_tuple_dict = {tuple([o - self.nModesStart for o in k]): v for k, v in anharm_states_dict.items()}
-        harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs))
-        harm_tuple_dict = {tuple([o - self.nModesStart for o in k]): v for k, v in harm_states_dict.items()}
-
-        self.fundamentals_harmonic_str = {str(k[0]):v for k,v in harm_tuple_dict.items() if len(k)==1}
-        self.fundamentals_anharmonic_str = {str(k[0]):v for k,v in anharm_tuple_dict.items() if len(k)==1}
-
-        self.anharmonic_states = {tuple(str(i-self.nModesStart) for i in k): v for k, v in anharm_states_dict.items()}
-        self.harmonic_states = {tuple(str(i-self.nModesStart) for i in k): v for k, v in harm_states_dict.items()}
-
-        cubic = pCubicORQuartic(self.all_files_dict['files']['cubic'])
-        quartic = pCubicORQuartic(self.all_files_dict['files']['quartic'])
-        self.fundamentals_harmonic_int = {int(k): v for k, v in self.fundamentals_harmonic_str.items()}
-        self.nmodes = len(self.fundamentals_harmonic_int)
-
-        # transformed to Wilson units in getCubicPost
-        self.cff_reduced = getCubicPost(self.fundamentals_harmonic_int, cubic,
-                                                  startmode=self.nModesStart, recipcm=False)
-        self.qff_reduced = getQuarticPost(self.fundamentals_harmonic_int, quartic,
-                                                  startmode=self.nModesStart, recipcm=False)
-        self.cff = getCubicPost(self.fundamentals_harmonic_int, cubic,
-                                                  startmode=self.nModesStart, recipcm=True)
-        self.qff = getQuarticPost(self.fundamentals_harmonic_int, quartic,
-                                                  startmode=self.nModesStart, recipcm=True)
-
-        labelsModes_original = [i + self.nModesStart for i in list(self.fundamentals_harmonic_int)]
-        mu = getDipoleDers_anharm_au(self.all_files_dict['files']['dipolexyz'], labelsModes_original, self.nModesStart,
-                                     self.fundamentals_harmonic_str)
-        self.dipgrad = mu[0]
-        self.diphess = mu[1]
-
-        if self.all_files_dict['files']['polar_pkl'] is not None:
-            alpha = getPolarDers_pkl_au(self.all_files_dict['files']['polar_pkl'], self.fundamentals_harmonic_str)
-            self.polgrad = alpha[0]
-            self.polhess = alpha[1]
-
-        self.B, self.coriolis = parse_coriolis(self.all_files_dict['files']['out_anharm_final'],
-                                                                         len(self.fundamentals_harmonic_int),
-                                                                         startmode=self.nModesStart)
-        
 
 
 def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarray, np.ndarray]:
@@ -193,7 +51,13 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
     rotational_constant = []
 
     start1, start2, start3 = False, False, False
+    # IXYZ = 1, 2, 3: a missing matrix raises below, instead of giving zeros
+    found_ixyz = set()
     for line in lines:
+        for ixyz in (1, 2, 3):
+            if f'Coriolis Zeta matrix for IXYZ=                     {ixyz} :' in line:
+                found_ixyz.add(ixyz)
+
         if 'Coriolis Zeta matrix for IXYZ=                     1 :' in line:
             start1 = True
         elif 'CHECKSUM' in line:
@@ -220,13 +84,19 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
 
         if 'B in cm-1:' in line:
             rotational_constant.append(float(line.split()[-1]))
+    missing = sorted({1, 2, 3} - found_ixyz)
+    if missing:
+        raise ValueError(f'no "Coriolis Zeta matrix for IXYZ= k" section for k = {missing} in {file_path}')
+    if not rotational_constant:
+        raise ValueError(f'no "B in cm-1:" line (rotational constants) in {file_path}')
     rotational_constant = np.array(rotational_constant)
     if len(rotational_constant)>3:
         rotational_constant = rotational_constant[-3:]
 
-    corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
-                                          tuple(item for item in corYtuples if item[0] !=0. ),
-                                          tuple(item for item in corZtuples if item[0] !=0. ))
+    # vibrations only: a translation or rotation (mode < startmode) would land at a negative index
+    corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if min(item[:2]) >= startmode),
+                                          tuple(item for item in corYtuples if min(item[:2]) >= startmode),
+                                          tuple(item for item in corZtuples if min(item[:2]) >= startmode))
 
     corX, corY, corZ = np.zeros((nModes, nModes)), np.zeros((nModes, nModes)), np.zeros((nModes, nModes))
 
@@ -244,6 +114,19 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
     coriolis_constant = np.array([corX, corY, corZ])
 
     return rotational_constant, coriolis_constant
+
+
+def count_normal_coordinates(filepath: str) -> int:
+    """
+    Number of normal coordinates in the out file: 3N for N atoms, translations and rotations included
+    (section "Normal coordinates for reference point", one "Normal coordinate <k>" header per mode)
+    """
+    import re
+    with open(filepath, 'r') as file:
+        labels = {int(m.group(1)) for m in re.finditer(r'^\s*Normal coordinate\s+(\d+)\s*$', file.read(), re.MULTILINE)}
+    if not labels:
+        raise ValueError(f'No "Normal coordinate" sections in {filepath}')
+    return len(labels)
 
 
 def parse_output_file(filepath: str):
@@ -292,64 +175,25 @@ def parse_output_file(filepath: str):
         return modes, labels, anharmonic_frequencies, anharmonic_intensities, harmonic_transitions
 
     else:
-        print('\nNo anharmonic levels information in this file')
+        raise ValueError(f'no "All levels with up to three quanta" section (anharmonic levels) in {filepath}')
 
-# used for polarizability derivatives calculations
-def pTensor(filepath: str):
+def get_detected_resonances_c4(filepath: str) -> list[str]:
     """
-    Parsing DIPOL or POLAR or FCMFINAL files
+    Validation only: not used by parse_from_source. For checking wilson's VPT2 against CFOUR's own.
 
-    :return: np.ndarray tensor of dipole moment or polarizability
+    The lines of the out file that report a resonance CFOUR removed from its VPT2 ("Resonance between ...
+    combination ..."), as they are. CFOUR removes a resonant term only below the thresholds it prints
+    ("Thresholds for removing resonance denominators:", e.g. Delta_omega = 50 cm-1). None of the example files
+    reports one, so the format of these lines is not known here: they are returned as text.
+    Raises ValueError if the out file has no "Thresholds for removing resonance denominators:" line.
     """
-    alines = []
-
     with open(filepath, 'r') as file:
         lines = file.readlines()
-    start = 1 if len(lines[0].strip().split())==2 else 0
-    alines.extend([np.array([float(k) for k in i.strip().split()]) for i in lines[start:]])
 
-    return np.array(alines) #.reshape((-1, 3 * na))
+    if not any('Thresholds for removing resonance denominators:' in line for line in lines):
+        raise ValueError(f'no "Thresholds for removing resonance denominators:" line in {filepath}')
+    return [line.strip() for line in lines if 'Resonance between' in line and 'combination' in line]
 
-def getRotationMatrix(filepath: str) -> np.array:
-    """
-    Parsing outfile0.out to get the rotation matrix for xyz axes
-    :param filepath:
-    :return: OMAT transformation (rotation) matrix from outfile which is printed when PRINT_LEVEL=1
-    """
-    with open(filepath, 'r') as file:
-        file_content = file.read()
-    if 'Transformation matrix between QCOM and QCOMP (OMAT)' in file_content:
-        start_index = file_content.find("(QCOM = OMAT * QCOMP,")
-        end_index = file_content.find("test:  OMAT * QCOMP = ", start_index)
-        omat_section = file_content[start_index:end_index]
-        newlinebreak = omat_section.find("\n")
-        coords_section = omat_section[newlinebreak:][1:-1].split('\n')
-
-        omat_array = []
-        for L in coords_section[:-1]:
-            ll = np.array([float(i) for i in L.strip().split() if '.' in i])
-            omat_array.append(ll)
-        omat_array = np.array(omat_array)
-
-        return omat_array
-    else:
-        print('No rotation matrix found in this outfile')
-
-def get_detected_resonances_c4(filepath: str):
-
-    with open(filepath, 'r') as file:
-        file_content = file.read()
-
-    if "Thresholds for removing resonance denominators:" in file_content:
-        found_resonances_str = []
-        for line in file_content:
-            if 'Resonance between' in line and 'combination' in line:
-                found_resonances_str.append(line)
-        if found_resonances_str:
-            found_resonances_str.append(f'There are {len(found_resonances_str)} Fermi resonances\n')
-        return found_resonances_str
-
-# used
 def pCubicORQuartic(filepath: str):
     """
     Parising cubic and quartic files with CFFs and QFFs
@@ -362,89 +206,57 @@ def pCubicORQuartic(filepath: str):
     for L in lines:
         elements = L.split()
         alllines.append(np.array([int(k) if i < len(elements) - 1 else float(k) for i, k in enumerate(elements)]))
+    if not alllines:
+        raise ValueError(f'no force constants: {filepath} is empty')
 
     return np.array(alllines)
 
-# used
-def getCubicPost(freq: dict, cubic: np.ndarray, startmode, recipcm: bool = False):
-    """ Derives cubic and quartic anharmonic constants.
-        It takes reduced values [cm-1] from gaussian output
-        and transforms it to :
-          * cubic   force constants : [Hartree*amu(-3/2)*Bohr(-3)]
-          * quartic force constants : [Hartree*amu(-2  )*Bohr(-4)]
+def getCubicPost(freq: dict, cubic: np.ndarray, startmode):
+    """ Cubic force constants as a full tensor (n, n, n), every index order filled, modes 0 .. n-1.
+        In the file's own unit: cm-1, in dimensionless normal coordinates (cff_rc). For atomic units (cff):
+        CQCParse.utils.reduced_to_au, which explains the conversion.
+        freq: one entry per vibrational mode (only its length is used); startmode: CFOUR's number of the first
+        vibration (7, or 6 for a linear molecule).
     """
-    if recipcm:
+    n = len(freq)
+    K3 = np.zeros((n, n, n), dtype=np.float64)
 
-        n = len(freq)
-        K3 = np.zeros((n, n, n), dtype=np.float64)
+    for fijk in cubic:
+        i = int(fijk[0]) - startmode
+        j = int(fijk[1]) - startmode
+        k = int(fijk[2]) - startmode
+        d = np.float64(fijk[3])
 
-        for fijk in cubic:
-            i = int(fijk[0]) - startmode
-            j = int(fijk[1]) - startmode
-            k = int(fijk[2]) - startmode
-            d = np.float64(fijk[3])
+        K3[i, j, k] = d
+        K3[i, k, j] = d
+        K3[k, j, i] = d
+        K3[k, i, j] = d
+        K3[j, i, k] = d
+        K3[j, k, i] = d
 
-            K3[i, j, k] = d
-            K3[i, k, j] = d
-            K3[k, j, i] = d
-            K3[k, i, j] = d
-            K3[j, i, k] = d
-            K3[j, k, i] = d
+    return K3
 
-        return K3
+def getQuarticPost(freq: dict, quartic: np.ndarray, startmode):
+    """ Quartic force constants as a full tensor (n, n, n, n), every index order filled, modes 0 .. n-1.
+        In the file's own unit: cm-1, in dimensionless normal coordinates (qff_rc). For atomic units (qff):
+        CQCParse.utils.reduced_to_au, which explains the conversion.
+        freq, startmode: as in getCubicPost.
 
-    else:
-        n = len(freq)
-        K3 = np.zeros((n, n, n), dtype=np.float64)
-
-        for fijk in cubic:
-
-            i = int(fijk[0]) - startmode
-            j = int(fijk[1]) - startmode
-            k = int(fijk[2]) - startmode
-            d = np.float64(fijk[3])
-
-            d *= np.sqrt(freq[i] * freq[j] * freq[k])
-
-            from scipy import constants
-            a = np.sqrt(constants.h / constants.c / constants.physical_constants['unified atomic mass unit'][0] / 100)
-            b = 10 ** 10 / 2 / np.pi / constants.physical_constants['Bohr radius'][0] / 10 ** 10
-            Fact3R = (constants.physical_constants['hartree-joule relationship'][
-                          0] / constants.h / constants.c / 100) * (a * b) ** 3
-
-            d /= Fact3R
-
-            K3[i, j, k] = d
-            K3[i, k, j] = d
-            K3[k, j, i] = d
-            K3[k, i, j] = d
-            K3[j, i, k] = d
-            K3[j, k, i] = d
-
-        from scipy import constants
-        # to go from amu to au mass unit (m_e)
-        amc_au = constants.physical_constants['atomic mass constant'][0] / \
-                 constants.physical_constants['atomic unit of mass'][0]
-        # to Wilson units
-        K3 /= amc_au ** 1.5
-        return K3
-
-def getQuarticPost(freq: dict, quartic: np.ndarray, startmode, recipcm: bool = False):
-    """ Derives cubic and quartic anharmonic constants.
-        It takes reduced values [cm-1] from gaussian output
-        and transforms it to :
-          * cubic   force constants : [Hartree*amu(-3/2)*Bohr(-3)]
-          * quartic force constants : [Hartree*amu(-2  )*Bohr(-4)]
+        AVERAGING: the CFOUR quartic file lists some index sets more than once. The (i,i,j,j) terms come from two
+        numerical differentiations, e.g. (12,12,7,7) -331.4924 and (7,7,12,12) -331.5419 cm-1 (CCSDTcc_pVQZ), and
+        differ by up to ~1e-3 of the value. Every order of an index set gets the mean of all its lines.
     """
     n = len(freq)
     K4 = np.zeros((n, n, n, n), dtype=np.float64)
 
+    # mean of the lines of one index set (see docstring)
+    values = {}
     for fijkl in quartic:
-        i = int(fijkl[0]) - startmode
-        j = int(fijkl[1]) - startmode
-        k = int(fijkl[2]) - startmode
-        L = int(fijkl[3]) - startmode
-        d = np.float64(fijkl[4])
+        ijkl = tuple(sorted(int(m) - startmode for m in fijkl[:4]))
+        values.setdefault(ijkl, []).append(np.float64(fijkl[4]))
+
+    for (i, j, k, L), vals in values.items():
+        d = np.mean(vals)
 
         indices = [(i, j, k, L), (i, j, L, k), (i, k, j, L), (i, k, L, j),
                    (i, L, j, k), (i, L, k, j), (j, i, k, L), (j, i, L, k),
@@ -456,17 +268,9 @@ def getQuarticPost(freq: dict, quartic: np.ndarray, startmode, recipcm: bool = F
         for idx in indices:
             K4[idx] = d
 
-    if not recipcm:
-        from scipy import constants
-        # to go from amu to au mass unit (m_e)
-        amc_au = constants.physical_constants['atomic mass constant'][0] / \
-                 constants.physical_constants['atomic unit of mass'][0]
-        K4 = K4 / amc_au ** 2
-
     return K4
 
 
-# used in getDipoleDers_anharm
 def pDipole(filenamebase: str):
     """
     Parsing dipole(xyz) files dipole(xyz)
@@ -483,17 +287,26 @@ def pDipole(filenamebase: str):
             dct[indx[0]] = nu[-1]
         else:
             dct[indx] = nu[-1]
+    if not dct:
+        raise ValueError(f'no dipole derivatives: {filenamebase} is empty')
 
     return dct
 
 def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
     """
-    Getting dipole moment derivatives tensors
+    Getting dipole moment derivatives tensors, as the files hold them: by dimensionless normal coordinates q, in
+    e a0 (getDipoleDers_anharm_au turns them into wilson's units)
+
+    AVERAGING: the dipole(xyz) files list the second derivative d2mu/dqi dqj of each mode pair twice, in both
+    orders, e.g. (9,10) and (10,9). The two come from two numerical differentiations and differ slightly (up to
+    ~1e-3 of the value in the example files). Both slots [i, j] and [j, i] get the mean of the two. If only one
+    order is listed, it goes to both slots.
+
     :param nModesStart:
     :param labels:
     :param filenamebase: basename for dipole(xyz) files, e.g, 'dipole'
-    :return:  dmudqarray - first order derivatives of dipole moment, (3N-6, 3)
-              dmudqdarray - second order derivatives of dipole moment, (3N-6, 3N-6, 3)
+    :return:  first derivatives of the dipole moment, dmu/dqi, shape (3N-6, 3)
+              second derivatives of the dipole moment, d2mu/dqi dqj, shape (3N-6, 3N-6, 3), symmetric in i, j
     """
     last_part = filenamebase.split('/')[-1]
 
@@ -517,277 +330,49 @@ def getDipoleDers_anharm(filenamebase: str, labels: list, nModesStart: int):
             if L in dipz:
                 dmudq_array[L-nModesStart, 2] = dipz[L]
 
-    for L in dipx:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 0)] = dipx[L]
-
-    for L in dipy:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 1)] = dipy[L]
-
-    for L in dipz:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdq_array[(L[0] - nModesStart, L[1] - nModesStart, 2)] = dipz[L]
+    # mean of the two orders of a pair (see docstring)
+    for xyz, dip in enumerate((dipx, dipy, dipz)):
+        for L in dip:
+            if not isinstance(L, int):
+                if len(L) == 2:
+                    i, j = L[0] - nModesStart, L[1] - nModesStart
+                    val = (dip[L] + dip.get((L[1], L[0]), dip[L])) / 2
+                    dmudqdq_array[i, j, xyz] = val
+                    dmudqdq_array[j, i, xyz] = val
 
     return dmudq_array, dmudqdq_array
 
-def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int, fundamentals_harmonic: dict) -> tuple:
+def getDipoleDers_anharm_au(filenamebase: str, labels: list, nModesStart: int,
+                            fund_harmonic_energies_array: list | np.ndarray) -> tuple:
+    """
+    dipgrad (n, 3) and diphess (n, n, 3) in atomic units, as the Gaussian reader's getDipDers_au: mu in e a0, Q the
+    mass-weighted normal coordinates in m_e^(1/2) a0.
+
+    CFOUR's dipole(xyz) files hold the derivatives by dimensionless normal coordinates q, with mu in e a0
+    (getDipoleDers_anharm). q_i = Q_i * sqrt(w_i), so each mode index brings sqrt(nu_i / Eh), nu_i the harmonic
+    wavenumber in cm-1 (CQCParse.utils.dimensionless_to_mass_weighted):
+        dipgrad_i = dmu/dq_i * sqrt(nu_i / Eh),    diphess_ij = d2mu/dq_i dq_j * sqrt(nu_i / Eh) * sqrt(nu_j / Eh)
+    Example, formaldehyde HF/cc-pVTZ, mode 7 (B1, 1337.152 cm-1), x: dipolex holds 0.0141179696, so dipgrad =
+    0.0141179696 * sqrt(1337.152 / 219474.63) = 1.1020e-3, as Gaussian (getDipDers_au's example);
+    tests/test_cfour_vs_gaussian.py checks every value.
+    """
     firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
-    w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
-    matrix_2d = np.outer(w_h, w_h)
-
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
-    firstder_mat = np.zeros_like(firstder)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            firstder_mat[i, j] = firstder[i, j] / sqrtvec[i]
-
-    secder_mat = np.zeros_like(secder)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-            for k in range(3):
-                secder_mat[i, j, k] = secder[i, j, k] / sqrtmat[i, j]
-
-    return tuple([firstder_mat, secder_mat])
+    return (dimensionless_to_mass_weighted(firstder, fund_harmonic_energies_array, 1),
+            dimensionless_to_mass_weighted(secder, fund_harmonic_energies_array, 2))
 
 
-def getDipoleDers_anharm_au_simple(filenamebase: str, labels: list, nModesStart: int, 
-                                   fund_harmonic_energies_array: list | np.ndarray) -> tuple:
-    firstder, secder = getDipoleDers_anharm(filenamebase, labels, nModesStart)
-    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
-    matrix_2d = np.outer(w_h, w_h)
-    
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
-    firstder_mat = np.zeros_like(firstder)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            firstder_mat[i, j] = firstder[i, j] / sqrtvec[i]
-
-    secder_mat = np.zeros_like(secder)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-            for k in range(3):
-                secder_mat[i, j, k] = secder[i, j, k] / sqrtmat[i, j]
-
-    return tuple([firstder_mat, secder_mat])
-
-
-def getPolarDers_pkl_au(polar_pkl_file: str, fundamentals_harmonic: dict):
-    w_h = convNu2Ene(np.array([v for k, v in fundamentals_harmonic.items()]))
-    matrix_2d = np.outer(w_h, w_h)
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
+def getPolarDers_pkl_au(polar_pkl_file: str, fund_harmonic_energies_array: np.ndarray | list):
+    """
+    polgrad (n, 3, 3) and polhess (n, n, 3, 3) in atomic units, as getDipoleDers_anharm_au: polar.pkl holds the
+    derivatives by dimensionless normal coordinates q, alpha in au (CQCParse.tools.build_polar_pkl), and each mode
+    index brings sqrt(nu_i / Eh). Checked against Gaussian (tests/test_cfour_vs_gaussian.py).
+    """
     with open(polar_pkl_file, 'rb') as file:
         alpha = pickle.load(file)
-    polgrad = alpha[0]
-    polhess = alpha[1]
+    polgrad, polhess = alpha[0], alpha[1]
+    return (dimensionless_to_mass_weighted(polgrad, fund_harmonic_energies_array, 1),
+            dimensionless_to_mass_weighted(polhess, fund_harmonic_energies_array, 2))
 
-    logger.debug('polgrad')
-    logger.debug(polgrad)
-
-    logger.debug('polhess')
-    logger.debug(polhess)
-
-    fdpol = np.zeros_like(polgrad)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            for k in range(3):
-                fdpol[i, j, k] = polgrad[i, j, k] / sqrtvec[i]
-
-    sdpol = np.zeros_like(polhess)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-
-            for k in range(3):
-                for L in range(3):
-                    sdpol[i, j, k, L] = polhess[i, j, k, L] / sqrtmat[i, j]
-
-    return tuple([fdpol, sdpol])
-
-
-def getPolarDers_pkl_au_simple(polar_pkl_file: str, fund_harmonic_energies_array: np.ndarray | list):
-    w_h = convNu2Ene(np.array(fund_harmonic_energies_array))
-    matrix_2d = np.outer(w_h, w_h)
-    sqrtvec = 1. / np.sqrt(w_h)
-    sqrtmat = 1. / np.sqrt(matrix_2d.T)
-
-    with open(polar_pkl_file, 'rb') as file:
-        alpha = pickle.load(file)
-    polgrad = alpha[0]
-    polhess = alpha[1]
-
-    logger.debug('polgrad')
-    logger.debug(polgrad)
-
-    logger.debug('polhess')
-    logger.debug(polhess)
-
-    fdpol = np.zeros_like(polgrad)
-    for i in range(len(sqrtvec)):
-        for j in range(3):
-            for k in range(3):
-                fdpol[i, j, k] = polgrad[i, j, k] / sqrtvec[i]
-
-    sdpol = np.zeros_like(polhess)
-    for i in range(len(sqrtvec)):
-        for j in range(len(sqrtvec)):
-
-            for k in range(3):
-                for L in range(3):
-                    sdpol[i, j, k, L] = polhess[i, j, k, L] / sqrtmat[i, j]
-
-    return tuple([fdpol, sdpol])
-
-# used
-def getDisplacementsPolarData(polar_dir: str, raw: bool = False):
-    """
-    Collecting the POLAR files data and also rotates is according to the matrix from the corresponding outfile0.out
-    :param raw:
-    :param polar_dir: where polar calcs were done
-
-    :return:
-    """
-    import os
-    directories = [d for d in os.listdir(polar_dir) if os.path.isdir(os.path.join(polar_dir, d))]
-    allpolardata = {}
-    allpolardataRaw = {}
-
-    for directory in directories:
-        dir_path = os.path.join(polar_dir, directory)
-
-        polar_file_path = dir_path + '/POLAR'
-        poldata = pTensor(polar_file_path)
-        R = getRotationMatrix(dir_path + '/outfile0.out')
-
-        allpolardataRaw[directory] = (poldata, R)
-        # First, we transform one rank: temp = R α
-        temp = np.einsum('ij,jk->ik', R.T, poldata)
-        # Then, we transform the other rank: α' = temp R^T
-        alpha_prime = np.einsum('ij,jk->ik', temp, R)
-
-        # 'ij, j -> i'
-        # 'ij, jk -> ik', 'nk, ik -> in'
-        allpolardata[directory] = alpha_prime
-
-    if raw:
-        return allpolardataRaw
-    else:
-        return allpolardata
-
-# used
-def getPolarDers(polar_dir: str):
-    """
-    Computing polarizability derivatives
-    :param polar_dir: where optimization was done
-    :return:
-    """
-
-    data = getDisplacementsPolarData(polar_dir)
-    data['equil'] = pTensor(polar_dir + '/../anharm/POLAR')
-    print(f'Equilibrium polarizability in {polar_dir + "/../anharm/POLAR"}')
-    print(sorted(list(data.keys())))
-
-    import re
-    # Extract all numbers from directory names
-    numbers = set()
-    pattern = re.compile(r'\d+')
-    for name in list(data.keys()):
-        numbers.update(map(int, pattern.findall(name)))
-
-    min_num = min(numbers)
-    max_num = max(numbers)
-    size = max_num - min_num + 1
-
-    import os
-    directories = [d for d in os.listdir(polar_dir) if os.path.isdir(os.path.join(polar_dir, d))]
-    nums = [h.strip('np').split('_') for h in directories]
-    flattened_list = [item for sublist in nums for item in sublist]
-    flattened_list = set([int(g) for g in flattened_list])
-
-    firstder = {}
-
-    for f in flattened_list:
-        firstder[f] = (data[f'{f}p'] - data[f'{f}n']) / 0.02
-
-    secondders = {}
-
-    # (∂²α_ij/∂Q_k∂Q_l) ≈ [α_ij(Q_k + ΔQ_k, Q_l + ΔQ_l) - α_ij(Q_k + ΔQ_k, Q_l - ΔQ_l)
-    #   - α_ij(Q_k - ΔQ_k, Q_l + ΔQ_l) + α_ij(Q_k - ΔQ_k, Q_l - ΔQ_l)] / (4 * ΔQ_k * ΔQ_l)
-    for k in flattened_list:
-        for m in flattened_list:
-            if k < m:
-                val = (data[f'{k}_{m}pp'] - data[f'{k}_{m}pn'] - data[f'{k}_{m}np'] + data[f'{k}_{m}nn']) / (
-                            4 * 0.01 * 0.01)
-                secondders[(k, m)] = val
-                secondders[(m, k)] = val
-
-    # (∂²α_ij/∂Q_k²) ≈ [α_ij(Q_k + ΔQ_k) - 2α_ij(Q_k) + α_ij(Q_k - ΔQ_k)] / (ΔQ_k)²
-    for b in flattened_list:
-        secondders[(b, b)] = (data[f'{b}p'] - 2 * data['equil'] + data[f'{b}n']) / 0.01 ** 2
-
-    polder = []
-    for p in firstder:
-        polder.append(firstder[p])
-    first = np.array(polder)
-
-    second = np.zeros((size, size, 3, 3))
-    indices_to_insert = list(secondders.keys())
-    # Insert the matrices at the specified indices
-    for index, mat in zip(indices_to_insert, list(secondders.values())):
-        i, j = index
-        second[i - 7, j - 7] = mat
-
-    return first, second
-
-# not used now
-def pklPolder(polar_dir):
-    first, second = getPolarDers(polar_dir)
-    filenamec = 'polar.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump((first, second), file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    return filenamec
-
-# not used now
-def pklPoldata(polar_dir):
-    allpolardata = getDisplacementsPolarData(polar_dir)
-    rawdata = getDisplacementsPolarData(polar_dir, raw=True)
-
-    poldataeq = pTensor(polar_dir + '/../anharm/POLAR')
-    R = getRotationMatrix(polar_dir + '/../anharm/outfile0.out')
-    temp = np.einsum('ij,jk->ik', R.T, poldataeq)
-    alpha_prime = np.einsum('ij,jk->ik', temp, R)
-    allpolardata['equil'] = alpha_prime
-
-    rawdata['equil'] = (alpha_prime, R)
-    filenamec = 'polarData.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump(allpolardata, file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    filenamec2 = 'polarData_raw.pkl'
-
-    with open(filenamec2, 'wb') as file:
-        pickle.dump(rawdata, file)
-
-    print(f'\n --> {filenamec2} file created\n')
-
-    return filenamec
-
-# used for polarizability calculations (in pklDimless_normal_modes,)
 def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """Dimensionless normal coordinates are here, in QUADRATURE file"""
 
@@ -835,33 +420,12 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.nd
     if current_matrix:
         undisplaced_matrix = current_matrix
 
-    normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat))
+    normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat, strict=True))
     return np.array(undisplaced_matrix), freqs, normal_coordinates
 
-# not used now
-def pklDimless_normal_modes(quadratureFile):
-    equilibrium_geometry, freqs, normal_modes = pQUADRATURE(quadratureFile)
-    filenamec = 'dimensionless.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump((equilibrium_geometry, freqs, normal_modes), file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    return filenamec
-
-
-"""
-1-parse_output_file,
-2-pCubicORQuartic, 3-getCubicPost,
-4-getDipoleDers_anharm,
-'polar_pkl' file <- 5-getPolarDers(6-getDisplacementsPolarData, 
-                    7-getRotationMatrix, 8-pTensor), 
-                    9-pklPolder"""
+# polar.pkl, read by getPolarDers_pkl_au, is built by CQCParse.tools.build_polar_pkl
 # -----------------------------------------------------------------------------
-# not used now
 
-# used in computeRedMass4nm which is not used now; also used for making displacements (polar)
 def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
     """
     Parsing MOLDEN file (VIB job output, harmonic or anharmonic)
@@ -909,8 +473,10 @@ def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, 
                 if 'current_vibration_index' in locals():
                     vibrations_data[current_vibration_index].append(list(map(float, line_parts)))
                 else:
-                    print('Error: Vibration number not initialized before data lines.')
+                    raise ValueError(f'{filepath}: a [FR-NORM-COORD] data line before any "vibration" line')
 
+    if not atoms:
+        raise ValueError(f'no geometry: no [FR-COORD] section in {filepath}')
     atoms = np.array(atoms)
     geometry_data = np.array(geometry_data, dtype=float)
     vibrations_data = {key: np.array(value) for key, value in vibrations_data.items()}
@@ -921,106 +487,8 @@ def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, 
     return geometry_data, atoms, normal_modes_dict
 
 
-def pklOutFile(outfile):
-    import pickle
-
-    data = parse_output_file(outfile)
-    filenamedata = 'vibdata.pkl'
-
-    with open(filenamedata, 'wb') as file:
-        pickle.dump(data, file)
-
-    print(f'\n --> {filenamedata} file created\n')
-    return os.getcwd()+'/'+filenamedata
-
-
-# used in pklDipole
-def getDipoleDers(filenamebase: str, outfile: str):
-    """
-    Getting dipole moment derivatives tensors
-    :param filenamebase: basename for dipole(xyz) files, e.g, 'dipole'
-    :param outfile: out file - output of the anharmonic parallel procedure
-    :return:  dmudqarray - first order derivatives of dipole moment, (3N-6, 3)
-              dmudqdarray - second order derivatives of dipole moment, (3N-6, 3N-6, 3)
-    """
-    dipx = pDipole(filenamebase + 'x')
-    dipy = pDipole(filenamebase + 'y')
-    dipz = pDipole(filenamebase + 'z')
-
-    things = parse_output_file(outfile)
-
-    labels = sorted(list(set([t[0] for t in things[0]])))
-    labels = [int(k) for k in labels]
-
-    dmudqdict = {}
-    dmudqdqdict = {}
-    dq = len(labels)
-    dmudqdqdict['x'] = np.zeros((dq, dq))
-    dmudqdqdict['y'] = np.zeros((dq, dq))
-    dmudqdqdict['z'] = np.zeros((dq, dq))
-
-    for L in labels:
-        if isinstance(L,int):
-            dmudqdict[L] = np.zeros(3)
-            if L in dipx:
-                dmudqdict[L][0] = dipx[L]
-            if L in dipy:
-                dmudqdict[L][1] = dipy[L]
-            if L in dipz:
-                dmudqdict[L][2] = dipz[L]
-
-    for L in dipx:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdqdict['x'][(L[0] - 7, L[1] - 7)] = dipx[L]
-
-    for L in dipy:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdqdict['y'][(L[0] - 7, L[1] - 7)] = dipy[L]
-
-    for L in dipz:
-        if not isinstance(L, int):
-            if len(L) == 2:
-                dmudqdqdict['z'][(L[0] - 7, L[1] - 7)] = dipz[L]
-
-    dmudqarray = np.array(list(dmudqdict.values()))
-    dmudqdarray = np.array(list(dmudqdqdict.values())).T
-
-    return dmudqarray, dmudqdarray
-
-# not used
-def pklDipole(filenamebase, outfile):
-    import pickle
-
-    print('\nPickling in pklDipole in', os.getcwd())
-
-    dmudqarray, dmudqdarray = getDipoleDers(filenamebase, outfile)
-    filename = 'dipolexyz.pkl'
-
-    with open(filename, 'wb') as file:
-        pickle.dump((dmudqarray, dmudqdarray), file)
-
-    print(f'\n --> {filename} file created\n')
-
-    return os.getcwd()+'/'+filename
-
-# used
-def pklCubic(cubicfile):
-
-    cubic = pCubicORQuartic(cubicfile)
-    filenamec = 'cubic.pkl'
-
-    with open(filenamec, 'wb') as file:
-        pickle.dump(cubic, file)
-
-    print(f'\n --> {filenamec} file created\n')
-
-    return filenamec
-
 # -----------------------------------------------------------------------------
 
-# used in parse_output_file
 def modes_array2tuple(arr: np.array):
     """I J K L M NI NJ NK NL NM information array
     turned into a tuple, where I mode will be mentioned NI times and so on"""
