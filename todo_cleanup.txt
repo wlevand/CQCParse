@@ -42,7 +42,7 @@ Order
 After T4/R4 no known risk is left of wrong numbers with no error, in what wilson reads (the unit conversions are
 checked against the other program now). What is left is the merge. Functions are named, not line numbers: those
 move with every change.
-    1. Q13     Finish: the merge, the version, the list of changes for users.
+    1. Q13     Finish: the merge, the list of changes for users.
 Also done, outside this goal: N1's change (H order, Gaussian renumbered by default, with Q7's leftover), in
 todo.txt N1; wilson's references: todo.txt T9 (done).
 Done: Q1, Q2, Q3, Q4, Q5 (with todo.txt R5), Q6, Q7, Q12 (with A6's first step), Q8 (with N1's first step),
@@ -52,78 +52,103 @@ todo.txt L1, L2 and T6 (see todo.txt Done).
 
 Q. New findings
 ---------------
-[ ] Q13 Finish (found in the review after Q12: nothing in the plan said how the work reaches users).
-            - merge. L1 and T6 are done on wilson_gv's branch cqcparse_cleanup. Facts, checked against
-              wilson_gv's GitHub main (df46d62):
-                - cqcparse_cleanup is rsp_eval_refactor (bf07c05) plus 5 commits. rsp_eval_refactor is PR #69,
-                  still open, 48 commits ahead of wilson main; the reference files of T6 exist only there.
-                - PR #69 as it is passes with CQCParse main as it is, but for wilson's own failures (todo.txt
-                  Tests). With this branch it fails on import (L1's dead imports).
-                - wilson main still has L1's dead imports too, so it fails on `import wilson_suite` from the moment
-                  CQCParse main has this branch, until L1 reaches wilson main. Its README installs CQCParse main,
-                  no version pinned.
-                - bf07c05 (wilson_gv) expects PR #69 to be squash-merged.
-              Order, with PR #69 unchanged (decided: cqcparse_cleanup does not go into PR #69):
-                1. PR #69 into wilson main, whenever it is ready.
-                2. cqcparse_cleanup as its own PR. It can be opened now with base rsp_eval_refactor, so it shows
-                   only its 5 commits. After step 1: `git fetch`, then
-                   `git rebase --onto origin/main bf07c05 cqcparse_cleanup` (a squash leaves bf07c05 off main), and
-                   change the PR's base to main.
-                3. cleanup_claude into CQCParse main, as a merge commit (as PR #4), not a squash: wilson_gv's T6
-                   commit (b99c25e) names this branch's 2ca6fa6 (C3 + R1), which a squash would drop from main's
-                   history.
-                4. the wilson PR of step 2, right after step 3. Between 3 and 4, wilson main fails on import.
-              So this branch's merge waits for PR #69.
-            - then update wilson_gv's issue #71: G8 is fixed (C3), G9 too (A6, N2), N1 changed the mode labels of
-              Gaussian data (T9 relabeled wilson's references), and add todo.txt T10.
-            - version: pyproject.toml says 0.1.0, as on main. Raise it, e.g. to 0.2.0. What changed for a user
-              since main (the Done entries of both files):
-                - mode order (N1): every mode index of both readers in ascending harmonic frequency, so Gaussian
-                  values come with other mode labels than before (the normal modes excepted). reindex_modes is
-                  True by default; False gives Gaussian's own order in every key, normal_modes included. The
-                  result's 'reindex_modes' is True for Gaussian. The validation readers take the same switch.
-                - numbers (sizes in todo.txt Done): CFOUR qff was far too large (C3); Gaussian cff and qff are
-                  converted from column FI, no longer read from the 5-decimal column K (R1); CFOUR diphess, qff and
-                  qff_rc are the mean of the two index orders the files list (C1). Gaussian normal_modes have 5
-                  decimals (were 2, N2).
-                - keys: a request for cff or cff_rc returns both, the same for qff and qff_rc (A1); CFOUR returns
-                  reindex_modes, always False (A5); CFOUR returns harmonic_states only when harmonic_states or
-                  nc_sqrt_eigval is asked for (C2); both readers find a linear molecule from the file (C4).
-                - errors where there were zeros, empty arrays or None: an unknown name or source_type (Q6), a
-                  missing section (Q12), a section cut short where data are paired (Q8), Gaussian unit lines other
-                  than Debye or a.u. (R4), a Gaussian geometry not in the frame of the normal modes (A6). Errors
-                  keep their type and name the file (Q6).
-                - requests that failed before and work now: B, coriolis or a force constant without
-                  nc_sqrt_eigval (A2); CFOUR HFcc_pVQZ, which has no MOLDEN, for every name but the geometry and
-                  normal modes (C2); the geometry of ACAC and ACDM, and the normal modes of ACAC, ACDM and CO (A6,
-                  N2). Gaussian's geometry is the one of the frequencies, in the frame of the normal modes (A6).
-                - calls: parse_from_source's linear argument is ignored, with a DeprecationWarning, and
-                  parse_cfour_output lost linear_molecule (C4); setup_logger lost use_rich and no_color (Q4);
-                  get_cubic_post, get_quartic_post, getCubicPost and getQuarticPost lost recipcm and reduced
-                  (C3 + R1); get_normal_modes takes the file's lines, not its name (N2); parse_gaussian16_output
-                  takes reindex_modes (N1). The readers print nothing (L4, Q6, Q8, Q12).
-                - validation readers (Q10): get_detected_resonances_g16 returns (I, J, K) triples (it returned
-                  None); get_detected_resonances_c4 returns the resonance lines (it returned []);
-                  parse_anharmonic_x_matrix raises without its section (it returned empty lists).
-                - names gone: L1's classes (GaussianDataParser, CFOURdataParser, ParsedData and the rest of
-                  parser_template, gaussian_parser, cfour_parser); the modules simple_parsed_data, mockparser,
-                  retrieve_data, parseGaussian_extra, parseCFOUR_extra, relay_data with DataVault, and debug (L4-L6,
-                  Q4); convNu2Ene (R4); nm_parse_lines and nm_floats (N2); the functions deleted in L4, L5, Q4 and
-                  Q5; the parsing star exports (Q3).
-                - renamed or moved: getDipoleDers_anharm_au_simple -> getDipoleDers_anharm_au,
-                  getPolarDers_pkl_au_simple -> getPolarDers_pkl_au (R4); the polar.pkl builder ->
-                  CQCParse.tools.build_polar_pkl (Q5).
-                - new: CQCParse.utils.reduced_to_au, dimensionless_to_mass_weighted, HARTREE_CM, AMU_IN_ME
-                  (C3 + R1, R4); SOURCE_TYPES, KNOWN_NAMES, REINDEXED_TENSORS (a dict of mode axes since N1) and
-                  REINDEXED_DICTS in parse_wilson_obtainer (Q6, Q7, N1); ECKART_TOLERANCE in parseGaussian_forWilson
-                  (A6).
-                - install: needs only numpy, scipy and pandas; rich is gone (Q4); setup.py and requirements.txt
-                  are gone (Q2).
-                - speed: large Gaussian files load several times faster (P1, P2).
-            - the list of these changes for users: in the README or the merge message (no todo names there: the
-              README is public).
-            - the todo files: clean them up before the merge (both repos are public; this file holds the LLM-use
-              log). After the merge, move what is left of this file into todo.txt and delete this file.
+[ ] Q13 Finish: bring this branch and wilson_gv's cqcparse_cleanup to main, and tell users what changed.
+
+        Before the merge (this branch and wilson_gv; any time):
+            [ ] 1. The list of changes for users (below): in the README or the merge message, without todo names.
+            [ ] 2. The todo files: clean them up (both repos are public; this file holds the LLM-use log). Name
+                   wilson_gv's work by its PR number, not by commit hash: merge step 2 changes the hashes. The
+                   cleanup changes only what main shows: every pushed commit stays public (Facts).
+            [ ] 3. wilson_gv: open cqcparse_cleanup's PR with base rsp_eval_refactor, so it shows only its 10
+                   commits.
+
+        Version: stays 0.1.0, no git tag, no pin in wilson (decided). No tag or release exists, and nothing reads
+        the number (0.1.0 is uv init's default). A version matters only with a tag that wilson's README pins
+        (`git clone --branch v0.1.0 ...`); the pin would also keep the next CQCParse change from breaking wilson
+        main. When pinning: tag that commit v0.1.0, the first release.
+
+        The merge, in this order. Decided: PR #69 stays as it is (cqcparse_cleanup does not go into it), and wilson
+        goes before CQCParse, so wilson main never fails on import. Everything waits for PR #69.
+            [ ] 1. wilson_gv: PR #69 into main, as a squash (bf07c05 expects one), whenever it is ready.
+            [ ] 2. wilson_gv: move cqcparse_cleanup onto the new main, then change its PR's base to main:
+                       git fetch
+                       git rebase --onto origin/main bf07c05 cqcparse_cleanup
+                       git push --force-with-lease
+                   --onto: the squash leaves bf07c05 off main. --force-with-lease: the branch is on GitHub.
+            [ ] 3. wilson_gv: run the tests on the rebased branch with CQCParse main. Expected: wilson's own
+                   failures and the 29 reference tests (todo.txt Tests; that count names no commit). Then merge
+                   the PR. Until step 4, wilson main gives today's numbers and those 29 tests fail.
+            [ ] 4. CQCParse: this branch into main as a merge commit (as PR #4), not a squash. A squash would drop
+                   the 3 commits that wilson_gv's commits name (Facts).
+            [ ] 5. wilson_gv: run the tests on main with CQCParse main. Expected: only wilson's own failures.
+            [ ] 6. wilson_gv issue #71: G8 is fixed (C3), G9 too (A6, N2), N1 changed the mode labels of Gaussian
+                   data (T9 relabeled wilson's references); add todo.txt T10.
+            [ ] 7. Move what is left of this file into todo.txt, and delete this file.
+
+        Facts (checked against wilson_gv's GitHub main, df46d62):
+            - wilson_gv's branches:
+                rsp_eval_refactor   PR #69: open, 48 commits ahead of main, no conflicts. T6's reference files
+                                    exist only there. Its last commit, bf07c05, expects a squash merge.
+                cqcparse_cleanup    bf07c05 plus 10 commits (7376963 to 1313abb): L1, L2, L7, T6, T7, T8, T9.
+            - Which wilson works with which CQCParse ("works": only wilson's own failures; todo.txt Tests):
+                                    CQCParse main               this branch
+                wilson main         today's state               fails on import (L1's dead imports)
+                PR #69              works                       fails on import
+                cqcparse_cleanup    29 reference tests fail     works
+            - cqcparse_cleanup takes only parse_from_source, PKG_ROOT and setup_logger from CQCParse; all three
+              are on CQCParse main.
+            - wilson installs CQCParse from main: its README clones main, no version pinned; setup.py and
+              environment.yml do not name CQCParse.
+            - wilson_gv commits that name a commit of this branch: b99c25e (T6) -> 2ca6fa6 (C3 + R1), af4f892 (T8)
+              -> 5613754 (A6, N2), 7c5f47d (T9) -> d9df49a (N1).
+            - Neither repo has CI: a failing test blocks no merge.
+            - Every pushed commit stays public, even after a squash and a deleted branch: a PR's commits, any
+              commit by its hash, clones. Nothing sensitive found in the pushed todo files.
+
+        What changed for users since main (from the Done entries of both files):
+            - mode order (N1): every mode index of both readers in ascending harmonic frequency, so Gaussian
+              values come with other mode labels than before (the normal modes excepted). reindex_modes is True
+              by default; False gives Gaussian's own order in every key, normal_modes included. The result's
+              'reindex_modes' is True for Gaussian. The validation readers take the same switch.
+            - numbers (sizes in todo.txt Done): CFOUR qff was far too large (C3); Gaussian cff and qff are
+              converted from column FI, no longer read from the 5-decimal column K (R1); CFOUR diphess, qff and
+              qff_rc are the mean of the two index orders the files list (C1). Gaussian normal_modes have 5
+              decimals (were 2, N2).
+            - keys: a request for cff or cff_rc returns both, the same for qff and qff_rc (A1); CFOUR returns
+              reindex_modes, always False (A5); CFOUR returns harmonic_states only when harmonic_states or
+              nc_sqrt_eigval is asked for (C2); both readers find a linear molecule from the file (C4).
+            - errors where there were zeros, empty arrays or None: an unknown name or source_type (Q6), a missing
+              section (Q12), a section cut short where data are paired (Q8), Gaussian unit lines other than Debye
+              or a.u. (R4), a Gaussian geometry not in the frame of the normal modes (A6). Errors keep their type
+              and name the file (Q6).
+            - requests that failed before and work now: B, coriolis or a force constant without nc_sqrt_eigval
+              (A2); CFOUR HFcc_pVQZ, which has no MOLDEN, for every name but the geometry and normal modes (C2);
+              the geometry of ACAC and ACDM, and the normal modes of ACAC, ACDM and CO (A6, N2). Gaussian's
+              geometry is the one of the frequencies, in the frame of the normal modes (A6).
+            - calls: parse_from_source's linear argument is ignored, with a DeprecationWarning, and
+              parse_cfour_output lost linear_molecule (C4); setup_logger lost use_rich and no_color (Q4);
+              get_cubic_post, get_quartic_post, getCubicPost and getQuarticPost lost recipcm and reduced (C3 + R1);
+              get_normal_modes takes the file's lines, not its name (N2); parse_gaussian16_output takes
+              reindex_modes (N1). The readers print nothing (L4, Q6, Q8, Q12).
+            - validation readers (Q10): get_detected_resonances_g16 returns (I, J, K) triples (it returned None);
+              get_detected_resonances_c4 returns the resonance lines (it returned []); parse_anharmonic_x_matrix
+              raises without its section (it returned empty lists).
+            - names gone: L1's classes (GaussianDataParser, CFOURdataParser, ParsedData and the rest of
+              parser_template, gaussian_parser, cfour_parser); the modules simple_parsed_data, mockparser,
+              retrieve_data, parseGaussian_extra, parseCFOUR_extra, relay_data with DataVault, and debug (L4-L6,
+              Q4); convNu2Ene (R4); nm_parse_lines and nm_floats (N2); the functions deleted in L4, L5, Q4 and Q5;
+              the parsing star exports (Q3).
+            - renamed or moved: getDipoleDers_anharm_au_simple -> getDipoleDers_anharm_au,
+              getPolarDers_pkl_au_simple -> getPolarDers_pkl_au (R4); the polar.pkl builder ->
+              CQCParse.tools.build_polar_pkl (Q5).
+            - new: CQCParse.utils.reduced_to_au, dimensionless_to_mass_weighted, HARTREE_CM, AMU_IN_ME (C3 + R1,
+              R4); SOURCE_TYPES, KNOWN_NAMES, REINDEXED_TENSORS (a dict of mode axes since N1) and REINDEXED_DICTS
+              in parse_wilson_obtainer (Q6, Q7, N1); ECKART_TOLERANCE in parseGaussian_forWilson (A6).
+            - install: needs only numpy, scipy and pandas; rich is gone (Q4); setup.py and requirements.txt are
+              gone (Q2).
+            - speed: large Gaussian files load several times faster (P1, P2).
+            - example files (Q9): 8 .pkl files gone from files_examples, which is installed with the package
+              (vibdata, cubic, dipolexyz, polarData, and dimensionless in two of the three folders).
 
 
 Done
@@ -228,8 +253,10 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
       suite, also with CQCParse main. The owner committed it (04e0684).
     - Done by the owner, in wilson_gv: L1, L2 and T6 (7376963 to b99c25e), L7 (070f53e, 1313abb).
 
-2026-10-28: Q9 and Q11.
+2026-10-28: Q9, Q11 and Q13's plan.
     - Claude Code: explained Q9 and Q11; after the owner's decisions (the recommendation of each), deleted Q9's 8
       .pkl files, changed one line of pklPoldata's docstring, moved both to Done; ran CQCParse's tests (365 pass).
+    - Claude Code: checked Q13 against both repos and GitHub (read only); rewrote Q13 after the owner's decisions
+      (wilson before CQCParse; no tag yet; the version stays 0.1.0).
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).
