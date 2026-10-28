@@ -76,7 +76,7 @@ Q. New findings
                        git push --force-with-lease
                    --onto: the squash leaves bf07c05 off main. --force-with-lease: the branch is on GitHub.
             [ ] 3. wilson_gv: run the tests on the rebased branch with CQCParse main. Expected: wilson's own
-                   failures and the 29 reference tests (todo.txt Tests; that count names no commit). Then merge
+                   failures and the 29 reference tests (todo.txt Tests). Then merge
                    the PR. Until step 4, wilson main gives today's numbers and those 29 tests fail.
             [ ] 4. CQCParse: this branch into main as a merge commit (as PR #4), not a squash. A squash would drop
                    the 3 commits that wilson_gv's commits name (Facts).
@@ -258,5 +258,7 @@ No Claude Code edits are known for the other commits since main's "bug fixes in 
       .pkl files, changed one line of pklPoldata's docstring, moved both to Done; ran CQCParse's tests (365 pass).
     - Claude Code: checked Q13 against both repos and GitHub (read only); rewrote Q13 after the owner's decisions
       (wilson before CQCParse; no tag yet; the version stays 0.1.0).
+    - Claude Code: reviewed todo.txt and clarified it; ran wilson's tests (cqcparse_cleanup, 1313abb) with
+      CQCParse main (4e16cf4), from copies outside both repos, for the count in todo.txt Tests.
 Older: two files name "Claude Opus 4.6" in their header, relay/modes_reindexing.py and tests/test_reindexing.py;
 both came from main (March 2026).
