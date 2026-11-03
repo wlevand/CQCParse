@@ -32,7 +32,6 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
     rotational_constant = []
 
     start1 = False
-    start_rotcont = False
     # a missing section raises below, instead of giving zeros
     found_coriolis = False
     found_rotational = False
@@ -57,14 +56,6 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
             l3 = [int(line.strip().split()[1]), int(line.strip().split()[2]), float(line.strip().split()[3])]
             corZtuples.append(tuple(l3))
 
-        if start_rotcont:
-            if len(rotational_constant)<3:
-                rotational_constant.append(line.strip().split()[1])
-                if len(rotational_constant)==3:
-                    start_rotcont = False
-            else:
-                continue
-
         if "Rotational Constants (in cm^-1)" in line:
             # The Ae line is 3 lines after the header
             ae_line = lines[i + 3]
@@ -77,11 +68,6 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
             ce = float(ce_line.strip().split('=')[1].strip().split()[0])
 
             rotational_constant = [ae, be, ce]
-
-        rotconst_str = 'equilibrium (e), ground vibr.state (00), and 00 + centr. dist.(0)'
-
-        if rotconst_str in line and len(rotational_constant)<3:
-            start_rotcont = True
 
         if linear_molecule:
             if 'E(harm)  E(anharm)' in line:
@@ -139,7 +125,7 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
         corZ[j - 1, i - 1] = val
     coriolis_constant = np.array([corX, corY, corZ])
 
-    return rotational_constant, coriolis_constant
+    return np.array(rotational_constant), coriolis_constant
 
 def parse_Na(lines: list[str]) -> int:
     """Number of atoms, from the first 'NAtoms=' line (Gaussian prints one in every job step)"""
@@ -155,7 +141,7 @@ def _h_of_a(lines: list[str]) -> dict[int, int]:
 
 
 def get_detected_resonances_g16(file_content: list[str],
-                                reindex_modes: bool = True) -> list[tuple[int, int, int]]:
+                                reindex_modes: bool = True) -> list[tuple[int, ...]]:
     """
     Validation only: not used by parse_from_source. For checking wilson's VPT2 against Gaussian's own.
 
@@ -231,7 +217,7 @@ def getDipDers_au(logfile: list[str]) -> tuple:
 
     firstder = a2d / np.sqrt(AMU_IN_ME)
     secder = a2d2_3d / AMU_IN_ME
-    return tuple([firstder, secder])
+    return (firstder, secder)
 
 def getPolarDers_log(logfile: list[str]) -> tuple:
     """
@@ -269,7 +255,7 @@ def getPolarDers_log(logfile: list[str]) -> tuple:
         p2_4d[i - 1, j - 1] = xyz
         p2_4d[j - 1, i - 1] = xyz
 
-    return tuple([p1_3d, p2_4d])
+    return (p1_3d, p2_4d)
 
 def getPolarDers_au(logfile: list[str]) -> tuple:
     """
@@ -284,7 +270,7 @@ def getPolarDers_au(logfile: list[str]) -> tuple:
     fdpol = p1_3d / np.sqrt(AMU_IN_ME)
     sdpol = p2_4d / AMU_IN_ME
 
-    return tuple([fdpol, sdpol])
+    return (fdpol, sdpol)
 
 # used in parse_gaussian16_output
 def parse_cubic_constants(lines: list[str]) -> tuple[pd.DataFrame, list]:

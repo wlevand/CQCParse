@@ -55,6 +55,18 @@ def test_gaussian_missing_coriolis(tmp_path):
         parse('gaussian', path, 'coriolis')
 
 
+def test_gaussian_rotational_constants_only_in_mhz(tmp_path):
+    """Without the cm-1 block of rotational constants, B raises. Before, the reader took the next block's values,
+    in MHz, as cm-1."""
+    with open(G16_FORM) as file:
+        lines = file.readlines()
+    start = next(i for i, line in enumerate(lines) if 'Rotational Constants (in cm^-1)' in line)
+    path = tmp_path / 'g16.out'
+    path.write_text(''.join(lines[:start] + lines[start + 6:]))     # the header, dashes, equilibrium line, Ae, Be, Ce
+    with pytest.raises(ValueError, match='no equilibrium rotational constants'):
+        parse('gaussian', path, 'B')
+
+
 @pytest.mark.parametrize('name, unit, other', [('dipgrad', 'Debye', 'a.u.'), ('polgrad', 'a.u.', 'Debye')])
 def test_gaussian_unexpected_unit(tmp_path, name, unit, other):
     """The conversions hold only for the dipole in Debye and the polarizability in a.u. (todo R4): another unit

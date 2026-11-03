@@ -34,7 +34,7 @@ from CQCParse.utils import dimensionless_to_mass_weighted
 logger = logging.getLogger("CQCParse")
 
 
-def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarray, np.ndarray]:
+def parse_coriolis(filepath: str, nModes: int, startmode: int)-> tuple[np.ndarray, np.ndarray]:
     """
     lines: list[str]
 
@@ -44,7 +44,7 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
             when 5 are removed, first index is 6
             when 6 are removed, first index is 7
     """
-    with open(file_path, 'r') as file:
+    with open(filepath, 'r') as file:
         lines = file.readlines()
 
     corXtuples, corYtuples, corZtuples = [], [], []
@@ -86,9 +86,9 @@ def parse_coriolis(file_path: str, nModes: int, startmode: int)-> tuple[np.ndarr
             rotational_constant.append(float(line.split()[-1]))
     missing = sorted({1, 2, 3} - found_ixyz)
     if missing:
-        raise ValueError(f'no "Coriolis Zeta matrix for IXYZ= k" section for k = {missing} in {file_path}')
+        raise ValueError(f'no "Coriolis Zeta matrix for IXYZ= k" section for k = {missing} in {filepath}')
     if not rotational_constant:
-        raise ValueError(f'no "B in cm-1:" line (rotational constants) in {file_path}')
+        raise ValueError(f'no "B in cm-1:" line (rotational constants) in {filepath}')
     rotational_constant = np.array(rotational_constant)
     if len(rotational_constant)>3:
         rotational_constant = rotational_constant[-3:]
@@ -373,7 +373,7 @@ def getPolarDers_pkl_au(polar_pkl_file: str, fund_harmonic_energies_array: np.nd
     return (dimensionless_to_mass_weighted(polgrad, fund_harmonic_energies_array, 1),
             dimensionless_to_mass_weighted(polhess, fund_harmonic_energies_array, 2))
 
-def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
+def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.ndarray, dict[int: np.ndarray]]:
     """Dimensionless normal coordinates are here, in QUADRATURE file"""
 
     current_frequency = None
@@ -420,13 +420,13 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.array, dict[int: np.nd
     if current_matrix:
         undisplaced_matrix = current_matrix
 
-    normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), dqMat, strict=True))
-    return np.array(undisplaced_matrix), freqs, normal_coordinates
+    normal_coordinates = dict(zip(np.arange(7, len(freqs)+7), np.array(dqMat), strict=True))
+    return np.array(undisplaced_matrix), np.array(freqs), normal_coordinates
 
 # polar.pkl, read by getPolarDers_pkl_au, is built by CQCParse.tools.build_polar_pkl
 # -----------------------------------------------------------------------------
 
-def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, dict[int: np.ndarray]]:
+def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.ndarray, dict[int: np.ndarray]]:
     """
     Parsing MOLDEN file (VIB job output, harmonic or anharmonic)
     :param linear:
@@ -489,7 +489,7 @@ def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.array, 
 
 # -----------------------------------------------------------------------------
 
-def modes_array2tuple(arr: np.array):
+def modes_array2tuple(arr: np.ndarray):
     """I J K L M NI NJ NK NL NM information array
     turned into a tuple, where I mode will be mentioned NI times and so on"""
     # Extract the non-zero elements from the array (ignoring the zeros after the first non-zero element)
