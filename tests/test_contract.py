@@ -29,6 +29,7 @@ RTOL, ATOL = 1e-12, 1e-18
 
 @functools.cache
 def result(source):
+    """parse(source, NAMES), read once per source: many tests here ask for the same source's result."""
     return parse(source, NAMES)
 
 

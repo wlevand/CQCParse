@@ -16,6 +16,7 @@ C4_FORM = EXAMPLES + '/refinedc4/HFcc_pVTZ'
 
 
 def parse(source_type, location, name):
+    """parse_from_source asking for nc_sqrt_eigval and name; location: a Gaussian output file or a CFOUR folder."""
     return parse_from_source(['nc_sqrt_eigval', name], source_type, str(location), lvl_theory='', basis_set='')
 
 
@@ -90,10 +91,14 @@ def edit_copy(tmp_path, filename, keep):
 
 
 def before(marker):
-    """keep() for edit_copy: the lines before the first one holding marker."""
+    """
+    A keep() for edit_copy that keeps the lines before the first line holding marker, and drops that line and all
+    after it. E.g. before('[FR-NORM-COORD]') cuts a MOLDEN file at its normal-mode section.
+    """
     seen = []
 
     def keep(line):
+        # called on each line in order: once marker is seen, seen is not empty and every later line is dropped
         if marker in line:
             seen.append(line)
         return not seen

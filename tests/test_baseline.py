@@ -48,6 +48,7 @@ BASE = ['nc_sqrt_eigval', 'harmonic_states', 'anharmonic_states']
 
 
 def parse(source, names):
+    """parse_from_source for one example (a key of SOURCES), asking for names. The other test files use it too."""
     source_type, path, lvl_theory, basis_set = SOURCES[source]
     return parse_from_source(requested_data=dict.fromkeys(names), source_type=source_type,
                              base_file_loc=EXAMPLES + '/' + path,
@@ -55,6 +56,8 @@ def parse(source, names):
 
 
 def error_text(exc):
+    """An error as text for summary.json: its type and message, with the repo path replaced by <PKG_ROOT>, so that
+    the text is the same on every machine."""
     return f'{type(exc).__name__}: {exc}'.replace(PKG_ROOT, '<PKG_ROOT>')
 
 
@@ -80,6 +83,7 @@ def collect(source, skip=()):
 
 
 def key_text(key):
+    """A dict key as text, for flatten: a state ('0', '1') -> '0,1', the ground state () -> '', a mode 3 -> '3'."""
     return ','.join(str(k) for k in key) if isinstance(key, tuple) else str(key)
 
 
@@ -127,6 +131,8 @@ def compare(saved, new, rtol=1e-12, atol=1e-18):
 
 
 def load_saved(source):
+    """The saved baseline of one source: its arrays (<source>.npz) and the names that failed, with their error
+    text (summary.json)."""
     with open(SUMMARY) as file:
         errors = json.load(file)[source]['errors']
     with np.load(os.path.join(BASELINE_DIR, source + '.npz'), allow_pickle=False) as data:
@@ -151,6 +157,11 @@ def test_baseline(source):
 
 
 def write_baseline():
+    """
+    Rewrite tests/baseline/ from the current code (run: python tests/test_baseline.py). summary.json is always
+    rewritten; an .npz file only if one of its arrays changed at all (compared with no tolerance, so rounding noise
+    of 1e-16 also counts).
+    """
     os.makedirs(BASELINE_DIR, exist_ok=True)
     summary = {}
     for source, (source_type, path, lvl_theory, basis_set) in SOURCES.items():

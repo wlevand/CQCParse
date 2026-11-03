@@ -1,8 +1,8 @@
 """
-CFOUR vs Gaussian, formaldehyde HF/cc-pVTZ and HF/cc-pVQZ: the only check here that does not assume
-CQCParse is right. It covers the dipole and polarizability derivatives, so it checks their unit conversions,
-and the harmonic frequencies and states, B and the anharmonic states. The force constants:
-test_cfour_matches_gaussian (tests/test_force_constants.py).
+CFOUR vs Gaussian, formaldehyde HF/cc-pVTZ and HF/cc-pVQZ: the same molecule and method from two programs, read
+by two different readers, so the two results must agree. It covers the dipole and polarizability derivatives, so
+it checks their unit conversions, and the harmonic frequencies and states, B and the anharmonic states. The force
+constants: test_cfour_matches_gaussian (tests/test_force_constants.py).
 
 Matching the two results:
     - modes: by harmonic frequency (both readers number them by ascending frequency, but two close modes could
@@ -12,8 +12,8 @@ Matching the two results:
       signs: fitted to the first derivatives. For a symmetric molecule several axes fit equally well (a mirror
       plane of the molecule flips an axis and the signs of some modes together); any of them will do.
 Neither fit can hide a wrong unit factor, which changes the size of the values.
-Measured (October 2026): frequencies within 0.003 cm-1; each derivative tensor within 7e-5 of its largest value;
-B within 5e-7 of the value; harmonic states within 0.01 cm-1; anharmonic states of nu1-nu3 within 0.4 cm-1.
+Measured: frequencies within 0.004 cm-1; each derivative tensor within 7e-5 of its largest value;
+B within 8e-7 of the value; harmonic states within 0.01 cm-1; anharmonic states of nu1-nu3 within 0.4 cm-1.
 """
 import itertools
 
@@ -27,6 +27,11 @@ DERIVATIVES = ['dipgrad', 'diphess', 'polgrad', 'polhess']
 
 
 def signed_permutations():
+    """
+    The 48 ways to relabel and flip the axes x, y, z: each a 3x3 matrix r with one +1 or -1 in each row and column,
+    so that r @ v is the vector v in the new axes. E.g. order (1, 0, 2) and signs (1, -1, 1): new x = old y,
+    new y = -old x, new z = old z.
+    """
     for order in itertools.permutations(range(3)):
         for signs in itertools.product((1, -1), repeat=3):
             r = np.zeros((3, 3))
@@ -35,7 +40,14 @@ def signed_permutations():
 
 
 def to_gaussian(c4, perm, signs, r):
-    """CFOUR's derivative tensors in Gaussian's mode order, mode signs and axes (r: CFOUR x, y, z -> Gaussian's)."""
+    """
+    CFOUR's derivative tensors turned into Gaussian's mode order, mode signs and axes, to compare with Gaussian's.
+        perm[m]   the CFOUR mode of Gaussian mode m
+        signs[m]  +1 or -1: the sign that turns that CFOUR mode into Gaussian mode m
+        r         CFOUR x, y, z -> Gaussian's (one of signed_permutations)
+    Each mode index gets its mode's sign; each x, y, z index gets r: a vector v becomes r v, a 3x3 tensor a becomes
+    r a r^T. E.g. diphess[m, n] = signs[m] signs[n] r (CFOUR diphess[perm[m], perm[n]]).
+    """
     s = np.asarray(signs, dtype=float)
     ss = np.outer(s, s)
     return {'dipgrad': s[:, None] * (c4['dipgrad'][perm] @ r.T),
@@ -45,11 +57,22 @@ def to_gaussian(c4, perm, signs, r):
 
 
 def relative_gap(a, b):
+    """The largest difference between a and b, divided by the largest absolute value in b (the reference)."""
     return np.abs(a - b).max() / np.abs(b).max()
 
 
 @pytest.fixture(scope='module', params=['cc-pVTZ', 'cc-pVQZ'])
 def pair(request):
+    """
+    The Gaussian and CFOUR results of one basis set (request.param), matched as the module docstring says:
+        1. modes: perm[m] is the CFOUR mode whose harmonic frequency is closest to Gaussian mode m's;
+        2. for each of the 48 axis choices r (signed_permutations), the sign of each mode: +1 if Gaussian's first
+           derivatives of mode m (dipgrad and polgrad together) point the same way as CFOUR's, turned by r, else -1;
+        3. of the 48, the r whose matched tensors (to_gaussian) are closest to Gaussian's (relative_gap).
+    Returns a dict: g16 and c4 (the two results), perm, w_g16 and w_c4 (harmonic frequencies, cm-1, in each
+    program's mode order), r, and matched (CFOUR's derivative tensors in Gaussian's modes and axes).
+    Module scope: the fit runs once per basis set, for all the tests here.
+    """
     g16 = parse(f'g16_FORM_HF_{request.param}', NAMES + ['modes_mapping'])
     c4 = parse(f'c4_FORM_HF_{request.param}', NAMES)
     n = len(g16['nc_sqrt_eigval'])
@@ -94,7 +117,11 @@ def test_rotational_constants(pair):
 
 
 def mapped_states(pair, kind):
-    """CFOUR's states, with the modes renamed to Gaussian's."""
+    """
+    CFOUR's states (kind: 'harmonic_states' or 'anharmonic_states') with Gaussian's mode numbers in the keys, so
+    that the two dicts have the same keys. E.g. if perm[4] == 2 (CFOUR mode 2 is Gaussian mode 4), CFOUR's key
+    ('2', '2') becomes ('4', '4').
+    """
     to_g16 = {c4_mode: m for m, c4_mode in enumerate(pair['perm'])}
     return {tuple(sorted(str(to_g16[int(i)]) for i in key)): value for key, value in pair['c4'][kind].items()}
 

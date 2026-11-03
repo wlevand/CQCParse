@@ -10,6 +10,7 @@ C4 = PKG_ROOT + '/CQCParse/files_examples/refinedc4'
 
 
 def load(path):
+    """The content of a pickle file (polar.pkl, polarData_raw.pkl)."""
     with open(path, 'rb') as file:
         return pickle.load(file)
 

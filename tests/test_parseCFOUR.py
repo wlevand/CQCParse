@@ -14,6 +14,7 @@ C4_CCSDT = PKG_ROOT + '/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ'
 
 
 def read_lines(path):
+    """The lines of a file, with their line ends, as pQUADRATURE takes them."""
     with open(path, 'r') as file:
         return file.readlines()
 
@@ -92,6 +93,8 @@ def test_parse_output_file():
 
 @pytest.fixture
 def mock_output_file(tmp_path):
+    """A made-up CFOUR out file with only the levels table, 3 states in CFOUR's mode numbers: nu7, 2 nu7 and
+    nu7 + nu8."""
     d = tmp_path / "sub"
     d.mkdir()
     p = d / "mock_output.txt"

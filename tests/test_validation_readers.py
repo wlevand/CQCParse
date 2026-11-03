@@ -17,6 +17,7 @@ GAUSSIAN_SOURCES = [s for s, (kind, *_) in SOURCES.items() if kind == 'gaussian'
 
 
 def lines_of(source):
+    """The lines of a source's file (a key of SOURCES), with their line ends, as the readers tested here take them."""
     with open(EXAMPLES + '/' + SOURCES[source][1]) as file:
         return file.readlines()
 
@@ -48,6 +49,8 @@ def test_x_matrix_order_matches_states(source):
     nu1_to_nu3 = [data['modes_mapping'][a] - 1 for a in (1, 2, 3)]
 
     def energy(*modes):
+        """The anharmonic energy (cm-1) of a state, one quantum per argument: energy(i) is nu_i, energy(i, i) is
+        2 nu_i, energy(i, j) is nu_i + nu_j."""
         return states[tuple(sorted(str(m) for m in modes))]
     for n, i in enumerate(nu1_to_nu3):
         assert (energy(i, i) - 2 * energy(i)) / 2 == pytest.approx(x[i, i], abs=5e-3)

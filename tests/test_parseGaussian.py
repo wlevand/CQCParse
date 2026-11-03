@@ -19,6 +19,7 @@ G16_FILES = ['co/g16_inputFull_3q.out', 'dftGaussian/ACAC/B3LYPcc-pVQZ/g16_input
 
 
 def read_lines(out_file):
+    """The lines of an example file (path in files_examples), stripped, as the Gaussian reader reads them."""
     with open(EXAMPLES + '/' + out_file) as file:
         return [line.strip() for line in file]
 
@@ -27,7 +28,15 @@ MASS = {'H': 1.00782503, 'C': 12.0, 'O': 15.99491462}   # amu, the most abundant
 
 
 def rotational_constants_cm(atoms, geometry):
-    """Rotational constants (cm-1) of a geometry in angstrom; 0 moments (a linear molecule's axis) left out."""
+    """
+    Rotational constants (cm-1) of a geometry in angstrom, computed here from the masses, to check B against:
+        1. the origin moved to the center of mass (masses: MASS);
+        2. the inertia tensor, sum over atoms of m (|r|^2 E - r r^T) (E: the 3x3 unit matrix), in amu angstrom^2;
+           its eigenvalues are the principal moments I;
+        3. B = h / (8 pi^2 c I) for each moment; factor converts amu angstrom^2 to kg m^2 and c to cm/s, so B is
+           in cm-1.
+    Returned in ascending order. 0 moments (a linear molecule's axis) are left out.
+    """
     masses = np.array([MASS[a] for a in atoms])
     r = geometry - masses @ geometry / masses.sum()
     inertia = sum(m * (x @ x * np.eye(3) - np.outer(x, x)) for m, x in zip(masses, r, strict=True))
