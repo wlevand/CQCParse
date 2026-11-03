@@ -1,3 +1,18 @@
+"""
+The Gaussian reader's equilibrium geometry and normal modes (get_equil_geo, get_normal_modes).
+
+A Gaussian output holds several geometries, e.g. the start of an optimization and its result. get_equil_geo must
+return the one at which the frequencies were computed, in the frame of the normal modes (the same axes and origin),
+so that the two can be drawn together. Checked:
+    - the right geometry: its rotational constants, computed here from the masses, are the B the reader reads from
+      another part of the file (test_equil_geo_gives_b, every Gaussian example). ACAC's only geometry block is the
+      wrong one (test_equil_geo_acac_from_the_anharmonic_analysis);
+    - the right frame: a geometry turned by 30 degrees keeps its B, but raises (test_equil_geo_refuses_another_frame);
+    - the normal modes: the 5-decimal and the 2-decimal mode tables give the same modes
+      (test_normal_modes_round_to_the_2_decimal_table, every Gaussian example).
+Elsewhere: the order of the normal modes against the frequencies, tests/test_wilson_obtainer.py; B against CFOUR,
+tests/test_cfour_vs_gaussian.py.
+"""
 import numpy as np
 import pytest
 from scipy import constants

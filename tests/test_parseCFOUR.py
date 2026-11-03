@@ -1,3 +1,16 @@
+"""
+The CFOUR readers of single files, on formaldehyde examples. Each expected number is copied from the file's text,
+so these tests check that a reader takes the right numbers from the right place; the physics is checked elsewhere
+(tests/test_cfour_vs_gaussian.py).
+    pMOLDEN            MOLDEN of HF/cc-pVDZ: the geometry (bohr), the atoms, and the normal modes of 3 vibrations
+                       (the first, 7; one in the middle, 10; the last, 12), keyed by CFOUR's mode numbers 7 .. 12
+                       (MOLDEN's first 6 vibrations, translations and rotations, are left out)
+    pQUADRATURE        QUADRATURE of CCSD(T)/cc-pVQZ: the geometry (bohr), the 6 harmonic frequencies (cm-1), and
+                       the normal coordinates of the same 3 vibrations. parse_from_source does not use pQUADRATURE.
+    parse_output_file  the "All levels with up to three quanta" table of the out file: a made-up table of 3 states
+                       (nu7, 2 nu7, nu7 + nu8) gives their modes and their anharmonic and harmonic energies;
+                       outfile0.out, which has no such table, raises.
+"""
 import numpy as np
 import pytest
 
