@@ -55,8 +55,9 @@ def test_equil_geo_acac_from_the_anharmonic_analysis():
     start = lines.index('Standard orientation:')
     block = np.array([line.split()[3:] for line in lines[start + 5:start + 13]], float)
     assert np.abs(geometry - block).max() > 0.1
-    charges = np.array([{'H': 1, 'C': 6, 'O': 8}[a] for a in atoms])
-    assert charges @ geometry / charges.sum() == pytest.approx(np.zeros(3), abs=1e-12)
+    # atomic numbers Z: a nucleus has charge Z e, so the center of nuclear charge is sum(Z r) / sum(Z)
+    z = np.array([{'H': 1, 'C': 6, 'O': 8}[a] for a in atoms])
+    assert z @ geometry / z.sum() == pytest.approx(np.zeros(3), abs=1e-12)
 
 
 def test_equil_geo_refuses_another_frame():
