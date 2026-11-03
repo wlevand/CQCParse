@@ -69,7 +69,7 @@ def test_gaussian_rotational_constants_only_in_mhz(tmp_path):
 
 @pytest.mark.parametrize('name, unit, other', [('dipgrad', 'Debye', 'a.u.'), ('polgrad', 'a.u.', 'Debye')])
 def test_gaussian_unexpected_unit(tmp_path, name, unit, other):
-    """The conversions hold only for the dipole in Debye and the polarizability in a.u. (todo R4): another unit
+    """The conversions hold only for the dipole in Debye and the polarizability in a.u.: another unit
     line raises. Each example file has one unit line of each."""
     with open(G16_FORM) as file:
         text = file.read()

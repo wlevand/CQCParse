@@ -1,6 +1,6 @@
 """
 The conversion of cubic and quartic force constants from cm-1 (dimensionless normal coordinates) to atomic units,
-CQCParse.utils.reduced_to_au, used by both readers for cff and qff (todo C3, R1).
+CQCParse.utils.reduced_to_au, used by both readers for cff and qff.
 """
 import numpy as np
 import pytest
@@ -35,8 +35,8 @@ def test_matches_gaussian_column_k(source, name, order):
     """
     cff and qff, converted from column FI, agree with Gaussian's own column K on every term, within K's rounding:
     half its last decimal (0.5e-5 in amu units), plus a little from the rounding of FI and of the frequencies.
-    This checks the formula independently of the readers, for cubic and quartic alike (todo R1, C3). Column K is in
-    Gaussian's A numbering: renumbered to the readers' order by modes_mapping (todo N1).
+    This checks the formula independently of the readers, for cubic and quartic alike. Column K is in
+    Gaussian's A numbering: renumbered to the readers' order by modes_mapping.
     """
     data = parse(source, BASE + [name, 'modes_mapping'])
     n = len(data['nc_sqrt_eigval'])
@@ -58,7 +58,7 @@ def test_matches_gaussian_column_k(source, name, order):
 def test_cfour_matches_gaussian(basis, name):
     """
     Formaldehyde HF in both programs: after matching the modes by harmonic frequency, the force constants agree
-    within 1e-3 of the largest term (todo C3: CFOUR qff was about 570x too large). Absolute values, because some
+    within 1e-3 of the largest term (CFOUR qff was once about 570x too large). Absolute values, because some
     modes have the opposite sign in the two programs. Measured: up to 2.1e-4, and 7.5e-4 for qff_rc HF/cc-pVQZ (one
     small term, (4,4,5,6) in Gaussian's A numbering, differs already in the two programs' files).
     """

@@ -1,5 +1,5 @@
 """
-Contract test (todo.txt T3): what wilson reads from parse_from_source, checked on every example file.
+Contract test: what wilson reads from parse_from_source, checked on every example file.
 
 The checks are those of wilson's check_data_dict (wilson_gv, src/wilson_suite/wilson_system/system_data.py),
 copied here so the test does not import wilson:
@@ -9,9 +9,9 @@ copied here so the test does not import wilson:
     properties    shape: mode indices first, then x, y, z, e.g. n = 6: polhess (6, 6, 3, 3);
                   symmetric in the mode indices, e.g. cff[0, 2, 2] == cff[2, 0, 2]
 wilson looks for the fundamentals only in harmonic_states, and skips cff_rc and qff_rc (not in its
-PROP_INDEX_COUNTS). This test checks those too: the contract covers them (todo.txt Rules).
+PROP_INDEX_COUNTS). This test checks those too: the contract covers them.
 
-Known failures are marked xfail with the todo item. The marks are strict: once the item is fixed, the test
+Known failures are marked xfail with the reason. The marks are strict: once the failure is fixed, the test
 fails as XPASS, so the mark gets removed.
 """
 import functools
@@ -36,7 +36,7 @@ def result(source):
 
 
 def known_failures(source, name=None):
-    reasons = []    # none now; add one as: if <source, name match>: reasons.append('todo <item>: <why>')
+    reasons = []    # none now; add one as: if <source, name match>: reasons.append('<why>')
     return [pytest.mark.xfail(reason='; '.join(reasons), strict=True)] if reasons else []
 
 

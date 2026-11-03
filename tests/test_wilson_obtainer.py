@@ -13,7 +13,7 @@ FORM_PAIR = ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ']
 
 
 def test_same_keys():
-    """Both readers return the same keys for the same request (todo Rules, A5). modes_mapping: Gaussian only (N1)."""
+    """Both readers return the same keys for the same request. modes_mapping: Gaussian only."""
     names = [n for n in ALL_NAMES if n != 'modes_mapping']
     g16, c4 = (set(parse(source, names)) for source in FORM_PAIR)
     assert g16 == c4, f'Gaussian only: {sorted(g16 - c4)}; CFOUR only: {sorted(c4 - g16)}'
@@ -22,7 +22,7 @@ def test_same_keys():
 @pytest.mark.parametrize('source', FORM_PAIR)
 @pytest.mark.parametrize('name, partner', [('cff', 'cff_rc'), ('cff_rc', 'cff'), ('qff', 'qff_rc'), ('qff_rc', 'qff')])
 def test_force_constants_by_name(source, name, partner):
-    """A request for the force constants in one unit returns both units (todo A1), asked for as wilson asks."""
+    """A request for the force constants in one unit returns both units, asked for as wilson asks."""
     result = parse(source, BASE + [name])
     assert name in result and partner in result, f'{name} asked for, returned {sorted(result)}'
 
@@ -31,14 +31,14 @@ def test_force_constants_by_name(source, name, partner):
 @pytest.mark.parametrize('name', ['B', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess',
                                   'cff', 'cff_rc', 'qff', 'qff_rc'])
 def test_name_alone(source, name):
-    """A name asked for on its own gives the same value as asked for with BASE, as wilson asks (todo A2)."""
+    """A name asked for on its own gives the same value as asked for with BASE, as wilson asks."""
     np.testing.assert_array_equal(parse(source, [name])[name], parse(source, BASE + [name])[name])
 
 
 @pytest.mark.parametrize('n_atoms, n_vib, linear', [(2, 1, True), (3, 4, True), (4, 7, True),
                                                     (3, 3, False), (4, 6, False)])
 def test_is_linear(n_atoms, n_vib, linear):
-    """Linear: 3N-5 vibrational modes (CO, CO2, C2H2); nonlinear: 3N-6 (H2O, formaldehyde) (todo C4)."""
+    """Linear: 3N-5 vibrational modes (CO, CO2, C2H2); nonlinear: 3N-6 (H2O, formaldehyde)."""
     assert is_linear(n_atoms, n_vib) is linear
 
 
@@ -70,7 +70,7 @@ LINEAR_CFOUR_OUT = """\
 
 
 def test_cfour_linear_mode_numbers(tmp_path):
-    """CFOUR numbers a linear molecule's vibrations from 6, not 7; the reader returns them as 0 .. n-1 (todo C4)."""
+    """CFOUR numbers a linear molecule's vibrations from 6, not 7; the reader returns them as 0 .. n-1."""
     (tmp_path / 'out').write_text(LINEAR_CFOUR_OUT)
     result = parse_from_source(dict.fromkeys(['nc_sqrt_eigval', 'harmonic_states', 'anharmonic_states']),
                                'cfour', str(tmp_path), lvl_theory='', basis_set='')
@@ -130,7 +130,7 @@ G16_FORM = PKG_ROOT + '/CQCParse/files_examples/dftGaussian/FORM/HFcc_pVTZ/g16_i
 
 @pytest.mark.parametrize('source', list(SOURCES))
 def test_modes_in_ascending_frequency(source):
-    """Both readers number the modes by ascending harmonic frequency (todo N1)."""
+    """Both readers number the modes by ascending harmonic frequency."""
     w = parse(source, ['nc_sqrt_eigval'])['nc_sqrt_eigval']
     assert sorted(w) == list(range(len(w)))
     assert all(w[m] <= w[m + 1] for m in range(len(w) - 1))
@@ -138,7 +138,7 @@ def test_modes_in_ascending_frequency(source):
 
 @pytest.mark.parametrize('source', [s for s, (kind, *_) in SOURCES.items() if kind == 'gaussian'])
 def test_normal_modes_in_the_order_of_the_rest(source):
-    """Gaussian: normal_modes[k] is the vibration of nc_sqrt_eigval[k] (todo N1). normal_modes comes from the
+    """Gaussian: normal_modes[k] is the vibration of nc_sqrt_eigval[k]. normal_modes comes from the
     harmonic section, whose "Frequencies ---" lines give each mode's frequency; nc_sqrt_eigval from the anharmonic
     section, renumbered from Gaussian's A order."""
     with open(EXAMPLES + '/' + SOURCES[source][1]) as file:
@@ -153,7 +153,7 @@ def test_normal_modes_in_the_order_of_the_rest(source):
 
 def test_reindex_modes_false():
     """reindex_modes=False: every key in Gaussian's A order, normal_modes included. The default renumbers them by the
-    file's A to H table (todo N1), whatever the request: a name alone gives the same value (test_name_alone)."""
+    file's A to H table, whatever the request: a name alone gives the same value (test_name_alone)."""
     from CQCParse.relay.modes_reindexing import build_permutation
     names = BASE + ['modes_mapping', 'normal_modes', 'dipgrad', 'cff_rc']
     h = parse_from_source(names, 'gaussian', G16_FORM, lvl_theory='', basis_set='')

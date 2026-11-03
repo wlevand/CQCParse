@@ -1,5 +1,5 @@
 """
-Baseline of parse_from_source (todo.txt T2).
+Baseline of parse_from_source.
 
 The output of the current code for every example file is saved in tests/baseline/: one <source>.npz per source
 (the arrays) and summary.json (the returned keys with their types and shapes, and the errors).

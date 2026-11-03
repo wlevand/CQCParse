@@ -69,7 +69,7 @@ def rotational_constants_cm(atoms, geometry):
 
 @pytest.mark.parametrize('out_file', G16_FILES)
 def test_equil_geo_gives_b(out_file):
-    """The geometry is the one of the frequencies (todo A6): its rotational constants are B, which the reader takes
+    """The geometry is the one of the frequencies: its rotational constants are B, which the reader takes
     from another part of the file, the anharmonic analysis at "Equilibrium Geometry"."""
     atoms, geometry = get_equil_geo(read_lines(out_file))
     b = parse_from_source(['B'], 'gaussian', EXAMPLES + '/' + out_file, lvl_theory='', basis_set='')['B']
@@ -79,7 +79,7 @@ def test_equil_geo_gives_b(out_file):
 
 def test_equil_geo_acac_from_the_anharmonic_analysis():
     """ACAC's only geometry block is the start of an optimization; its frequencies come from another geometry, which
-    the file prints only in the anharmonic analysis, in another frame (todo A6). The reader takes that one, turned
+    the file prints only in the anharmonic analysis, in another frame. The reader takes that one, turned
     into the frame of the normal modes (else get_equil_geo raises), with the origin at the center of nuclear charge."""
     lines = read_lines('dftGaussian/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out')
     atoms, geometry = get_equil_geo(lines)
@@ -110,7 +110,7 @@ def test_equil_geo_refuses_another_frame():
                                                ('co/g16_inputFull_3q.out', 1)])
 def test_normal_modes(out_file, n_modes):
     """normal_modes takes the atom count from NAtoms=, not from the geometry, and reads blocks of any number of modes
-    (todo N2; CO has 1)."""
+    (CO has 1)."""
     result = parse_from_source(['normal_modes'], 'gaussian', EXAMPLES + '/' + out_file, lvl_theory='', basis_set='')
     assert len(result['normal_modes']) == n_modes
 

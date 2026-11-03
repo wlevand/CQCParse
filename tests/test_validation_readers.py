@@ -38,9 +38,10 @@ def test_x_matrix(source):
 @pytest.mark.parametrize('source', ['g16_FORM_HF_cc-pVTZ', 'g16_FORM_B3LYP_cc-pVQZ'])
 def test_x_matrix_order_matches_states(source):
     """
-    The X matrix is in the order of anharmonic_states (H, todo N1): E(2 nu_i) - 2 E(nu_i) = 2 X_ii and
-    E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij, within the states' 3 decimals. nu1-nu3 only (Gaussian's A modes 1-3):
-    nu4-nu6 are in Gaussian's resonance treatment (see tests/test_cfour_vs_gaussian.py).
+    The X matrix is in the order of anharmonic_states (H: ascending harmonic frequency):
+    E(2 nu_i) - 2 E(nu_i) = 2 X_ii and E(nu_i + nu_j) - E(nu_i) - E(nu_j) = X_ij, within the states' 3 decimals.
+    nu1-nu3 only (Gaussian's A modes 1-3): nu4-nu6 are in Gaussian's resonance treatment (see
+    tests/test_cfour_vs_gaussian.py).
     """
     x = parse_anharmonic_x_matrix(lines_of(source))['total_anharmonic']
     data = parse(source, BASE + ['modes_mapping'])
@@ -57,7 +58,7 @@ def test_x_matrix_order_matches_states(source):
 
 @pytest.mark.parametrize('source', GAUSSIAN_SOURCES)
 def test_x_matrix_reindex_modes(source):
-    """reindex_modes=False: Gaussian's A order, as the file prints it; the default renumbers it to H (todo N1)."""
+    """reindex_modes=False: Gaussian's A order, as the file prints it; the default renumbers it to H."""
     h_of_a = {a - 1: h - 1 for a, h in parse(source, ['modes_mapping'])['modes_mapping'].items()}
     a_of_h = sorted(h_of_a, key=h_of_a.get)
     x_h = parse_anharmonic_x_matrix(lines_of(source))
@@ -77,7 +78,7 @@ def test_x_matrix_missing_section():
                                                   ('g16_ACDM_B3LYP_cc-pVQZ', 27, None)])
 def test_fermi_resonances_g16(source, count, first):
     """One (I, J, K) per row of Gaussian's Fermi table, modes from 0. With reindex_modes=False in Gaussian's A order,
-    as the table prints them (first: its first row); by default the same triples renumbered to H (todo N1). It
+    as the table prints them (first: its first row); by default the same triples renumbered to H. It
     returned None before: it tested the list of lines for an element equal to "Resonance
     Analysis"."""
     found_a = get_detected_resonances_g16(lines_of(source), reindex_modes=False)

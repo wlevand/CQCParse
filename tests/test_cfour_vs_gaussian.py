@@ -1,7 +1,7 @@
 """
-CFOUR vs Gaussian, formaldehyde HF/cc-pVTZ and HF/cc-pVQZ (todo T4): the only check here that does not assume
-CQCParse is right. It covers the dipole and polarizability derivatives, so it checks their unit conversions
-(todo R4), and the harmonic frequencies and states, B and the anharmonic states. The force constants:
+CFOUR vs Gaussian, formaldehyde HF/cc-pVTZ and HF/cc-pVQZ: the only check here that does not assume
+CQCParse is right. It covers the dipole and polarizability derivatives, so it checks their unit conversions,
+and the harmonic frequencies and states, B and the anharmonic states. The force constants:
 test_cfour_matches_gaussian (tests/test_force_constants.py).
 
 Matching the two results:
