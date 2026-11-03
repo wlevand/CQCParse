@@ -61,7 +61,7 @@ def pTensor(filepath: str):
     return np.array(alines) #.reshape((-1, 3 * na))
 
 
-def getRotationMatrix(filepath: str) -> np.array:
+def getRotationMatrix(filepath: str) -> np.ndarray:
     """
     Parsing outfile0.out to get the rotation matrix for xyz axes
     :param filepath:
