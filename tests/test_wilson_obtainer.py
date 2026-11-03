@@ -13,10 +13,16 @@ FORM_PAIR = ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ']
 
 
 def test_same_keys():
-    """Both readers return the same keys for the same request. modes_mapping: Gaussian only."""
+    """Both readers return the same keys for the same request, each of the same type, and arrays of the same shape.
+    modes_mapping: Gaussian only."""
     names = [n for n in ALL_NAMES if n != 'modes_mapping']
-    g16, c4 = (set(parse(source, names)) for source in FORM_PAIR)
-    assert g16 == c4, f'Gaussian only: {sorted(g16 - c4)}; CFOUR only: {sorted(c4 - g16)}'
+    g16, c4 = (parse(source, names) for source in FORM_PAIR)
+    assert set(g16) == set(c4), f'Gaussian only: {sorted(set(g16) - set(c4))}; CFOUR only: {sorted(set(c4) - set(g16))}'
+    types = {k: (type(g16[k]).__name__, type(c4[k]).__name__) for k in g16 if type(g16[k]) is not type(c4[k])}
+    assert not types, f'types differ (Gaussian, CFOUR): {types}'
+    shapes = {k: (g16[k].shape, c4[k].shape) for k in g16
+              if isinstance(g16[k], np.ndarray) and isinstance(c4[k], np.ndarray) and g16[k].shape != c4[k].shape}
+    assert not shapes, f'shapes differ (Gaussian, CFOUR): {shapes}'
 
 
 @pytest.mark.parametrize('source', FORM_PAIR)
@@ -140,7 +146,8 @@ def test_modes_in_ascending_frequency(source):
 def test_normal_modes_in_the_order_of_the_rest(source):
     """Gaussian: normal_modes[k] is the vibration of nc_sqrt_eigval[k]. normal_modes comes from the
     harmonic section, whose "Frequencies ---" lines give each mode's frequency; nc_sqrt_eigval from the anharmonic
-    section, renumbered from Gaussian's A order."""
+    section, renumbered from Gaussian's A order. The mode count also checks that normal_modes takes the atom count
+    from NAtoms=, not from the geometry (ACAC), and reads blocks of any number of modes (CO has 1)."""
     with open(EXAMPLES + '/' + SOURCES[source][1]) as file:
         lines = [line.strip() for line in file]
     start = next(i for i, line in enumerate(lines) if 'Harmonic frequencies (cm**-1)' in line)
@@ -173,32 +180,3 @@ def test_reindex_ignored_for_cfour():
     result = parse_from_source(['cff'], 'cfour', PKG_ROOT + '/CQCParse/files_examples/refinedc4/HFcc_pVTZ',
                                lvl_theory='', basis_set='', reindex_modes=True)
     assert result['reindex_modes'] is False
-
-
-def test_parse_from_source_cfour():
-    print()
-    complete_data = ['cff', 'anharmonic_states', 'nc_sqrt_eigval', 'dipgrad', 'B', 'polgrad', 'coriolis', 'polhess', 'qff', 'diphess']
-    rq_data = dict.fromkeys(complete_data, None)
-    base_file_loc = PKG_ROOT + '/CQCParse/files_examples/refinedc4/CCSDTcc_pVQZ'
-    r1 = parse_from_source(source_type='cfour', requested_data=rq_data, base_file_loc=base_file_loc,
-                           lvl_theory='CCSD(T)', basis_set='cc-pVQZ')
-
-    # print(r1)
-
-# def test_parse_from_source_g16():
-    print()
-    complete_data = ['cff', 'anharmonic_states', 'nc_sqrt_eigval', 'dipgrad', 'B', 'polgrad', 'coriolis', 'polhess', 'qff', 'diphess']
-    rq_data = dict.fromkeys(complete_data, None)
-    base_file_loc = PKG_ROOT + '/CQCParse/files_examples/dftGaussian/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out'
-    r2 = parse_from_source(source_type='gaussian', requested_data=rq_data, base_file_loc=base_file_loc,
-                           lvl_theory='B3LYP', basis_set='cc-pVDZ')
-
-    # print(r2)
-
-    import numpy as np
-    for k in r1:
-        assert type(r1[k]) is type(r2[k])
-        if type(r1[k]) is np.ndarray:
-            assert r1[k].shape == r2[k].shape
-        if type(r1[k]) is dict:
-            assert set(r1[k].keys()) == set(r2[k].keys())

@@ -89,8 +89,6 @@ def test_parse_output_file():
     # outfile0.out has no levels table: an error (it printed a line and returned None)
     with pytest.raises(ValueError, match='All levels with up to three quanta'):
         parse_output_file(C4_HF + '/outfile0.out')
-    out = parse_output_file(C4_HF + '/out')
-    assert isinstance(out, tuple)
 
 @pytest.fixture
 def mock_output_file(tmp_path):
@@ -114,17 +112,9 @@ def mock_output_file(tmp_path):
     p.write_text(content)
     return p
 
-def test_parse_output_file_normal_case_modes(mock_output_file):
+def test_parse_output_file_normal_case(mock_output_file):
     modes, labels, anharmonic_frequencies, anharmonic_intensities, harmonic_transitions = parse_output_file(
         str(mock_output_file))
     assert modes == [(7,), (7, 7), (7, 8)]
-
-def test_parse_output_file_normal_case_anharmonic_frequencies(mock_output_file):
-    modes, labels, anharmonic_frequencies, anharmonic_intensities, harmonic_transitions = parse_output_file(
-        str(mock_output_file))
     assert np.allclose(anharmonic_frequencies, [1307.4, 2606.5, 2657.3])
-
-def test_parse_output_file_normal_case_harmonic_transitions(mock_output_file):
-    modes, labels, anharmonic_frequencies, anharmonic_intensities, harmonic_transitions = parse_output_file(
-        str(mock_output_file))
     assert np.allclose(harmonic_transitions, np.array([1325.3, 2650.6, 2685.0]))

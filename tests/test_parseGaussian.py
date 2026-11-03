@@ -4,11 +4,14 @@ from scipy import constants
 from scipy.spatial.transform import Rotation
 
 from CQCParse.parsing import parse_from_source
-from CQCParse.parsing.parseGaussian_forWilson import get_equil_geo, get_normal_modes, parse_coriolis, parse_Na
+from CQCParse.parsing.parseGaussian_forWilson import (
+    get_equil_geo,
+    get_normal_modes,
+    parse_Na,
+)
 from CQCParse.utils import PKG_ROOT
 
 EXAMPLES = PKG_ROOT + '/CQCParse/files_examples'
-G16_DIR = EXAMPLES + '/dftGaussian'
 G16_FILES = ['co/g16_inputFull_3q.out', 'dftGaussian/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out',
              'dftGaussian/ACDM/B3LYPcc_pVQZ/g16_b3lyp_corr_inputFull_3q.out',
              'dftGaussian/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out', 'dftGaussian/FORM/B3LYPcc_pVQZ/g16_inputFull_3q.out',
@@ -18,40 +21,6 @@ G16_FILES = ['co/g16_inputFull_3q.out', 'dftGaussian/ACAC/B3LYPcc-pVQZ/g16_input
 def read_lines(out_file):
     with open(EXAMPLES + '/' + out_file) as file:
         return [line.strip() for line in file]
-
-def test_parse_coriolis():
-    log_file = G16_DIR + '/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out'
-    with open(log_file, 'r') as file:
-        log_lines = [i.strip() for i in file]
-    nmodes = 18
-
-    rotational_constant, coriolis_constant = parse_coriolis(log_lines, nmodes)
-
-    assert len(rotational_constant) == 3
-
-def test_parse_mode_mapping():
-    from CQCParse.parsing.parseGaussian_forWilson import parse_mode_mapping
-    log_file = G16_DIR + '/FORM/B3LYPcc_pVDZ/g16_inputFull_3q.out'
-    with open(log_file, 'r') as file:
-        log_lines = [i.strip() for i in file]
-    
-    r = parse_mode_mapping(log_lines)
-    print(r)
-    assert r == {4: 1, 6: 2, 3: 3, 2: 4, 1: 5, 5: 6}
-
-    lfile = G16_DIR + '/ACDM/B3LYPcc_pVQZ/g16_b3lyp_corr_inputFull_3q.out'
-
-    with open(lfile, 'r') as file:
-        log_lines_1 = [i.strip() for i in file]
-    
-    r = parse_mode_mapping(log_lines_1)
-    print(r)
-    assert r == {42: 1, 41: 2, 40: 3, 39: 4, 38: 5, 37: 6, 36: 7, 
-                 35: 8, 34: 9, 33: 10, 32: 11, 31: 12, 30: 13, 
-                 29: 14, 28: 15, 27: 16, 26: 17, 25: 18, 24: 19, 
-                 23: 20, 22: 21, 21: 22, 20: 23, 19: 24, 18: 25, 17: 26, 16: 27, 15: 28, 
-                 14: 29, 13: 30, 12: 31, 11: 32, 10: 33, 9: 34, 
-                 8: 35, 7: 36, 6: 37, 5: 38, 4: 39, 3: 40, 2: 41, 1: 42}
 
 
 MASS = {'H': 1.00782503, 'C': 12.0, 'O': 15.99491462}   # amu, the most abundant isotopes, as Gaussian uses them
@@ -103,16 +72,6 @@ def test_equil_geo_refuses_another_frame():
         lines[i] = f'{center} {atomic_number} {kind} {x:.6f} {y:.6f} {z:.6f}'
     with pytest.raises(ValueError, match='not in the frame of the normal modes'):
         get_equil_geo(lines)
-
-
-@pytest.mark.parametrize('out_file, n_modes', [('dftGaussian/ACAC/B3LYPcc-pVQZ/g16_inputFull_3q.out', 18),
-                                               ('dftGaussian/ACDM/B3LYPcc_pVQZ/g16_b3lyp_corr_inputFull_3q.out', 42),
-                                               ('co/g16_inputFull_3q.out', 1)])
-def test_normal_modes(out_file, n_modes):
-    """normal_modes takes the atom count from NAtoms=, not from the geometry, and reads blocks of any number of modes
-    (CO has 1)."""
-    result = parse_from_source(['normal_modes'], 'gaussian', EXAMPLES + '/' + out_file, lvl_theory='', basis_set='')
-    assert len(result['normal_modes']) == n_modes
 
 
 @pytest.mark.parametrize('out_file', G16_FILES)

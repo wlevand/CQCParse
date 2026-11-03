@@ -183,8 +183,10 @@ def get_detected_resonances_c4(filepath: str) -> list[str]:
 
     The lines of the out file that report a resonance CFOUR removed from its VPT2 ("Resonance between ...
     combination ..."), as they are. CFOUR removes a resonant term only below the thresholds it prints
-    ("Thresholds for removing resonance denominators:", e.g. Delta_omega = 50 cm-1). None of the example files
-    reports one, so the format of these lines is not known here: they are returned as text.
+    ("Thresholds for removing resonance denominators:", e.g. Delta_omega = 50 cm-1). The example files report
+    none. A resonance with an overtone is reported twice, and only the second line is returned:
+        Resonance between fundamental  11 and first overtone of   9.
+        Resonance between fundamental  11 and   9+  9 combination.
     Raises ValueError if the out file has no "Thresholds for removing resonance denominators:" line.
     """
     with open(filepath, 'r') as file:
@@ -426,12 +428,12 @@ def pQUADRATURE(lines: list[str]) -> tuple[np.ndarray, np.ndarray, dict[int: np.
 # polar.pkl, read by getPolarDers_pkl_au, is built by CQCParse.tools.build_polar_pkl
 # -----------------------------------------------------------------------------
 
-def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.ndarray, dict[int: np.ndarray]]:
+def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, list[str], dict[int: np.ndarray]]:
     """
     Parsing MOLDEN file (VIB job output, harmonic or anharmonic)
     :param linear:
     :param filepath:
-    :return:  geometry_data, atoms, selected_dict
+    :return:  geometry_data, atoms (a list of element symbols, as the Gaussian reader), selected_dict
     """
     with open(filepath, 'r') as file:
         lines = file.readlines()
@@ -477,7 +479,6 @@ def pMOLDEN(filepath: str, linear: bool = False) -> tuple[np.ndarray, np.ndarray
 
     if not atoms:
         raise ValueError(f'no geometry: no [FR-COORD] section in {filepath}')
-    atoms = np.array(atoms)
     geometry_data = np.array(geometry_data, dtype=float)
     vibrations_data = {key: np.array(value) for key, value in vibrations_data.items()}
     # only normal modes, ignore first 6 or 5

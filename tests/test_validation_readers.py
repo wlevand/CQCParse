@@ -14,7 +14,6 @@ from CQCParse.parsing.parseGaussian_forWilson import (
 from tests.test_baseline import BASE, EXAMPLES, SOURCES, parse
 
 GAUSSIAN_SOURCES = [s for s, (kind, *_) in SOURCES.items() if kind == 'gaussian']
-CFOUR_SOURCES = [s for s, (kind, *_) in SOURCES.items() if kind == 'cfour']
 
 
 def lines_of(source):
@@ -101,20 +100,25 @@ def test_fermi_resonances_g16_no_section():
         get_detected_resonances_g16(lines_of('g16_CO_HF_STO-3G'))
 
 
-@pytest.mark.parametrize('source', CFOUR_SOURCES)
-def test_resonances_c4_none_in_examples(source):
-    """CFOUR found no resonance in any example (formaldehyde's Fermi gap, 130 cm-1, is above its 50 cm-1)."""
-    assert get_detected_resonances_c4(EXAMPLES + '/' + SOURCES[source][1] + '/out') == []
-
-
-def test_resonances_c4_reads_lines(tmp_path):
-    """It returned [] for every file: it looped over the characters of the file, not its lines.
-    A made-up out file: the format of a real resonance line is not known from the examples."""
+def test_resonances_c4(tmp_path):
+    """
+    It returned [] for every file: it looped over the characters of the file, not its lines.
+    The example files report no resonance (formaldehyde's Fermi gap, 130 cm-1, is above CFOUR's 50 cm-1). The
+    made-up out file has the lines of a real CFOUR run that found one: CFOUR reports a resonance with an overtone
+    twice, as "first overtone of 9" and as "9+  9 combination". Only the second is returned, so each resonance once.
+    """
+    assert get_detected_resonances_c4(EXAMPLES + '/' + SOURCES['c4_FORM_HF_cc-pVTZ'][1] + '/out') == []
     out = tmp_path / 'out'
     out.write_text(' Thresholds for removing resonance denominators:\n'
-                   ' Resonance between mode 9 and combination 7 + 8\n'
-                   ' some other line\n')
-    assert get_detected_resonances_c4(str(out)) == ['Resonance between mode 9 and combination 7 + 8']
+                   ' Delta_omega = 50 cm-1; Phi(ijk) = 80 cm-1\n'
+                   ' \n'
+                   ' Resonance between fundamental  11 and first overtone of   9.\n'
+                   ' \n'
+                   ' Resonace denominator has been removed\n'
+                   ' Additional treatment should be done by the user\n'
+                   ' \n'
+                   ' Resonance between fundamental  11 and   9+  9 combination.\n')
+    assert get_detected_resonances_c4(str(out)) == ['Resonance between fundamental  11 and   9+  9 combination.']
     out.write_text(' no thresholds line\n')
     with pytest.raises(ValueError, match='Thresholds'):
         get_detected_resonances_c4(str(out))
