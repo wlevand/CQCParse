@@ -23,10 +23,13 @@ import pandas as pd
 pd.set_option('display.max_rows', sys.maxsize)
 
 
-def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)-> tuple[np.ndarray, np.ndarray]:
+def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False,
+                   require_coriolis: bool = True) -> tuple[np.ndarray, np.ndarray | None]:
     """
     returns:
         rotational_constant - shape (3,); coriolis_constant - shape (3, nmodes, nmodes)
+    require_coriolis: False when only the rotational constants are needed. A file without the "CORIOLIS COUPLINGS"
+        section (a run with the couplings turned off) then gives the rotational constants and None.
     """
     corXtuples, corYtuples, corZtuples = [], [], []
     rotational_constant = []
@@ -104,7 +107,10 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False)
     if not found_rotational:
         raise ValueError('no "E(harm)  E(anharm)" line: no rotational constants (axis order) in the file')
     if not found_coriolis:
-        raise ValueError('no "CORIOLIS COUPLINGS" section')
+        if not require_coriolis:
+            return np.array(rotational_constant), None
+        turned_off = any('Calculations of Coriolis couplings deactivated' in line for line in lines)
+        raise ValueError('no "CORIOLIS COUPLINGS" section' + (': the run turned them off' if turned_off else ''))
 
     corXtuples, corYtuples, corZtuples = (tuple(item for item in corXtuples if item[0] !=0. ),
                                           tuple(item for item in corYtuples if item[0] !=0. ),
@@ -713,7 +719,7 @@ def get_equil_geo(allines):
     nuclear charge, as in Gaussian's standard orientation.
 
     Check, with 5-decimal modes (Freq=HPModes): the geometry and the modes share a frame (ECKART_TOLERANCE). Any
-    check that fails raises ValueError. Elements known: H, C, N and O.
+    check that fails raises ValueError. Elements known: H, C, N, O, F, S, Cl and Br.
     """
     harmonic = next((i for i, line in enumerate(allines) if 'Harmonic frequencies (cm**-1)' in line), len(allines))
     start = next((i for i in range(harmonic - 1, -1, -1)
@@ -723,7 +729,7 @@ def get_equil_geo(allines):
 
     elements = []
     numbers = []
-    dictelem = {'6': 'C', '7': 'N', '8': 'O', '1': 'H'}
+    dictelem = {'1': 'H', '6': 'C', '7': 'N', '8': 'O', '9': 'F', '16': 'S', '17': 'Cl', '35': 'Br'}
     coords = []
 
     # the block: its title, a dashed line, two lines of column titles, a dashed line, one row per atom, a dashed line

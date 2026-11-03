@@ -13,7 +13,8 @@ CQCParse is a Python package for Parsing of Computational Quantum Chemistry (**C
   - Gaussian 16: the `.out` file of an `Opt` + `Freq=(Anharmonic,ReadAnharm)` job
   - CFOUR: the folder of an anharmonic run (`out`, `cubic`, `quartic`, `dipolex`/`y`/`z`, `polar.pkl`,
     `MOLDEN`). `polar.pkl` is not a CFOUR file: `CQCParse.tools.build_polar_pkl` builds it from separate
-    polarizability runs at displaced geometries.
+    polarizability runs at displaced geometries. Without `out`, the reader takes `outfile0.out`; without
+    `polar.pkl`, `pol/polar.pkl`.
 - Not general: made for the outputs of these job types (examples in `CQCParse/files_examples`).
 - What it reads:
   - harmonic and anharmonic vibrational states (cm-1) and harmonic frequencies
@@ -74,12 +75,14 @@ Mode order:
 - `parse_gaussian16_output` takes `reindex_modes` too, and so do the validation readers (below).
 
 Numbers that changed:
-- CFOUR `qff` was 320 to 350 times too large. Fixed.
+- CFOUR `qff` was too large: the reader divided CFOUR's values in cm-1 by amu^2 only. The factor per term was
+  Eh^3 / (amu^2 sqrt(nu_i nu_j nu_k nu_l)), with Eh = 219474.63 cm-1, amu = 1822.888 electron masses and nu the
+  harmonic wavenumbers (cm-1) of the term's modes: about 350 when all four modes are near 3000 cm-1. Fixed.
 - Gaussian `cff` and `qff` are converted from the force constants in cm-1 (column FI of the output), no longer
-  read from column K, which has only 5 decimals. Terms moved by up to 5.6e-6 of the largest term.
+  read from column K, which has only 5 decimals. Each term moved by about the rounding of column K.
 - CFOUR `diphess`, `qff` and `qff_rc`: the files list some values twice, once per index order. The reader returns
-  the mean of the two. Before, `diphess` was not symmetric, and for `qff` the later line won. The values moved by
-  up to 3.1e-5 (`diphess`) and 8.1e-5 (`qff`) of the largest value.
+  the mean of the two. Before, `diphess` was not symmetric, and for `qff` the later line won. Each value moved by
+  half the gap between the two, which comes from the precision of CFOUR's numerical derivatives.
 - Gaussian `normal_modes` have 5 decimals when the file has the table that `Freq=HPModes` prints (before:
   always 2 decimals). The values moved by up to 0.005.
 
@@ -94,11 +97,20 @@ Errors instead of wrong or empty results (before: zeros, empty arrays, `None` or
 - A section cut short, where the reader pairs two lists.
 - Gaussian unit lines other than Debye or a.u.
 - A Gaussian geometry not in the frame of the normal modes.
+- A harmonic frequency that is not positive (an imaginary one; the geometry is not a minimum). Before, the data
+  came with no error.
+- CFOUR: `equilibrium_geometry` and `normal_modes` from a `MOLDEN` whose geometry is not the out file's reference
+  structure (another geometry, or other axes).
 - A reader's error keeps its type, with a note that names the file.
 
 Requests that failed before and work now:
 - Gaussian: `B`, `coriolis` or a force constant without `nc_sqrt_eigval` in the same request.
+- Gaussian: the states of an output without the anharmonic IR tables.
+- Gaussian: the atoms F, S, Cl and Br.
 - CFOUR: a run folder without `MOLDEN`, for every name but the geometry and the normal modes.
+- CFOUR: a run folder with `outfile0.out` and `pol/polar.pkl` instead of `out` and `polar.pkl`.
+- CFOUR: an out file whose levels table has values run together (a value that fills its whole fixed-width
+  column has no blank before it).
 - Gaussian: the geometry of the ACAC and ACDM examples, and the normal modes of the ACAC, ACDM and CO examples.
   The geometry is always the one of the frequencies, in the frame of the normal modes. For ACAC, the reader takes
   it from the anharmonic analysis: the last orientation block in that file is the start of an optimization.

@@ -35,7 +35,7 @@ One line per item. The full entry for each item is further down.
 Now: nothing open in CQCParse's code; what is left is the merge, wilson_gv's cqcparse_cleanup first (so wilson
 main never fails on import). After each change that moves a number: CQCParse's tests, the baseline (T2), and
 wilson's tests (T6).
-(Done: R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
+(Done: C5-C7, A7-A10, R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
 
 Later, when wilson needs it:
     R2      Gaussian leaves out force constants below a cut-off [decide]. A question of the calculations, not of the
@@ -73,7 +73,7 @@ or the numbers now; do targeted cleanups such as R4 instead).
 
 Tests
 -----
-    pass 365, xfail 0, fail 0 (tests/, 365 tests, about 4 s; 11 are the baseline, T2; 143 the contract test, T3).
+    pass 364, xfail 0, fail 0 (tests/, 364 tests, about 5 s; 11 are the baseline, T2; 121 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
@@ -160,7 +160,7 @@ T. Tests and baseline
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
 -------------------------------------------------------------
-None open (C1-C4 done).
+None open (C1-C7 done).
 
 
 A. What parse_from_source returns
@@ -315,6 +315,14 @@ C. CFOUR reader
     C3  qff was 320-350x too large: the frequency factors were never applied. Fixed with R1 (C3 + R1 under R).
     C4  Both readers decide from the file whether the molecule is linear (is_linear: 3N-5 modes). CFOUR's first
         vibration is 3N - n_vib + 1. parse_from_source's linear argument is ignored, with a DeprecationWarning.
+    C5  The levels table of the out file has fixed-width columns: a value that fills its whole column has no blank
+        before it (e.g. '1011.85113283.548330': 1011.851 cm-1, 13283.548330 km/mol). parse_output_file splits such
+        a row by the decimals (LEVELS_ROW). Before, the whole run gave nothing.
+    C6  make_cfour_files_dict takes outfile0.out when a folder has no out, and pol/polar.pkl when it has no
+        polar.pkl. out first: where a folder has both, its outfile0.out can lack the levels table.
+    C7  MOLDEN's geometry can differ from the out file's (another geometry, or other axes). equilibrium_geometry
+        and normal_modes raise unless MOLDEN's geometry is the out file's reference structure
+        (get_reference_structure, MOLDEN_TOLERANCE). atoms is not checked.
 
 A. What parse_from_source returns
     A1  cff_rc and qff_rc by name: a request for cff or cff_rc returns both; the same for qff and qff_rc.
@@ -330,6 +338,13 @@ A. What parse_from_source returns
         optimization while its frequencies come from the checkpoint geometry. Checked in every file: geometry and
         5-decimal modes meet Eckart's condition (ECKART_TOLERANCE), and the geometry gives B
         (tests/test_parseGaussian.py). ACAC and ACDM have a geometry now; the 5 other files are unchanged.
+    A7  A harmonic frequency <= 0 (an imaginary one) raises in both readers (check_minimum). Before, cff and qff
+        held NaN.
+    A8  Gaussian B no longer needs the "CORIOLIS COUPLINGS" section (a run with the couplings turned off);
+        coriolis still raises, and says the run turned them off.
+    A9  Gaussian atoms: F, S, Cl and Br besides H, C, N, O.
+    A10 Gaussian states of an output without the anharmonic IR tables: the block then ends at the next banner.
+    C5-C7 and A7-A10: tests/test_output_variants.py.
 
 R. Precision
     C3 + R1  One conversion of the force constants to au for both readers: CQCParse.utils.reduced_to_au (its

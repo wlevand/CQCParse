@@ -11,6 +11,8 @@ KNOWN_NAMES = ('equilibrium_geometry', 'atoms', 'normal_modes',
 REINDEXED_TENSORS = {'coriolis': (1, 2), 'dipgrad': (0,), 'diphess': (0, 1), 'polgrad': (0,), 'polhess': (0, 1),
                      'cff': (0, 1, 2), 'cff_rc': (0, 1, 2), 'qff': (0, 1, 2, 3), 'qff_rc': (0, 1, 2, 3)}
 REINDEXED_DICTS = ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval')
+# bohr: CFOUR's MOLDEN and out file print the geometry with 10 decimals, so the same geometry agrees to rounding
+MOLDEN_TOLERANCE = 1e-6
 
 
 @contextmanager
@@ -31,6 +33,18 @@ def is_linear(n_atoms: int, n_vib: int) -> bool:
         return False
     raise ValueError(f'{n_vib} vibrational modes for {n_atoms} atoms: expected {3 * n_atoms - 6} (nonlinear) '
                      f'or {3 * n_atoms - 5} (linear)')
+
+
+def check_minimum(harmonic_cm: Collection[float]) -> None:
+    """
+    Raise ValueError if a harmonic wavenumber (cm-1) is not positive. Gaussian prints an imaginary frequency as a
+    negative number: the geometry is then not a minimum, and the anharmonic data do not hold. Unchecked, the unit
+    conversions (CQCParse.utils.reduced_to_au) would take its square root and return NaN with no error.
+    """
+    imaginary = [float(w) for w in harmonic_cm if w <= 0]
+    if imaginary:
+        raise ValueError(f'harmonic frequencies {imaginary} cm-1: an imaginary frequency (printed as a negative '
+                         'number), so the geometry is not a minimum')
 
 
 def parse_from_source(requested_data: Collection[str],
@@ -170,6 +184,7 @@ def parse_gaussian16_output(requested_data: dict,
         len_nmodes = len(fund_harm_dict)
         # harmonic wavenumbers in mode order 0 .. n-1, for the conversion of cff and qff
         harmonic_cm = [fund_harm_dict[(str(m),)] for m in range(len_nmodes)]
+        check_minimum(harmonic_cm)
 
         if 'anharmonic_states' in requested_data:
             anharmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in ah_sts.items()}
@@ -185,7 +200,8 @@ def parse_gaussian16_output(requested_data: dict,
         from .parseGaussian_forWilson import parse_coriolis, parse_Na
         linear = is_linear(parse_Na(log_lines), len_nmodes)
 
-        rotational_constant, coriolis_constant = parse_coriolis(log_lines, len_nmodes, linear)
+        rotational_constant, coriolis_constant = parse_coriolis(log_lines, len_nmodes, linear,
+                                                                require_coriolis='coriolis' in requested_data)
         
         if 'B' in requested_data:
             results['B'] = rotational_constant
@@ -270,16 +286,26 @@ def parse_gaussian16_output(requested_data: dict,
 def make_cfour_files_dict(base_dir_loc):
     """
     files_dict_keys = ['molden', 'out_file', 'cubic_file', 'quartic_file', 'dipole_file', 'polar_pkl']
-    """
-    files_dict_keys = {'molden': 'MOLDEN', 
-                       'out_file': 'out', 
-                       'cubic_file': 'cubic', 
-                       'quartic_file': 'quartic', 
-                       'dipole_file': 'dipole', 
-                       'polar_pkl': 'polar.pkl'}
 
-    for k, v in files_dict_keys.items():
-        files_dict_keys[k] = base_dir_loc + '/' + v
+    Two files have a second name, used when the first is not in the folder:
+        out_file   out, else outfile0.out. A folder can have both, and then its outfile0.out can lack the
+                   anharmonic results (as in the examples CCSDTcc_pVQZ and HFcc_pVDZ), so out comes first.
+        polar_pkl  polar.pkl, else pol/polar.pkl
+    A file in neither place keeps its first name, so the error names that.
+    """
+    import os
+
+    names = {'molden': ('MOLDEN',),
+             'out_file': ('out', 'outfile0.out'),
+             'cubic_file': ('cubic',),
+             'quartic_file': ('quartic',),
+             'dipole_file': ('dipole',),
+             'polar_pkl': ('polar.pkl', 'pol/polar.pkl')}
+
+    files_dict_keys = {}
+    for k, options in names.items():
+        paths = [base_dir_loc + '/' + name for name in options]
+        files_dict_keys[k] = next((p for p in paths if os.path.exists(p)), paths[0])
 
     return files_dict_keys
 
@@ -319,6 +345,10 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
         qff, qff_rc  the (i,i,j,j) terms, e.g. (12,12,7,7) and (7,7,12,12) in the quartic file
     The two differ slightly (up to ~1e-3 of the value in the example files). The reader returns their mean, in
     every index order. See getDipoleDers_anharm and getQuarticPost.
+
+    Geometry and normal modes come from MOLDEN, whose geometry can differ from the out file's (another geometry, or
+    other axes). So the MOLDEN geometry must be the out file's reference structure (get_reference_structure, within
+    MOLDEN_TOLERANCE); else equilibrium_geometry and normal_modes raise ValueError. atoms is not checked.
     """
     results = {}
 
@@ -347,6 +377,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
         num_modes = len(fundamentals_harmonic_int)
         # harmonic wavenumbers in mode order 0 .. n-1, for the unit conversion of the properties
         fund_harmonic_energies_array = np.array([fundamentals_harmonic_int[m] for m in range(num_modes)])
+        check_minimum(fund_harmonic_energies_array)
 
         labelsModes_original = [i + nModesStart for i in list(fundamentals_harmonic_int)]
 
@@ -362,10 +393,24 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
                 results['nc_sqrt_eigval'] = fundamentals_harmonic_int
 
     if any(k in requested_data for k in ('equilibrium_geometry', 'atoms', 'normal_modes')):
-        from .parseCFOUR_forWilson import pMOLDEN
+        from .parseCFOUR_forWilson import get_reference_structure, pMOLDEN
         # linear (from the out file, read above for normal_modes) changes only which MOLDEN vibrations are kept
         coords, atoms, normal_modes_dict = pMOLDEN(files_dict['molden'],
                                                    linear=linear if 'normal_modes' in requested_data else False)
+
+        # MOLDEN's geometry can differ from the out file's (another geometry, or other axes): its geometry and
+        # normal modes would then not belong with the other data
+        if any(k in requested_data for k in ('equilibrium_geometry', 'normal_modes')):
+            import numpy as np
+            reference = get_reference_structure(files_dict['out_file'])
+            if coords.shape != reference.shape:
+                raise ValueError(f'{files_dict["molden"]} has {len(coords)} atoms, the reference structure of '
+                                 f'{files_dict["out_file"]} {len(reference)}')
+            gap = np.abs(coords - reference).max()
+            if gap > MOLDEN_TOLERANCE:
+                raise ValueError(f'{files_dict["molden"]} is not the reference structure of {files_dict["out_file"]}'
+                                 f' (atoms up to {gap:.2g} bohr apart, or other axes): its geometry and normal modes'
+                                 f' do not belong with the other data')
 
         if 'equilibrium_geometry' in requested_data:
             results['equilibrium_geometry'] = coords

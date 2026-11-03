@@ -71,6 +71,8 @@ def extract_relevant_block(lines):
     Extract the lines between the start and end markers.
     Start markers: "Anharmonic Infrared Spectroscopy" or "Vibrational Energies at Anharmonic Level"
     End marker: "Dipole strengths (DS) in 10^-40 esu^2.cm^2"
+    Without the end marker (an output without the anharmonic IR tables), the block ends at the next "=====" banner:
+    the end of the section that the start marker opens.
     """
     start_markers = [
         "Anharmonic Infrared Spectroscopy",
@@ -95,6 +97,9 @@ def extract_relevant_block(lines):
 
     if start_idx is None:
         raise ValueError(f'no anharmonic frequency section: none of {start_markers} found')
+    if end_idx is None:
+        # lines[start_idx] closes the banner around the start marker; the next banner opens the next section
+        end_idx = next((i for i in range(start_idx + 1, len(lines)) if lines[i].strip().startswith('=====')), None)
     if end_idx is None:
         raise ValueError(f'end of the anharmonic frequency section not found: {end_marker!r}')
 

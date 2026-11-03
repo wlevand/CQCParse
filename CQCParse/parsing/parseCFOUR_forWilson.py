@@ -26,12 +26,20 @@
 
 import logging
 import pickle
+import re
 
 import numpy as np
 
 from CQCParse.utils import dimensionless_to_mass_weighted
 
 logger = logging.getLogger("CQCParse")
+
+# A row of the out file's "All levels with up to three quanta" table: 10 integers (modes I .. M, quanta NI .. NM),
+# then the anharmonic frequency (3 decimals), the intensity and the harmonic transition (6 decimals each). The columns
+# have fixed widths (10, 12 and 14 characters for the last three), so a value that fills its whole column has no blank
+# before it: e.g. '1011.85113283.548330' is 1011.851 cm-1 and 13283.548330 km/mol, told apart by the decimals. A
+# value too wide for its column is printed as stars. Used only for a row that does not split into 13 values.
+LEVELS_ROW = re.compile(r'^\s*((?:\d+\s+){9}\d+)\s+(-?\d+\.\d{3})\s*(-?\d+\.\d{6}|\*+)\s*(-?\d+\.\d{6})\s*$')
 
 
 def parse_coriolis(filepath: str, nModes: int, startmode: int)-> tuple[np.ndarray, np.ndarray]:
@@ -121,12 +129,30 @@ def count_normal_coordinates(filepath: str) -> int:
     Number of normal coordinates in the out file: 3N for N atoms, translations and rotations included
     (section "Normal coordinates for reference point", one "Normal coordinate <k>" header per mode)
     """
-    import re
     with open(filepath, 'r') as file:
         labels = {int(m.group(1)) for m in re.finditer(r'^\s*Normal coordinate\s+(\d+)\s*$', file.read(), re.MULTILINE)}
     if not labels:
         raise ValueError(f'No "Normal coordinate" sections in {filepath}')
     return len(labels)
+
+
+def get_reference_structure(filepath: str) -> np.ndarray:
+    """
+    The geometry of the anharmonic run, shape (atoms, 3), in bohr: the out file's "Cartesian coordinates for
+    reference structure", in the axes of the run's Coriolis and dipole data.
+    """
+    with open(filepath, 'r') as file:
+        lines = file.readlines()
+    start = next((i for i, line in enumerate(lines) if 'Cartesian coordinates for reference structure' in line), None)
+    if start is None:
+        raise ValueError(f'no "Cartesian coordinates for reference structure" in {filepath}')
+    coords = []
+    for line in lines[start + 1:]:
+        tokens = line.split()
+        if len(tokens) != 3:
+            break
+        coords.append([float(t) for t in tokens])
+    return np.array(coords)
 
 
 def parse_output_file(filepath: str):
@@ -158,12 +184,20 @@ def parse_output_file(filepath: str):
             if ('-------------' not in line and 'Dipole' not in line
                     and 'quanta' not in line and 'MODE' not in line
                     and 'Intensity' not in line and line.strip()!=''):
-                nus = line.strip().split()
-                m = tuple([int(f) for f in nus[:-3]])
-                modes.append(m)
-                anharmonic_frequencies.append(float(nus[-3]))
-                anharmonic_intensities.append(float(nus[-2]))
-                harmonic_transitions.append(float(nus[-1]))
+                tokens = line.split()
+                if len(tokens) == 13:
+                    quanta, (anharmonic, intensity, harmonic) = tokens[:10], tokens[10:]
+                else:   # values run together (LEVELS_ROW)
+                    row = LEVELS_ROW.match(line)
+                    if row is None:
+                        raise ValueError(f'{filepath}: not a row of the "All levels with up to three quanta" table: '
+                                         f'{line.strip()!r}')
+                    quanta, anharmonic, intensity, harmonic = row.groups()
+                    quanta = quanta.split()
+                modes.append(tuple(int(f) for f in quanta))
+                anharmonic_frequencies.append(float(anharmonic))
+                anharmonic_intensities.append(np.nan if intensity.startswith('*') else float(intensity))
+                harmonic_transitions.append(float(harmonic))
 
         modes = np.array(modes)
         anharmonic_frequencies = np.array(anharmonic_frequencies)
