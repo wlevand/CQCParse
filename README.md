@@ -101,6 +101,8 @@ Errors instead of wrong or empty results (before: zeros, empty arrays, `None` or
   came with no error.
 - CFOUR: `equilibrium_geometry` and `normal_modes` from a `MOLDEN` whose geometry is not the out file's reference
   structure (another geometry, or other axes).
+- `CQCParse.tools.build_polar_pkl`: a reference polarizability that does not fit the displaced runs (from another
+  calculation). Its error would go into every diagonal second derivative, divided by the step squared.
 - A reader's error keeps its type, with a note that names the file.
 
 Requests that failed before and work now:

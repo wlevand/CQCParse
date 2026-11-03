@@ -35,7 +35,7 @@ One line per item. The full entry for each item is further down.
 Now: nothing open in CQCParse's code; what is left is the merge, wilson_gv's cqcparse_cleanup first (so wilson
 main never fails on import). After each change that moves a number: CQCParse's tests, the baseline (T2), and
 wilson's tests (T6).
-(Done: C5-C7, A7-A10, R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
+(Done: C5-C7, A7-A10, R6, R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
 
 Later, when wilson needs it:
     R2      Gaussian leaves out force constants below a cut-off [decide]. A question of the calculations, not of the
@@ -73,7 +73,7 @@ or the numbers now; do targeted cleanups such as R4 instead).
 
 Tests
 -----
-    pass 364, xfail 0, fail 0 (tests/, 364 tests, about 5 s; 11 are the baseline, T2; 121 the contract test, T3).
+    pass 366, xfail 0, fail 0 (tests/, 366 tests, about 5 s; 11 are the baseline, T2; 121 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
@@ -357,6 +357,10 @@ R. Precision
         Gaussian unit lines are checked (Debye, a.u.). The *_simple names dropped; convNu2Ene deleted.
     R5  Where polar.pkl comes from: the docstring of CQCParse/tools/build_polar_pkl.py.
         test_rebuild_polar_pkl rebuilds polar.pkl from polarData_raw.pkl in 3 folders.
+    R6  build_polar_pkl checks the reference polarizability against its estimate from each mode pair's displaced
+        runs (REFERENCE_TOLERANCE): a reference from another calculation went into every diagonal term of polhess,
+        divided by h^2, with no error. Tests: test_reference_from_another_calculation and
+        test_pair_run_from_another_calculation (tests/test_build_polar_pkl.py).
 
 P. Speed
     P1  parse_section's duplicate check uses a set: ACDM frequencies 1.93 s -> 0.10 s.

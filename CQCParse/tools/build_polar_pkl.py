@@ -26,6 +26,13 @@ Finite differences, step h = STEP = 0.01:
     mixed      (pp - pn - np + nn) / (4 h^2)
     diagonal   (p - 2 reference + n) / h^2
 
+Check: the reference must come from the same calculation as the displaced runs. An error in it goes into every
+diagonal term, divided by h^2 = 1e-4. Each mode pair k, l gives the reference once more, from displaced runs alone:
+    (p_k + n_k)/2 + (p_l + n_l)/2 - (pp + pn + np + nn)/4 = reference + terms in h^4
+In the example folders the two agree within 1.3e-9 au. polar_derivatives raises ValueError if they differ by more
+than REFERENCE_TOLERANCE for any pair; a wrong pair run fails the same check. A molecule with one mode has no pair,
+so it is not checked.
+
 The displaced runs themselves are not in the repo. Their POLAR tensors and OMATs are, in polarData_raw.pkl
 (pklPoldata) in files_examples/refinedc4/CCSDTcc_pVQZ, HFcc_pVQZ and HFcc_pVTZ: polar_derivatives rebuilds each
 folder's polar.pkl from them (tests/test_build_polar_pkl.py). refinedc4/HFcc_pVDZ has polar.pkl only.
@@ -43,6 +50,9 @@ import numpy as np
 logger = logging.getLogger("CQCParse")
 
 STEP = 0.01
+# au: the reference against its estimate from each mode pair (module docstring), which agree within 1.3e-9 au in the
+# example folders
+REFERENCE_TOLERANCE = 1e-6
 
 
 def pTensor(filepath: str):
@@ -127,8 +137,24 @@ def polar_derivatives(rotated: dict, reference: np.ndarray, step: float = STEP) 
     :param rotated: {run folder name, e.g. '7p' or '7_8pn': rotated POLAR}, as getDisplacementsPolarData returns
     :param reference: the reference run's POLAR, as read (not rotated)
     :return: first (n, 3, 3), second (n, n, 3, 3), modes in ascending CFOUR order
+    Raises ValueError if the reference and the displaced runs do not fit together (the check of the module docstring).
     """
     modes = sorted({int(m) for name in rotated for m in re.findall(r'\d+', name)})
+
+    gaps = {}
+    for a, k in enumerate(modes):
+        for m in modes[a + 1:]:
+            estimate = ((rotated[f'{k}p'] + rotated[f'{k}n']) / 2 + (rotated[f'{m}p'] + rotated[f'{m}n']) / 2
+                        - (rotated[f'{k}_{m}pp'] + rotated[f'{k}_{m}pn'] + rotated[f'{k}_{m}np']
+                           + rotated[f'{k}_{m}nn']) / 4)
+            gap = np.abs(estimate - reference).max()
+            if gap > REFERENCE_TOLERANCE:
+                gaps[k, m] = gap
+    if gaps:
+        worst = ', '.join(f'{k}_{m} {gap:.2g}' for (k, m), gap in sorted(gaps.items(), key=lambda x: -x[1])[:5])
+        raise ValueError(f'the reference polarizability does not fit the displaced runs: {len(gaps)} of '
+                         f'{len(modes) * (len(modes) - 1) // 2} mode pairs give another reference (largest gaps, au: '
+                         f'{worst}). The reference, or those pair runs, come from another calculation.')
 
     first = np.array([(rotated[f'{k}p'] - rotated[f'{k}n']) / (2 * step) for k in modes])
 
