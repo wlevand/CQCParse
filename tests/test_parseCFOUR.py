@@ -86,7 +86,7 @@ def test_pQUADRATURE_norm_coordinates():
     assert np.all(normal_coordinates[dictkeys[-1]] == ref_normal_coordinates12)
 
 def test_parse_output_file():
-    # outfile0.out has no levels table: an error (todo_cleanup Q12; it printed a line and returned None)
+    # outfile0.out has no levels table: an error (it printed a line and returned None)
     with pytest.raises(ValueError, match='All levels with up to three quanta'):
         parse_output_file(C4_HF + '/outfile0.out')
     out = parse_output_file(C4_HF + '/out')

@@ -29,9 +29,9 @@ def test_pTensor_polar():
 @pytest.mark.parametrize('folder', ['CCSDTcc_pVQZ', 'HFcc_pVQZ', 'HFcc_pVTZ'])
 def test_rebuild_polar_pkl(folder):
     """
-    polar_derivatives rebuilds polar.pkl from the displaced runs' POLAR and OMAT in polarData_raw.pkl (todo_cleanup
-    Q5, todo R5). The rotation as in getDisplacementsPolarData; the reference unrotated: pklPoldata stored it rotated
-    by its own OMAT, so undo that.
+    polar_derivatives rebuilds polar.pkl from the displaced runs' POLAR and OMAT in polarData_raw.pkl (todo R5).
+    The rotation as in getDisplacementsPolarData; the reference unrotated: pklPoldata stored it rotated by its own
+    OMAT, so undo that.
     """
     raw = load(f'{C4}/{folder}/polarData_raw.pkl')
     alpha_eq, omat_eq = raw.pop('equil')

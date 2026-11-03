@@ -1,7 +1,7 @@
 """
-The readers kept for checking wilson's VPT2 against the programs' own (todo_cleanup Q10). parse_from_source does not
-use them: Gaussian's X matrix (parse_anharmonic_x_matrix) and the resonances each program found
-(get_detected_resonances_g16, get_detected_resonances_c4).
+The readers kept for checking wilson's VPT2 against the programs' own. parse_from_source does not use them:
+Gaussian's X matrix (parse_anharmonic_x_matrix) and the resonances each program found (get_detected_resonances_g16,
+get_detected_resonances_c4).
 """
 import numpy as np
 import pytest
@@ -78,7 +78,7 @@ def test_x_matrix_missing_section():
 def test_fermi_resonances_g16(source, count, first):
     """One (I, J, K) per row of Gaussian's Fermi table, modes from 0. With reindex_modes=False in Gaussian's A order,
     as the table prints them (first: its first row); by default the same triples renumbered to H (todo N1). It
-    returned None before (todo_cleanup Q10): it tested the list of lines for an element equal to "Resonance
+    returned None before: it tested the list of lines for an element equal to "Resonance
     Analysis"."""
     found_a = get_detected_resonances_g16(lines_of(source), reindex_modes=False)
     assert len(found_a) == count
@@ -107,7 +107,7 @@ def test_resonances_c4_none_in_examples(source):
 
 
 def test_resonances_c4_reads_lines(tmp_path):
-    """It returned [] for every file: it looped over the characters of the file, not its lines (todo_cleanup Q10).
+    """It returned [] for every file: it looped over the characters of the file, not its lines.
     A made-up out file: the format of a real resonance line is not known from the examples."""
     out = tmp_path / 'out'
     out.write_text(' Thresholds for removing resonance denominators:\n'

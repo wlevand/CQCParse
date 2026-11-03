@@ -4,7 +4,7 @@ CQCParse reads Gaussian 16 and CFOUR output files and returns one dict of data.
 wilson (repo wilson_gv) gets the data only through parse_from_source (CQCParse/parsing/parse_wilson_obtainer.py).
 "wilson G8" = item G8 in wilson's open items: wilson_gv issue #71 ("Evaluator refactor: open items"). The details
 are in the notes attached there (wilson_system_todo.txt: D5, G2, G8, G9, S3, S8), which were
-src/wilson_suite/wilson_system/todo.txt until wilson_gv PR #69 (bf07c05). There, CQCParse items are tagged [outside].
+src/wilson_suite/wilson_system/todo.txt until wilson_gv PR #69. There, CQCParse items are tagged [outside].
 
 Tags:
     [wilson] = needs a change in wilson_gv too.
@@ -18,7 +18,7 @@ Where things stand (checked against wilson_gv's code and tests, last on its bran
     wilson can use this branch through wilson_gv's branch cqcparse_cleanup: the dead imports are gone (L1) and
         the reference values follow R1's cff (T6) and N1's mode order (T9). That branch needs this one only for
         those reference values: it imports nothing new, and with CQCParse main only the reference tests fail
-        (Tests). Neither is on main yet (the merge: todo_cleanup.txt Q13).
+        (Tests). Neither is on main yet.
     The unit conversions of dipgrad, diphess, polgrad, polhess (wilson's EVV terms are built from them): checked
         against the other program (T4, R4).
     Normal modes: read for all examples, in the order of the other keys (N1), with the geometry in their frame
@@ -32,9 +32,10 @@ What wilson reads (wilson_gv, checked), to weigh each item:
 
 One line per item. The full entry for each item is further down.
 
-Now: nothing open in CQCParse's code; what is left is the merge (todo_cleanup.txt Q13). After each change that
-moves a number: CQCParse's tests, the baseline (T2), and wilson's tests (T6).
-(Done: R5 with todo_cleanup.txt Q5; T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
+Now: nothing open in CQCParse's code; what is left is the merge, wilson_gv's cqcparse_cleanup first (so wilson
+main never fails on import). After each change that moves a number: CQCParse's tests, the baseline (T2), and
+wilson's tests (T6).
+(Done: R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
 
 Later, when wilson needs it:
     R2      Gaussian leaves out force constants below a cut-off [decide]. A question of the calculations, not of the
@@ -52,6 +53,20 @@ In wilson_gv, not in this repo:
     T10     wilson's obtainer: two choices (get_geometry, keys two origins share), then two more tests.
     (L1, L2, L7, T6, T7, T8 and T9: done on wilson_gv's branch cqcparse_cleanup.)
 
+Later, maybe (no need now):
+    - setup_logger could go: wilson would set the level with logging.getLogger('CQCParse').setLevel.
+    - The validation readers (parse_anharmonic_x_matrix, get_detected_resonances_g16 and _c4) through
+      parse_from_source, so wilson can compare its VPT2 with the programs' own by itself.
+    - polar.pkl as a .npz file (np.load with allow_pickle=False) instead of a pickle. pklPoldata stores 'equil'
+      rotated by the reference run's own OMAT (nothing reads it; its docstring says so): fix it only if it is
+      run on new runs. Not checked in CFOUR's documentation: why the reference run needs no rotation.
+    - files_examples/refinedc4/HFcc_pVQZ/dimensionless.pkl is the only copy of its data (that folder has no
+      QUADRATURE): replace it by that file if it can be found.
+    - Errors not covered: a section cut short where nothing is paired (zip(strict=True) covers the rest), and a
+      dipole file empty because every derivative along one axis is zero by symmetry (pDipole would raise).
+    - Version: 0.1.0, no git tag, no pin in wilson (nothing reads the number). When wilson pins a version: tag
+      that commit v0.1.0 (the first release) and clone that tag in wilson's README.
+
 Dropped (see Done): R3 (Coriolis digits: negligible for wilson) and L3 (the rewrite: no gain for wilson
 or the numbers now; do targeted cleanups such as R4 instead).
 
@@ -62,9 +77,9 @@ Tests
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
-    wilson_gv cqcparse_cleanup (1313abb) with this branch: 984 pass, 17 fail, 1 skipped, 1 collection error.
-    wilson_gv PR #69 (bf07c05) with CQCParse main: 976 pass, 17 fail, 1 skipped, 1 collection error.
-    wilson_gv cqcparse_cleanup (1313abb) with CQCParse main (4e16cf4): 955 pass, 46 fail, 1 skipped, 1 collection
+    wilson_gv cqcparse_cleanup with this branch: 995 pass, 17 fail, 1 skipped, 1 collection error.
+    wilson_gv rsp_eval_refactor (PR #69) with CQCParse main: 987 pass, 17 fail, 1 skipped, 1 collection error.
+    wilson_gv cqcparse_cleanup with CQCParse main (4e16cf4): 966 pass, 46 fail, 1 skipped, 1 collection
         error; the extra 29 are reference tests (refac_rsp_eval/tests), which expect this branch's cff (T6) and
         mode order (T9).
     The 17 failures and the collection error have one cause, wilson's own: evv_experiment (fixtures.py) calls
@@ -85,10 +100,9 @@ Rules
   
   wilson imported more, without using it: the 7 classes deleted in L1 (wilson_intensities/utils/utils.py)
       and DataVault (src/wilson_suite/parsing.py, script_example.py). Those lines are gone in wilson_gv's branch
-      cqcparse_cleanup (L1), not yet on wilson main (todo_cleanup.txt Q13). Also CQCParse.debug, deleted in
-      todo_cleanup.txt Q4: wilson main imports it in integration/test_termND_evaluations.py, which PR #69
-      deletes. Commented-out code still names them (wilson_intensities/tests/conftest.py, tests/evv_tester*.py):
-      harmless.
+      cqcparse_cleanup (L1), not yet on wilson main. Also CQCParse.debug, deleted with the dead code: wilson
+      main imports it in integration/test_termND_evaluations.py, which PR #69 deletes. Commented-out code still
+      names them (wilson_intensities/tests/conftest.py, tests/evv_tester*.py): harmless.
 
 - The dict fits wilson's contract (wilson D5): properties in au (plain derivatives in mass-weighted coordinates);
   frequencies, state energies, cff_rc and qff_rc in cm-1; mode indices first, then x, y, z; modes 0 .. n-1;
@@ -100,6 +114,8 @@ Rules
   (relative), so they show what the change does to wilson's results, and wilson's reference values may need the
   same reason.
 - Physics choices are [decide] items. Write the choice here first, then code it.
+- Before each delete: search the name in CQCParse, tests and wilson_gv/src. A search by name misses a name used
+  only as a string (getattr, a file name).
 
 
 T. Tests and baseline
@@ -109,7 +125,7 @@ T. Tests and baseline
         arrays changed; about 90 s).
     T4  Done: tests/test_cfour_vs_gaussian.py, see Done.
     T6  [wilson] Run wilson's tests after every change that moves a number. The reference values that R1 moved:
-        done (wilson_gv b99c25e), see Done. How (wilson_gv's environment uses this working copy): in
+        done in wilson_gv, see Done. How (wilson_gv's environment uses this working copy): in
         wilson_gv, on cqcparse_cleanup (on main once it is merged),
             python -m pytest -q -p no:cacheprovider --continue-on-collection-errors src
         Without --continue-on-collection-errors, pytest stops at wilson's collection error (see Tests) and runs no
@@ -125,7 +141,7 @@ T. Tests and baseline
         When a change moves wilson's reference values, in wilson_gv (refac_rsp_eval/tests): rerun
         make_evv_reference.py (writes evv_reference.json, which test_hand_calculation and test_pipeline also read)
         and `python -m wilson_suite.wilson_intensities.refac_rsp_eval.tests.test_grid_reference` (writes
-        grid_reference.npz). Check the diff, rerun the tests, commit with the reason, as b99c25e did.
+        grid_reference.npz). Check the diff, rerun the tests, commit with the reason, as T6 did (see Done).
     T7  Done, see Done.
     T8  Done, see Done.
     T9  Done, see Done.
@@ -201,7 +217,7 @@ are here. How many digits each value the readers use has in the file:
         When: with wilson's spectra of such molecules; no CQCParse change is needed before. The only reader part
         would be optional: return the cut-off next to the data.
     R4  Done (with T4), see Done.
-    R5  Done (todo_cleanup.txt Q5): CQCParse/tools/build_polar_pkl.py, see Done.
+    R5  Done: CQCParse/tools/build_polar_pkl.py, see Done.
 
 
 P. Speed
@@ -273,16 +289,16 @@ T. Tests and baseline
         coriolis, normal_modes.
     T5  CQCParse's tests no longer import wilson (test_reindexing.py's two pickles re-saved without wilson
         objects).
-    T6  wilson_gv b99c25e: wilson's reference values rewritten for R1's cff (evv_reference.json,
+    T6  wilson_gv: wilson's reference values rewritten for R1's cff (evv_reference.json,
         grid_reference.npz). Coefficients moved by up to 2.1e-5 of the largest one, spectra by up to 1.1e-4 of the
         largest amplitude. It needs CQCParse from 2ca6fa6 (C3 + R1) on.
-    T8  wilson_gv cqcparse_cleanup: test_eval_molsys_data (refac_rsp_eval/tests/test_integration.py) pins the
+    T8  wilson_gv: test_eval_molsys_data (refac_rsp_eval/tests/test_integration.py) pins the
         5-decimal normal_modes[0] of N2.
-    T9  wilson_gv cqcparse_cleanup: the per-mode references relabeled for N1's mode order (25 tests had failed).
+    T9  wilson_gv: the per-mode references relabeled for N1's mode order (25 tests had failed).
         evv_reference.json rewritten by make_evv_reference.py: the same 2225 values under the new labels. The
         modes picked by hand in test_integration.py and test_pipeline.py renumbered by formaldehyde's A to H table.
         grid_reference.npz unchanged: the spectra did not change. It needs CQCParse from d9df49a (N1) on.
-    T7  wilson_gv cqcparse_cleanup: test_getting_data split. Its first part tested the old workflow's choice of
+    T7  wilson_gv: test_getting_data split. Its first part tested the old workflow's choice of
         names (WilsonSimulation.requestData), not the obtainer: moved to
         wilson_main/tests/test_workflow_abstractions.py, still needing the evv_experiment fixture (cf_uv).
         test_getting_data now loads the water file without any fixture and checks what wilson relies on (the
@@ -324,7 +340,7 @@ R. Precision
     R4  The unit conversions of dipgrad, diphess, polgrad, polhess written out once
         (utils.dimensionless_to_mass_weighted, a worked example in the docstrings) and checked by T4. The
         Gaussian unit lines are checked (Debye, a.u.). The *_simple names dropped; convNu2Ene deleted.
-    R5  Where polar.pkl comes from: the docstring of CQCParse/tools/build_polar_pkl.py (todo_cleanup Q5).
+    R5  Where polar.pkl comes from: the docstring of CQCParse/tools/build_polar_pkl.py.
         test_rebuild_polar_pkl rebuilds polar.pkl from polarData_raw.pkl in 3 folders.
 
 P. Speed
@@ -338,28 +354,30 @@ N. Normal modes
     N1  One mode order, ascending harmonic frequency (H), in every key of both readers. Gaussian prints all but the
         normal modes in its A order (in the examples the Mulliken numbering: by symmetry species, then descending
         frequency); parse_gaussian16_output renumbers what it returns, with the A to H table it reads itself,
-        whatever the request (Q7's leftover). reindex_modes=False: A order in every key, normal_modes included. The
+        whatever the request. reindex_modes=False: A order in every key, normal_modes included. The
         validation readers follow the same switch. Checked: every Gaussian value of the old baseline is the new
         one renumbered by the table; nc_sqrt_eigval ascends in all 11 sources; normal_modes[k] has the frequency
         of nc_sqrt_eigval[k] (tests/test_wilson_obtainer.py). wilson: T9 (done).
 
 L. Legacy code
     L1  The legacy parser classes deleted (GaussianDataParser, CFOURdataParser, ParsedData and the class path of
-        parser_template, gaussian_parser, cfour_parser). wilson_gv side, branch cqcparse_cleanup: its imports of
-        them deleted (7376963), and script_example.py (5379a71).
-    L2  wilson_gv 4c0b69e: setup.sh deleted, with update.sh, gitsummary.sh and repo_config.txt. Leftovers: L7.
+        parser_template, gaussian_parser, cfour_parser). wilson_gv side: its imports of them deleted, and
+        script_example.py.
+    L2  wilson_gv: setup.sh deleted, with update.sh, gitsummary.sh and repo_config.txt. Leftovers: L7.
     L3  Dropped: no rewrite of the readers; targeted cleanups instead. If a typed API is wanted: a thin wrapper
         over parse_from_source (e.g. a frozen dataclass), not a second copy of the readers.
     L4  Dead files and functions deleted (retrieve_data, filesparser, the old Gaussian frequency parsers, a debug
         print); README "Key features" and "Quick start"; account details in the example files replaced.
     L5  simple_parsed_data (an older third copy of both readers) and parse_rot_const deleted.
     L6  mockparser.py deleted; the "# used in" comments of parseGaussian_forWilson.py name the real callers.
-    L7  wilson_gv 070f53e, 1313abb: two more leftovers of the old layout deleted: tests/suitests (it checked out a
-        CQCParse branch that does not exist) and wilson_intensities/.github/workflows/python-package.yml (GitHub
-        never ran it, being outside the root .github). wilson_gv has no automatic tests now.
+    L7  wilson_gv: two more leftovers of the old layout deleted: tests/suitests (it checked out a CQCParse branch
+        that does not exist) and wilson_intensities/.github/workflows/python-package.yml (GitHub never ran it,
+        being outside the root .github). wilson_gv has no automatic tests now.
 
 Other
     Review    The plan checked against what wilson_gv reads and against wilson's tests: T6, R4, R5 added; R3 and
         L3 dropped.
     Examples  Formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ, dftGaussian/FORM/HFcc_pVTZ): the
         CFOUR-Gaussian pair for T4.
+    Cleanup   Dead code, the install, bad input, the example files; what changed for users: README, "Changes".
+        Its own list, todo_cleanup.txt, is deleted; the full entries are in that file's git history.

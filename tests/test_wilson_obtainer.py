@@ -87,7 +87,7 @@ def test_linear_argument_ignored():
 
 @pytest.mark.parametrize('source', FORM_PAIR + ['g16_CO_HF_STO-3G'])
 def test_readers_print_nothing(source, capsys):
-    """The readers log or raise, they do not print (todo_cleanup Q8; CO is linear: it printed 'linear')."""
+    """The readers log or raise, they do not print (CO is linear: it printed 'linear')."""
     parse(source, BASE + ['B', 'coriolis', 'dipgrad', 'diphess', 'polgrad', 'polhess', 'cff', 'qff'])
     assert capsys.readouterr().out == ''
 
@@ -99,20 +99,20 @@ def test_known_names():
 
 @pytest.mark.parametrize('source_type', ['Gaussian', 'orca', None])
 def test_unknown_source_type(source_type):
-    """An unknown source_type raises, naming the known ones (todo_cleanup Q6). It returned None."""
+    """An unknown source_type raises, naming the known ones. It returned None."""
     with pytest.raises(ValueError, match="'gaussian', 'cfour'"):
         parse_from_source(['nc_sqrt_eigval'], source_type, 'nowhere', lvl_theory='', basis_set='')
 
 
 @pytest.mark.parametrize('source', FORM_PAIR)
 def test_unknown_name(source):
-    """A name no reader knows raises, naming it (todo_cleanup Q6). It was ignored: the key was just missing."""
+    """A name no reader knows raises, naming it. It was ignored: the key was just missing."""
     with pytest.raises(ValueError, match='bogus_name'):
         parse(source, BASE + ['bogus_name'])
 
 
 def test_reader_error_names_the_file(tmp_path):
-    """A reader's error keeps its type and gets a note naming the file (todo_cleanup Q6). The Gaussian reader
+    """A reader's error keeps its type and gets a note naming the file. The Gaussian reader
     raised ValueError('smth went wrong') and only printed the cause."""
     out = tmp_path / 'g16.out'
     out.write_text('no frequency section here\n')

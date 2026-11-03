@@ -1,6 +1,6 @@
 """
-A section missing from a file raises ValueError naming it (todo_cleanup Q12). Before, most names gave zeros or an
-empty result (e.g. cff all zeros), the others an unclear error (IndexError, max() of an empty list).
+A section missing from a file raises ValueError naming it. Before, most names gave zeros or an empty result (e.g.
+cff all zeros), the others an unclear error (IndexError, max() of an empty list).
 Each case: a copy of an example with one section taken out, made in the test.
 """
 import shutil
