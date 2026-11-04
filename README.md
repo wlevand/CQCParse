@@ -22,8 +22,10 @@ CQCParse is a Python package for Parsing of Computational Quantum Chemistry (**C
   - first and second derivatives of the dipole moment and of the polarizability (atomic units)
   - cubic and quartic force constants, in atomic units and in cm-1
   - equilibrium geometry, atoms and normal modes
-- The same keys and shapes from both programs for the properties above (not yet for the geometry and the normal
-  modes). Modes are numbered 0 .. n-1, and each tensor has every index order filled.
+- The same keys, shapes and units from both programs for everything above. Modes are numbered 0 .. n-1, and each
+  tensor has every index order filled. Atomic units, but frequencies, state energies, `B`, `cff_rc` and `qff_rc` in
+  cm-1: e.g. the geometry in bohr (origin at the center of mass), and each normal mode as the displacement per unit
+  normal coordinate, dx/dQ.
 - One mode order: both programs' results number the modes by ascending harmonic frequency, in every key. Gaussian
   numbers most of its output in another order; the reader renumbers it (`reindex_modes=False` keeps Gaussian's
   order). Two close modes can still swap between methods, so mode k from two results can be a different vibration;
@@ -83,10 +85,17 @@ Numbers that changed:
 - CFOUR `diphess`, `qff` and `qff_rc`: the files list some values twice, once per index order. The reader returns
   the mean of the two. Before, `diphess` was not symmetric, and for `qff` the later line won. Each value moved by
   half the gap between the two, which comes from the precision of CFOUR's numerical derivatives.
-- Gaussian `normal_modes` have 5 decimals when the file has the table that `Freq=HPModes` prints (before:
-  always 2 decimals). The values moved by up to 0.005.
+- Gaussian `normal_modes` are read from the 5-decimal table when the file has it (`Freq=HPModes`; before: always
+  the 2-decimal one). The printed values used moved by up to 0.005.
+- `equilibrium_geometry` is in bohr with the origin at the center of mass, from both readers. Gaussian: before in
+  angstrom, with the origin at the center of nuclear charge.
+- `normal_modes`: each mode is the displacement per unit normal coordinate, dx/dQ in atomic units (m_e^(-1/2)), so
+  sum_a m_a |d_a|^2 = 1 with the masses in electron masses (`CQCParse.utils.normal_modes_au`). Before, Gaussian's
+  modes had length 1, and CFOUR's had sum_a m_a |d_a|^2 = 1 with the masses in amu.
 
 Keys:
+- `normal_modes` is `{mode: (atoms, 3) array}` from both readers, with the mode keys of the other keys. Before,
+  Gaussian's values were flat (3 x atoms), and CFOUR's keys were its own mode numbers (from 7).
 - A request for `cff` or `cff_rc` returns both. The same for `qff` and `qff_rc`.
 - CFOUR results have the key `'reindex_modes'`, like Gaussian results.
 - CFOUR returns `harmonic_states` only when the request has `harmonic_states` or `nc_sqrt_eigval`.
@@ -158,11 +167,14 @@ Renamed or moved:
   `pklPolder`, `getPolarDers`, `getDisplacementsPolarData`, `getRotationMatrix`, `pTensor`.
 
 New:
-- `CQCParse.utils`: `reduced_to_au` and `dimensionless_to_mass_weighted` (the unit conversions, with worked
-  examples in their docstrings), `HARTREE_CM`, `AMU_IN_ME`.
+- `CQCParse.utils`: `reduced_to_au`, `dimensionless_to_mass_weighted` and `normal_modes_au` (the unit
+  conversions, with worked examples in their docstrings), `center_of_mass_frame`, `HARTREE_CM`, `AMU_IN_ME`,
+  `BOHR_ANGSTROM`.
 - `parsing.parse_wilson_obtainer`: `SOURCE_TYPES`, `KNOWN_NAMES`, `REINDEXED_TENSORS`, `REINDEXED_DICTS`,
-  `is_linear`.
-- `parsing.parseGaussian_forWilson`: `ECKART_TOLERANCE`.
+  `MOLDEN_TOLERANCE`, `is_linear`, `check_minimum`.
+- `parsing.parseGaussian_forWilson`: `ECKART_TOLERANCE`, `get_masses` (the atomic masses Gaussian used).
+- `parsing.parseCFOUR_forWilson`: `LEVELS_ROW`, `get_reference_structure`.
+- `tools.build_polar_pkl`: `REFERENCE_TOLERANCE`, `polar_derivatives`.
 
 Install:
 - Needs only numpy, scipy and pandas. `pyproject.toml` is the only install file: `setup.py` and

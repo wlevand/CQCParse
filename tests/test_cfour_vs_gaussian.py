@@ -110,6 +110,29 @@ def test_derivatives(pair, name):
     assert relative_gap(pair['matched'][name], pair['g16'][name]) <= 2e-4
 
 
+def test_geometry_and_normal_modes():
+    """
+    equilibrium_geometry and normal_modes in the same units from both readers: formaldehyde HF/cc-pVTZ (the CFOUR
+    HF/cc-pVQZ folder has no MOLDEN). Compared without fitting the axes or the mode signs: the interatomic distances
+    (bohr), and each mode's displacement length on each atom (dx/dQ, m_e^(-1/2)), the modes paired in their order.
+    A geometry in angstrom would be off by a factor 1.89; modes per amu^(1/2) bohr instead of m_e^(1/2) bohr by 42.7.
+    Measured: distances within 2e-6 bohr; lengths within 6e-6 of the largest (Gaussian's 5-decimal modes).
+    """
+    g16, c4 = (parse(f'{program}_FORM_HF_cc-pVTZ', ['equilibrium_geometry', 'atoms', 'normal_modes'])
+               for program in ('g16', 'c4'))
+    assert g16['atoms'] == c4['atoms']
+
+    def distances(geometry):
+        return np.linalg.norm(geometry[:, None] - geometry[None], axis=2)
+
+    def lengths(modes):
+        return np.array([np.linalg.norm(modes[k], axis=1) for k in sorted(modes)])
+
+    np.testing.assert_allclose(distances(g16['equilibrium_geometry']), distances(c4['equilibrium_geometry']),
+                               atol=1e-5)
+    assert relative_gap(lengths(c4['normal_modes']), lengths(g16['normal_modes'])) < 1e-4
+
+
 def test_rotational_constants(pair):
     """B (cm-1) per axis, in Gaussian's axes."""
     b_c4 = np.abs(pair['r']) @ pair['c4']['B']

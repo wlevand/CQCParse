@@ -643,6 +643,19 @@ def _masses(lines: list[str], start: int) -> np.ndarray:
     return np.array(masses)
 
 
+def get_masses(lines: list[str]) -> np.ndarray:
+    """The atomic masses (amu) Gaussian used for the frequencies, from the thermochemistry after the first frequency
+    section, in atom order."""
+    harmonic = next((i for i, line in enumerate(lines) if 'Harmonic frequencies (cm**-1)' in line), None)
+    if harmonic is None:
+        raise ValueError('no atomic masses: no "Harmonic frequencies" section')
+    masses = _masses(lines, harmonic)
+    n_atoms = parse_Na(lines)
+    if len(masses) != n_atoms:
+        raise ValueError(f'{len(masses)} atomic masses in the thermochemistry, NAtoms= says {n_atoms}')
+    return masses
+
+
 def _rotational_constants_ghz(masses: np.ndarray, geometry: np.ndarray) -> np.ndarray:
     """The nonzero rotational constants (GHz) of a geometry in angstrom, sorted."""
     from scipy import constants

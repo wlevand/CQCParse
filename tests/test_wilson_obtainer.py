@@ -6,7 +6,7 @@ from CQCParse.parsing.parse_wilson_obtainer import (
     is_linear,
     parse_from_source,
 )
-from CQCParse.utils import PKG_ROOT
+from CQCParse.utils import AMU_IN_ME, PKG_ROOT
 from tests.test_baseline import ALL_NAMES, BASE, EXAMPLES, SOURCES, parse
 
 FORM_PAIR = ['g16_FORM_HF_cc-pVTZ', 'c4_FORM_HF_cc-pVTZ']
@@ -156,6 +156,29 @@ def test_normal_modes_in_the_order_of_the_rest(source):
     result = parse(source, ['nc_sqrt_eigval', 'normal_modes'])
     assert len(result['normal_modes']) == len(printed)
     assert [result['nc_sqrt_eigval'][m] for m in range(len(printed))] == pytest.approx(printed, abs=1e-3)
+
+
+# amu, the most abundant isotopes, as both programs use them by default
+MASSES = {'H': 1.00782503223, 'C': 12.0, 'O': 15.99491461957}
+
+
+@pytest.mark.parametrize('source', [s for s in SOURCES if s != 'c4_FORM_HF_cc-pVQZ'])    # that folder has no MOLDEN
+def test_geometry_and_normal_modes_layout(source):
+    """
+    Both readers: equilibrium_geometry (atoms, 3) with the origin at the center of mass; normal_modes {0 .. n-1:
+    (atoms, 3)}, each dx/dQ with sum_a m_a |d_a|^2 = 1, m_a in electron masses. The units themselves, against the
+    other program: test_geometry_and_normal_modes (tests/test_cfour_vs_gaussian.py).
+    """
+    result = parse(source, ['nc_sqrt_eigval', 'equilibrium_geometry', 'atoms', 'normal_modes'])
+    masses = np.array([MASSES[atom.capitalize()] for atom in result['atoms']]) * AMU_IN_ME
+    geometry = result['equilibrium_geometry']
+    assert geometry.shape == (len(masses), 3)
+    np.testing.assert_allclose(masses @ geometry / masses.sum(), 0, atol=1e-5)
+    modes = result['normal_modes']
+    assert sorted(modes) == list(range(len(result['nc_sqrt_eigval'])))
+    for mode in modes.values():
+        assert mode.shape == (len(masses), 3)
+        assert np.einsum('a,ax->', masses, mode ** 2) == pytest.approx(1, rel=1e-5)
 
 
 def test_reindex_modes_false():

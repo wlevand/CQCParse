@@ -22,7 +22,7 @@ Where things stand (checked against wilson_gv's code and tests, last on its bran
     The unit conversions of dipgrad, diphess, polgrad, polhess (wilson's EVV terms are built from them): checked
         against the other program (T4, R4).
     Normal modes: read for all examples, in the order of the other keys (N1), with the geometry in their frame
-        (A6, N2). Open: one shape and unit for both readers (N3, with A3). wilson does not ask for them today.
+        (A6, N2), in one shape and unit from both readers (N3). wilson does not ask for them today.
 
 What wilson reads (wilson_gv, checked), to weigh each item:
     EVV terms: dipgrad, diphess, polgrad, polhess, cff, in au (e.g. polgrad * dipgrad * dipgrad * cff).
@@ -35,15 +35,13 @@ One line per item. The full entry for each item is further down.
 Now: nothing open in CQCParse's code; what is left is the merge, wilson_gv's cqcparse_cleanup first (so wilson
 main never fails on import). After each change that moves a number: CQCParse's tests, the baseline (T2), and
 wilson's tests (T6).
-(Done: C5-C7, A7-A10, R6, R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
+(Done: N3, C5-C7, A7-A10, R6, R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9. See Done.)
 
 Later, when wilson needs it:
     R2      Gaussian leaves out force constants below a cut-off [decide]. A question of the calculations, not of the
             reader: investigate when wilson computes spectra of large, floppy molecules (ACAC, ACDM). First one
             test: rerun ACAC with a lower cut-off and measure what changes.
-    N3      Normal modes and geometry: one shape, unit and names for both readers [decide], with A3. When wilson
-            starts to read them (e.g. to draw the vibrations).
-    X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8: without them, mixed data
+    X1     Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8: without them, mixed data
             gives wrong numbers with no error. T4's mode matching is the start.
     A4      B for linear molecules: choose what B holds [decide]. Only for linear molecules with 2+ modes; wilson
             then raises a loud error, so nothing goes wrong silently.
@@ -51,6 +49,7 @@ Later, when wilson needs it:
 
 In wilson_gv, not in this repo:
     T10     wilson's obtainer: two choices (get_geometry, keys two origins share), then two more tests.
+    T11     Commit on cqcparse_cleanup: test_eval_molsys_data re-pinned for N3 (normal_modes[0] as dx/dQ, (atoms, 3)).
     (L1, L2, L7, T6, T7, T8 and T9: done on wilson_gv's branch cqcparse_cleanup.)
 
 Later, maybe (no need now):
@@ -73,7 +72,7 @@ or the numbers now; do targeted cleanups such as R4 instead).
 
 Tests
 -----
-    pass 366, xfail 0, fail 0 (tests/, 366 tests, about 5 s; 11 are the baseline, T2; 121 the contract test, T3).
+    pass 377, xfail 0, fail 0 (tests/, 377 tests, about 5 s; 11 are the baseline, T2; 121 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
@@ -155,7 +154,7 @@ T. Tests and baseline
             - A test that renumbering the modes of a data dict, consistently, leaves the spectrum unchanged (T9
               showed it once). It would catch any place where wilson depends on the mode order.
             - Before CFOUR data is used (wilson G8; G8's qff bug itself is fixed, C3): a test that loads a CFOUR
-              folder through MolSystemData.load (e.g. CFOUR's normal_modes keys start at 7, N3).
+              folder through MolSystemData.load.
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
@@ -169,10 +168,8 @@ A. What parse_from_source returns
         CQCParse returns 'equilibrium_geometry' and 'atoms', and no 'linear'. So natoms is always 0 and linear
         always False in MolSystemData. Nothing reads these fields today (MolSystemData's docstring), so this waits
         until something does.
-        Also: the geometry unit differs by reader (docstrings: Gaussian angstrom, CFOUR Bohr).
         Choose then: CQCParse returns 'geo' and 'linear', or wilson maps the names. Both readers decide linear
-        already (is_linear, since C4), so returning it is a small change. Decide together with N3: one choice for
-        the names, shapes and unit of the geometry and the normal modes.
+        already (is_linear, since C4), so returning it is a small change. The unit and shape are decided (N3).
 [ ] A4  [decide] B for linear molecules. The Gaussian reader returns 2 values for CO. wilson's vpt2.coriolis_term
         takes 0 or 3 values and raises otherwise. It matters in wilson S3 for linear molecules
         with 2 or more modes (CO has 1). Decide what B holds for a linear molecule, the same in both readers.
@@ -233,14 +230,9 @@ Both readers number every mode index by ascending harmonic frequency (N1). wilso
 normal_modes of ACAC and ACDM) is fixed (A6, N2). wilson's load does not ask for
 normal_modes, and the evaluator does not read them (MolSystemData's docstring). One wilson test does:
 refac_rsp_eval/tests/test_integration.py asks wilson_data_obtainer for them (Gaussian formaldehyde, B3LYP/cc-pVQZ)
-and pins normal_modes[0], a flat vector of 12 values (T8). N3 changes it [wilson].
-[ ] N3  One shape for both readers. Now a dict {mode: vector}: Gaussian keys 0 .. n-1 and flat vectors (3 x atoms);
-        CFOUR keys from 7 (7-12 for formaldehyde) and vectors of shape (atoms, 3). wilson's MolSystemData.eigenvecs
-        is typed as a numpy array, but stores the dict as it comes (from_datadict, system_data.py).
-        Choose one, e.g. an array (modes, atoms, 3) with modes 0 .. n-1, in one unit. Decide together with A3.
-        Already shared: both readers give the geometry in the frame of the normal modes, so the two can be drawn
-        together (Gaussian: A6; CFOUR: both from MOLDEN, Eckart residual 3e-7). The unit differs: angstrom and
-        Bohr (A3).
+and pins normal_modes[0] (T8, re-pinned for N3: T11). wilson's MolSystemData.eigenvecs is typed as a numpy array,
+but stores the dict as it comes (from_datadict, system_data.py).
+None open (N1-N3 done).
 
 
 X. Mixing origins (wilson S8)
@@ -293,7 +285,7 @@ T. Tests and baseline
         grid_reference.npz). Coefficients moved by up to 2.1e-5 of the largest one, spectra by up to 1.1e-4 of the
         largest amplitude. It needs CQCParse from 2ca6fa6 (C3 + R1) on.
     T8  wilson_gv: test_eval_molsys_data (refac_rsp_eval/tests/test_integration.py) pins the
-        5-decimal normal_modes[0] of N2.
+        5-decimal normal_modes[0] of N2 (re-pinned for N3: T11).
     T9  wilson_gv: the per-mode references relabeled for N1's mode order (25 tests had failed).
         evv_reference.json rewritten by make_evv_reference.py: the same 2225 values under the new labels. The
         modes picked by hand in test_integration.py and test_pipeline.py renumbered by formaldehyde's A to H table.
@@ -367,6 +359,12 @@ P. Speed
     P2  getPolarDers_log reads the table in one pass: ACDM 1.28 s -> 0.05 s.
 
 N. Normal modes
+    N3  One shape and unit from both readers (parse_from_source's docstring): equilibrium_geometry in bohr, origin at
+        the center of mass; normal_modes {0 .. n-1: (atoms, 3)}, each dx/dQ in m_e^(-1/2) (utils.normal_modes_au).
+        Gaussian was angstrom, origin at the center of nuclear charge, modes of length 1 and flat; CFOUR's modes had
+        keys from 7 and the masses in amu. The baseline's geometry and modes are the old ones converted, exactly; no
+        other value moved. Tests: test_geometry_and_normal_modes (against the other program),
+        test_geometry_and_normal_modes_layout. wilson: T11.
     N2  Gaussian normal_modes from the 5-decimal table (Freq=HPModes; else the 2-decimal one), in blocks of any
         number of modes (CO: 1), with the atom count from NAtoms=. All 7 examples read; the values moved by up to
         0.005, the rounding of the 2-decimal table (wilson: T8).

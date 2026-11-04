@@ -72,7 +72,10 @@ def parse_from_source(requested_data: Collection[str],
         modes_mapping returns that table, A to H, both counted from 1.
         Ascending frequency is not a fixed label: two close modes can swap between methods, so mode k of two
         results can be different vibrations.
-        CFOUR's normal_modes keys are its own mode numbers (from 7 for a nonlinear molecule).
+    Geometry and normal modes, the same from both readers, in atomic units:
+        equilibrium_geometry  (atoms, 3) in bohr, origin at the center of mass, in the frame of the normal modes
+        normal_modes          {mode: (atoms, 3) array}, mode keys as in the other keys; each the displacement per unit
+                              normal coordinate, dx/dQ in m_e^(-1/2) (CQCParse.utils.normal_modes_au)
     reindex_modes: True (the default), the order above. False, Gaussian only: every key in Gaussian's A order,
         normal_modes included. The result's 'reindex_modes' is True when Gaussian data was renumbered to H order;
         for CFOUR, which is never renumbered, it is always False.
@@ -125,8 +128,8 @@ def parse_gaussian16_output(requested_data: dict,
     Units:
         "harmonic_states": "cm-1",
         "anharmonic_states": "cm-1",
-        "equilibrium_geometry": "angstrom",
-        "normal_modes": "angstrom",
+        "equilibrium_geometry": "bohr",
+        "normal_modes": "m_e^(-1/2)",
         "B": "cm-1",
         "coriolis": "dimensionless",
         "cff": "Ha*m_e(-3/2)*a0(-3)",
@@ -142,6 +145,11 @@ def parse_gaussian16_output(requested_data: dict,
 
     Linear molecules (for B and coriolis): decided from the file, from the number of atoms and of vibrational
     modes (is_linear).
+
+    Geometry and normal modes: Gaussian prints the geometry in angstrom, with the origin at the center of nuclear
+    charge, and each normal mode with length 1. The reader returns them as the CFOUR reader does (parse_from_source):
+    the geometry in bohr, moved to the center of mass, and the modes scaled to dx/dQ (CQCParse.utils.normal_modes_au),
+    with the masses Gaussian used (get_masses).
     """
     results = {}
     len_nmodes = None
@@ -149,24 +157,29 @@ def parse_gaussian16_output(requested_data: dict,
     with open(log_file, 'r') as file:
         log_lines = [i.strip() for i in file]
 
-    if any(k in requested_data for k in ('equilibrium_geometry', 'atoms')): 
-    
+    if any(k in requested_data for k in ('equilibrium_geometry', 'atoms')):
+
         from .parseGaussian_forWilson import get_equil_geo
         atoms, equilibrium_geometry = get_equil_geo(log_lines)
 
         if 'equilibrium_geometry' in requested_data:
-            results['equilibrium_geometry'] = equilibrium_geometry
+            from CQCParse.utils import BOHR_ANGSTROM, center_of_mass_frame
+
+            from .parseGaussian_forWilson import get_masses
+            results['equilibrium_geometry'] = center_of_mass_frame(equilibrium_geometry / BOHR_ANGSTROM,
+                                                                   get_masses(log_lines))
 
         if 'atoms' in requested_data:
             results['atoms'] = atoms
 
     if 'normal_modes' in requested_data:
-        from .parseGaussian_forWilson import get_normal_modes, parse_Na
+        from CQCParse.utils import normal_modes_au
 
-        # only the atom count is needed, not the geometry (which get_equil_geo refuses for ACAC)
-        nmodes = get_normal_modes(log_lines, parse_Na(log_lines))
-        nmodes = {i: nm for i, nm in enumerate(nmodes)}
-        results['normal_modes'] = nmodes
+        from .parseGaussian_forWilson import get_masses, get_normal_modes, parse_Na
+
+        n_atoms = parse_Na(log_lines)
+        modes = get_normal_modes(log_lines, n_atoms).reshape(-1, n_atoms, 3)      # each of length 1
+        results['normal_modes'] = dict(enumerate(normal_modes_au(modes, get_masses(log_lines))))
 
     # the harmonic fundamentals give the mode count (len_nmodes), the same as in nc_sqrt_eigval
     needs_freqs = ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
@@ -321,8 +334,8 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
     Units:
         "harmonic_states": "cm-1",
         "anharmonic_states": "cm-1",
-        "equilibrium_geometry": "Bohr",
-        "normal_modes": "Bohr",
+        "equilibrium_geometry": "bohr",
+        "normal_modes": "m_e^(-1/2)",
         "hess": "",
         "B": "cm-1",
         "coriolis": "dimensionless", # ?
@@ -349,6 +362,9 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
     Geometry and normal modes come from MOLDEN, whose geometry can differ from the out file's (another geometry, or
     other axes). So the MOLDEN geometry must be the out file's reference structure (get_reference_structure, within
     MOLDEN_TOLERANCE); else equilibrium_geometry and normal_modes raise ValueError. atoms is not checked.
+    MOLDEN's geometry is in bohr with the origin at the center of mass, as parse_from_source returns it, and each of
+    its normal modes has sum_a m_a |d_a|^2 = 1 with the masses in amu: the reader only changes the mass unit to
+    electron masses (CQCParse.utils.normal_modes_au) and numbers the modes 0 .. n-1 like the other keys.
     """
     results = {}
 
@@ -421,7 +437,13 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
         if 'normal_modes' in requested_data:
             if not normal_modes_dict:
                 raise ValueError(f'no normal modes: no [FR-NORM-COORD] vibrations in {files_dict["molden"]}')
-            results['normal_modes'] = normal_modes_dict
+            from CQCParse.utils import normal_modes_au
+            # MOLDEN's keys are CFOUR's mode numbers, from nModesStart
+            if sorted(normal_modes_dict) != list(range(nModesStart, nModesStart + num_modes)):
+                raise ValueError(f'{files_dict["molden"]} has the vibrations {sorted(normal_modes_dict)}, the out file '
+                                 f'the modes {nModesStart} .. {nModesStart + num_modes - 1}')
+            modes = normal_modes_au(np.array([normal_modes_dict[k] for k in sorted(normal_modes_dict)]))
+            results['normal_modes'] = dict(enumerate(modes))
 
     if any(k in requested_data for k in ('B', 'coriolis')):
         from .parseCFOUR_forWilson import parse_coriolis

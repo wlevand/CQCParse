@@ -7,7 +7,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (2, 3)",
       "atoms": "list, 2 items",
-      "normal_modes": "dict, 1 entries of shape (6,)",
+      "normal_modes": "dict, 1 entries of shape (2, 3)",
       "anharmonic_states": "dict, 3 entries",
       "harmonic_states": "dict, 3 entries",
       "nc_sqrt_eigval": "dict, 1 entries",
@@ -34,7 +34,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (8, 3)",
       "atoms": "list, 8 items",
-      "normal_modes": "dict, 18 entries of shape (24,)",
+      "normal_modes": "dict, 18 entries of shape (8, 3)",
       "anharmonic_states": "dict, 1329 entries",
       "harmonic_states": "dict, 1329 entries",
       "nc_sqrt_eigval": "dict, 18 entries",
@@ -61,7 +61,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (16, 3)",
       "atoms": "list, 16 items",
-      "normal_modes": "dict, 42 entries of shape (48,)",
+      "normal_modes": "dict, 42 entries of shape (16, 3)",
       "anharmonic_states": "dict, 14189 entries",
       "harmonic_states": "dict, 14189 entries",
       "nc_sqrt_eigval": "dict, 42 entries",
@@ -88,7 +88,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (4, 3)",
       "atoms": "list, 4 items",
-      "normal_modes": "dict, 6 entries of shape (12,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "anharmonic_states": "dict, 83 entries",
       "harmonic_states": "dict, 83 entries",
       "nc_sqrt_eigval": "dict, 6 entries",
@@ -115,7 +115,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (4, 3)",
       "atoms": "list, 4 items",
-      "normal_modes": "dict, 6 entries of shape (12,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "anharmonic_states": "dict, 83 entries",
       "harmonic_states": "dict, 83 entries",
       "nc_sqrt_eigval": "dict, 6 entries",
@@ -142,7 +142,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (4, 3)",
       "atoms": "list, 4 items",
-      "normal_modes": "dict, 6 entries of shape (12,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "anharmonic_states": "dict, 83 entries",
       "harmonic_states": "dict, 83 entries",
       "nc_sqrt_eigval": "dict, 6 entries",
@@ -169,7 +169,7 @@
     "returned": {
       "equilibrium_geometry": "ndarray float64 (4, 3)",
       "atoms": "list, 4 items",
-      "normal_modes": "dict, 6 entries of shape (12,)",
+      "normal_modes": "dict, 6 entries of shape (4, 3)",
       "anharmonic_states": "dict, 83 entries",
       "harmonic_states": "dict, 83 entries",
       "nc_sqrt_eigval": "dict, 6 entries",
