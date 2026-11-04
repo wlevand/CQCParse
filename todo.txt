@@ -20,115 +20,71 @@ Tags:
                any code.
 
 
-Where things stand (measured at 691eccb with one-off scripts; V1 makes them a test)
------------------------------------------------------------------------------------
-Do the readers open each output?
-    Gaussian, 93 .out files:
-        78  read. 4 PBE0 files have no polarizability tables (their Raman run is a separate harmonic job), and 1 has
-            Coriolis turned off: those names raise and say why.
-         1  methylnitrite_trans: an imaginary frequency, so the names that need the frequencies raise on purpose (A7).
-        14  no anharmonic results (5 job logs, 9 optimizations or unfinished jobs): they raise and say why.
-    CFOUR, 34 folders with result files:
-        11  hold a finished anharmonic run: 9 results and 2 copies (FOMA, METH cc-pVQZ). The frequency, force constant,
-            dipole, B and Coriolis names read in all 11. Not read:
-                polgrad, polhess: FOMA has no polar.pkl (32 of its 288 displaced runs finished; needs the 256 others).
-                    FORM HF/STO-3G and the METH copy have polar.pkl in a parent folder: pass a files dict.
-                geometry, normal modes: 7 folders (C8).
-        23  no finished anharmonic run (ACAL, ACAM, ACTY, FOAC_dimer, NMAC, OXAC1, OXAC2, coh2_h2o, propyne, and work
-            folders): they raise and say why. Some hold harmonic results (A11). ACTY's finished run was on the cluster
-            only; it is fetched and reads (A12).
+Where things stand (measured at 691eccb; long evidence for the items below: this file's history at 4541d58)
+-----------------------------------------------------------------------------------------------------------
+Gaussian, 93 .out files: 78 read. 15 raise a clear error (14 have no anharmonic results, 1 has an imaginary frequency).
+CFOUR, 34 folders: 11 hold a finished run (9 results, 2 copies) and read. 23 raise a clear error. ACTY also reads.
 
-Are the numbers right? Compared with what each file prints itself, which does not assume the reader is right:
-    nc_sqrt_eigval, harmonic table (Gaussian, 78 files): within 0.0005 cm-1 (PBE0 0.01: its table is the separate job).
-    dipgrad, harmonic IR intensities (78 Gaussian files, 9 CFOUR results): within 1e-4 relative.
-    dipgrad, diphess, the dipole function printed in the out file (CFOUR, 9 results and ACTY): within 5e-8, its
-        rounding.
-    polgrad, Raman activities (74 Gaussian files): within 1e-4 relative.
-    cff, qff in au: Gaussian's column K, within its rounding (77 files); an independent conversion, both programs.
-    Geometry, through its rotational constants to B: within 6e-6 relative (77 Gaussian files, 10 CFOUR results).
-    normal_modes: mass-weighted orthonormal and free of rigid motion, within 3e-5 (77 Gaussian files, CFOUR where MOLDEN
-        fits). FOAC's overlap with rigid motion is 2e-2: its geometry is not a minimum (R8).
-    State labels: every harmonic state is the sum of its modes' fundamentals, within 0.001 cm-1 (all states, both
-        programs), and the anharmonic energy comes from the same row. Anharmonic fundamentals against the X matrix,
-        outside resonances: within 0.001 cm-1 (CFOUR); median 0.0005 cm-1 (Gaussian), up to 41 cm-1 in ACDM, probably
-        its Darling-Dennison treatment (not checked).
-    cff_rc, qff_rc, B, coriolis, through the VPT2 formula to the printed X matrix:
-        Gaussian, 75 files: within 0.008 cm-1 on every term outside a Fermi resonance. One more file, a DVPT2=all job,
-            differs by up to 57.5 cm-1 (not looked at further).
-        CFOUR, 9 results: within 0.18 cm-1 on every term without a star (a star: near-zero denominators removed).
-            FOMA 1.05 cm-1. Cause not checked (V1).
-    These also check the mode order, file by file.
-    polar.pkl against its polarData_raw.pkl: 7 of 9 folders agree, METH CCSD(T)/cc-pVDZ and cc-pVTZ do not (R7).
-Not checked per file, and little to gain: Gaussian diphess and polhess come from the same table and code as the checked
-first derivatives. CFOUR polhess: the code is checked on HF against Gaussian; CCSD(T) has no second program to compare
-with.
+Checked against what each file prints, with one-off scripts (V1 makes them a test):
+    Value                           Compared with                   Result
+    nc_sqrt_eigval                  harmonic table                  0.0005 cm-1
+    dipgrad                         IR intensities                  1e-4 relative
+    dipgrad, diphess (CFOUR)        printed dipole function         5e-8, its rounding
+    polgrad (Gaussian)              Raman activities                1e-4 relative
+    cff_rc, qff_rc, B, coriolis     printed X matrix                Gaussian 0.008 cm-1, CFOUR 0.18 cm-1
+    cff, qff in au (Gaussian)       column K                        within its rounding
+    geometry                        B                               6e-6 relative
+    normal_modes                    orthonormal, no rigid motion    3e-5
+    state labels                    sum of the fundamentals         0.001 cm-1
+    polar.pkl                       polarData_raw.pkl               7 of 9 folders; the other 2 are R7
+Not explained: X matrix gaps in a DVPT2=all job (57.5 cm-1) and FOMA (1.05 cm-1); ACDM fundamentals against X (41 cm-1).
+Little to gain from a per-file check: Gaussian diphess and polhess use the same tables and code as the checked first
+derivatives. CFOUR polhess: the code is checked on HF against Gaussian.
 
-Not reader bugs. The reader returns what the file holds:
-    - ACDM and OXAC2 print states below 0 cm-1 (down to -597). FOMA's lowest fundamental: harmonic 122 to 1012 cm-1
-      (CFOUR), 60 to 3873 cm-1 (Gaussian B3LYP/cc-pVDZ). VPT2 fails for such low modes.
+Wrong data, read correctly by the readers: R7, R8.
+Odd data, also read correctly:
+    - ACDM and OXAC2 print states below 0 cm-1, and FOMA's lowest fundamental is far off: VPT2 fails for such low modes.
     - dftGaussian/pDFB/B3LYPcc_pVQZ is the ACDM run, not pDFB.
     - refinedc4/*/*/anharm/NNN and polar/NNN are displacement runs, not results.
-    - R2's cut-off: small Gaussian force constants are not in the file.
-    - R7 and R8: wrong data in the files. The readers read them correctly.
 
-What wilson reads (wilson_gv, checked), to weigh each item:
-    EVV terms: dipgrad, diphess, polgrad, polhess, cff, in au (e.g. polgrad * dipgrad * dipgrad * cff).
-    VPT2: cff_rc and qff_rc in cm-1, B, and coriolis only as zeta^2 (vpt2.coriolis_term), so its sign does not
-        matter there.
+What wilson reads, to weigh each item:
+    EVV terms: dipgrad, diphess, polgrad, polhess, cff, in au.
+    VPT2: cff_rc and qff_rc in cm-1, B, and coriolis as zeta^2.
     Not read: qff in au, the geometry, atoms, normal_modes (one wilson test pins normal_modes, see N).
-wilson can use this branch through wilson_gv's branch cqcparse_cleanup: the dead imports are gone (L1) and the
-reference values follow R1's cff (T6) and N1's mode order (T9). That branch needs this one only for those reference
-values: it imports nothing new, and with CQCParse main only the reference tests fail (Tests). Neither is on main yet.
+wilson uses this branch through wilson_gv's branch cqcparse_cleanup. Neither is on main yet.
 
 
 What needs doing, in order
 --------------------------
-One line per item. The full entry for each item is further down.
 After each change that moves a number: CQCParse's tests, the baseline (T2), V1, and wilson's tests (T6).
 
-Wrong numbers:
-    R8      [decide] FOAC CCSD(T)/cc-pVQZ: all data at a geometry that is not a minimum (one ZMAT variable for two
-            angles). No new runs for now.
-    R7      [decide] METH CCSD(T)/cc-pVDZ and cc-pVTZ: do not use polgrad, polhess, geometry or normal modes. polhess is
-            about 20,000 to 40,000 times too large, and polgrad up to 50% off on one mode. No new runs for now. Open
-            without runs: a check, and renaming the two files.
+Wrong data:
+    R7      [decide] METH CCSD(T)/cc-pVDZ, cc-pVTZ: wrong polgrad, polhess, geometry, normal modes. No new runs for now.
+    R8      FOAC CCSD(T)/cc-pVQZ: all data at a geometry that is not a minimum. No new runs for now.
 Checks that stay:
-    V1      The one-off checks above as a test over the raw outputs.
+    V1      The one-off checks as a test over the raw outputs.
     V2      Low value: Gaussian diphess, and polhess of both programs, file by file.
-Data the readers do not reach yet:
+Other cases:
     A11     [decide] Outputs with harmonic results only.
-Same layout, other molecules:
-    A12     Other elements, high symmetry, more modes. The linear molecule ACTY reads; its reference is left.
+    A12     Other elements, high symmetry, more modes.
 Finish:
-    T11     [wilson] Commit on cqcparse_cleanup: test_eval_molsys_data re-pinned for N3 (normal_modes[0] as dx/dQ,
-            (atoms, 3)).
-    V3      [wilson] Not a CQCParse gap: every readable output through wilson's own load and data checks.
-    T10     [wilson] wilson's obtainer: two choices (get_geometry, keys two origins share), then one more test.
-    Merge   wilson_gv's cqcparse_cleanup first (so wilson main never fails on import), then this branch.
-    S1      [decide] A smaller package, once the merge is done.
+    T11     [wilson] Commit on cqcparse_cleanup: test_eval_molsys_data re-pinned for N3.
+    V3      [wilson] Every readable output through wilson's own load.
+    T10     [wilson] wilson's obtainer: two choices, then one more test.
+    Merge   wilson_gv's cqcparse_cleanup first, then this branch.
+    S1      [decide] A smaller package, after the merge.
 
-Outside the goal (the readers are not at fault; do when wilson needs it):
-    R2      Gaussian leaves out force constants below a cut-off [decide]. A question of the calculations: investigate
-            when wilson computes spectra of large, floppy molecules (ACAC, ACDM). First one test: rerun ACAC with a
-            lower cut-off and measure what changes.
-    X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8: without them, mixed data
-            gives wrong numbers with no error. T4's mode matching is the start.
-    A3      The names 'geo' and 'linear'. Only when wilson starts to read them.
-    C8      CFOUR geometry and normal modes of the 7 folders without a usable MOLDEN. Not a fault: the readers raise a
-            clear error, and wilson does not read these. Only if someone needs them.
-    - The validation readers (parse_anharmonic_x_matrix, get_detected_resonances_g16 and _c4) through
-      parse_from_source, so wilson can compare its VPT2 with the programs' own by itself.
-    - polar.pkl as a .npz file (np.load with allow_pickle=False) instead of a pickle. pklPoldata stores 'equil'
-      rotated by the reference run's own OMAT (nothing reads it; its docstring says so): fix it only if it is
-      run on new runs. Not checked in CFOUR's documentation: why the reference run needs no rotation.
-    - files_examples/refinedc4/HFcc_pVQZ/dimensionless.pkl is the only copy of its data (that folder has no
-      QUADRATURE): replace it by that file if it can be found.
-    - Version: 0.1.0, no git tag, no pin in wilson (nothing reads the number). When wilson pins a version: tag
-      that commit v0.1.0 (the first release) and clone that tag in wilson's README.
+Outside the goal (do when needed):
+    R2      [decide] Force constants Gaussian leaves out below a cut-off.
+    X1      [decide] Rules for using CFOUR and Gaussian data together.
+    A3      The names 'geo' and 'linear'.
+    C8      Geometry and normal modes of the 7 CFOUR folders without a usable MOLDEN.
+    - The validation readers through parse_from_source.
+    - polar.pkl as a .npz file instead of a pickle.
+    - files_examples/refinedc4/HFcc_pVQZ/dimensionless.pkl: replace it by that run's QUADRATURE, if found.
+    - Version tag v0.1.0, when wilson pins a version.
 
-Done: see Done (N3, C5-C7, A7-A10, R6, R5, T4, R4, A6, N2, N1; in wilson_gv: L1, L2, L7, T6, T7, T8, T9).
-Dropped (see Done): R3 (Coriolis digits: negligible for wilson) and L3 (the rewrite: no gain for wilson
-or the numbers now; do targeted cleanups such as R4 instead).
+Dropped (see Done): R3 (Coriolis digits) and L3 (the rewrite).
 
 
 Tests
@@ -205,90 +161,45 @@ T. Tests and baseline
     T7  Done, see Done.
     T8  Done, see Done.
     T9  Done, see Done.
-[ ] T10 [wilson] What the obtainer tests (T7) leave, in wilson_utils/wilson_data_obtainer.py:
-            - [decide] get_geometry=True adds only 'atoms', not 'equilibrium_geometry', so it gives no coordinates
-              (needed to draw the vibrations). Both flags raise KeyError unless 'nc_sqrt_eigval' is in the request,
-              and both change the caller's dict.
-            - [decide] Two origins that return the same key: the later one replaces the earlier with no warning
-              (dict.update; X1, wilson S8). CQCParse adds keys of its own (reindex_modes; harmonic_states with
-              nc_sqrt_eigval; cff_rc with cff), so this happens even for names asked from one origin only.
-            - A test that renumbering the modes of a data dict, consistently, leaves the spectrum unchanged (T9
-              showed it once). It would catch any place where wilson depends on the mode order.
-            - The test that loads a CFOUR folder through MolSystemData.load (wilson G8) is now part of V3.
+[ ] T10 [wilson] What the obtainer tests leave, in wilson_utils/wilson_data_obtainer.py:
+            - [decide] get_geometry=True adds 'atoms' but not 'equilibrium_geometry'.
+            - [decide] When two origins return the same key, the later one replaces the earlier with no warning.
+            - A test that renumbering the modes of a data dict leaves the spectrum unchanged.
 
 
 V. Checks on the raw outputs
 ----------------------------
-[ ] V1  A test over the raw outputs. It takes the raw folder from an environment variable, so no path enters the
-        repo, and is skipped when the variable is not set. For every output:
-            - which names read and which raise, against the counts under "Where things stand".
-            - nc_sqrt_eigval against the harmonic table.
-            - dipgrad against the IR intensities: I = 974.864 * 1822.888 * |dipgrad[k]|^2 km/mol.
-            - polgrad against the Raman activities: S = 0.529177^4 * 1822.888 * (45 a^2 + 7 g^2) angstrom^4/amu.
-            - the X matrix from cff_rc, qff_rc, B, coriolis, outside resonances and starred terms.
-            - polar.pkl against polarData_raw.pkl.
-            - cff, qff against column K; geometry against B; normal modes orthonormal and free of rigid motion.
-            - every state's label (harmonic energy = sum of fundamentals); dipgrad, diphess against the printed
-              function.
-            - where the anharmonic job's output is there: its gradient norm and rotations at the first geometry.
-        To find out: why CFOUR's X terms differ by up to 0.18 cm-1 (FOMA 1.05) where Gaussian's differ by 0.008.
-        C1's mean of the two listed values is one candidate.
-[ ] V2  Gaussian diphess, and polhess of both programs, file by file. CFOUR diphess is done: it matches the out file's
-        printed dipole function (add that to V1). For the others, no printed number gives them directly, and today only
-        T4 checks them (formaldehyde, HF). The anharmonic intensities in the files depend on them, with cff: Gaussian's
-        Anharmonic Infrared and Raman tables, CFOUR's Anharm Intensity. So a VPT2 intensity formula can test them. Try
-        it on formaldehyde first. A size check found R7, so keep one in V1.
-[ ] V3  [wilson] Every readable output through MolSystemData.load and check_data_dict, in wilson's environment. T3
-        copies those checks for the 11 examples only, and no CFOUR folder has gone through wilson's load yet.
+[ ] V1  Turn the one-off checks into a test over the raw outputs. It takes the raw folder from an environment variable,
+        so no path enters the repo, and is skipped when the variable is not set. It runs the table under "Where things
+        stand", plus each anharmonic job's gradient norm and rotations (these catch R8).
+        Formulas: IR = 974.864 * 1822.888 * |dipgrad[k]|^2 km/mol. Raman = 0.529177^4 * 1822.888 * (45 a^2 + 7 g^2).
+[ ] V2  Low value. Gaussian diphess, and polhess of both programs, have no printed copy to compare with. The anharmonic
+        intensities depend on them, so a VPT2 intensity formula could test them.
+[ ] V3  [wilson] Every readable output through MolSystemData.load, including a CFOUR folder. Not a CQCParse gap: keys,
+        shapes and symmetry already pass on all raw outputs.
 
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
 -------------------------------------------------------------
-[ ] C8  Outside the goal: not a fault, the readers raise a clear error (C7) and wilson does not read these.
-        Geometry, normal modes and atoms when MOLDEN is missing (FORM HF/cc-pVQZ, FOMA, the METH copy) or holds
-        another geometry (METH CCSD(T)/cc-pVDZ and cc-pVTZ, FORM HF/STO-3G). These 7 folders raise for geometry and
-        normal modes (C7), but the data is elsewhere:
-            geometry  the out file's reference structure (get_reference_structure). FOMA's cartcoord equals it exactly.
-            modes     normcoord equals MOLDEN's modes exactly (FOAC). METH cc-pVDZ and cc-pVTZ have normcoord and
-                      cartcoord in the files fetched from the cluster; their QUADRATURE is not usable (R7). STO-3G has
-                      NORMCO and QUADRATURE: check format and frame first.
-            atoms     the reference block has no symbols: find another source in the out file or ZMAT.
+[ ] C8  Outside the goal. 7 CFOUR folders have no usable MOLDEN, so geometry and normal modes raise a clear error.
+        wilson does not read these. If needed: geometry from the out file's reference structure, modes from normcoord.
 
 
 A. What parse_from_source returns
 ---------------------------------
-[ ] A3  [wilson] Outside the goal: a naming question.
-        geo and linear. wilson's MolSystemData.from_datadict (system_data.py) reads 'geo' and 'linear'; CQCParse returns
-        'equilibrium_geometry' and 'atoms', and no 'linear'. So natoms is always 0 and linear
-        always False in MolSystemData. Nothing reads these fields today (MolSystemData's docstring), so this waits
-        until something does.
-        Choose then: CQCParse returns 'geo' and 'linear', or wilson maps the names. Both readers decide linear
-        already (is_linear, since C4), so returning it is a small change. The unit and shape are decided (N3).
-[ ] A11 [decide] Outputs with harmonic results only. Gaussian: ACDM CAM-B3LYP/cc-pVQZ stopped before its anharmonic
-        results: atoms, geometry and normal modes read; the harmonic frequencies do not. CFOUR: the out file has no
-        levels table, so at most atoms reads; some folders hold harmonic results (irspectrum_harmonic.txt, e.g. ACAL,
-        FOMA's 8c_4t run). wilson cannot use such outputs: every evaluation asks for anharmonic_states
-        (MolSystemData.load). Choose: read what they hold, or keep the clear error. Proposal: keep the error unless
-        there is a use for the data.
+[ ] A3  [wilson] Outside the goal. wilson reads 'geo' and 'linear'; CQCParse returns 'equilibrium_geometry' and 'atoms'.
+        Nothing reads these fields today. Choose then: CQCParse returns those names, or wilson maps them.
+[ ] A11 [decide] Outputs with harmonic results only raise an error. wilson cannot use them, because it always asks for
+        anharmonic_states. Proposal: keep the error unless there is a use for the data.
 [ ] A12 Same layout, other molecules. The raw outputs do not contain these cases, so nothing tests them:
-            - Gaussian atoms: get_equil_geo knows H, C, N, O, F, S, Cl and Br, and raises on any other element. Use the
-              whole periodic table.
-            - CFOUR: a dipole file empty because every derivative along one axis is zero by symmetry. pDipole raises;
-              zeros are the right answer.
-            - Linear molecules with 2+ modes: ACTY (7 modes, fetched from the cluster) tests the CFOUR reader, which
-              passes. All 16 names read, with a files dict (MOLDEN in anharm/, results in anharm/save/). dipgrad matches
-              the IR intensities within 1e-4 relative, and the X matrix within 0.16 cm-1. All 98 displaced runs
-              finished, on the reference structure, along the right modes; their folders count k = CFOUR mode k-1, which
-              does no harm.
-              Left: polar/POLAR ran at the rounded input geometry (RCC 1.203 against 1.2041 angstrom), so
-              polar_derivatives raises. Use one polar_equil run or the displaced runs' estimate (the pairs agree within
-              1e-7 au). Then add ACTY to V1.
-            - More than 42 modes (ACDM, the largest): table columns may run together, as C5 found in CFOUR.
-            - A section cut short where nothing is paired (zip(strict=True) covers the rest).
-            - get_detected_resonances_g16 raises on jobs without a resonance search (3 VPT2 and 1 DVPT2 file). It should
-              return []. Validation only.
-        Checked, nothing to do: a Gaussian output cut inside a table (6 cuts of one file): every name raises or
-        returns the full file's values.
+            - Elements other than H, C, N, O, F, S, Cl, Br: get_equil_geo raises. Use the whole periodic table.
+            - A CFOUR dipole file empty by symmetry: pDipole raises. Zeros are the right answer.
+            - More than 42 modes: table columns may run together, as C5 found in CFOUR.
+            - A section cut short where nothing is paired.
+            - get_detected_resonances_g16 raises on jobs without a resonance search. It should return []. Validation
+              only.
+            - ACTY (linear, 7 modes) reads. Add it to V1. Its polar.pkl needs a polar_equil run or the runs' own
+              estimate.
 
 
 R. Precision of the numbers in the files
@@ -303,90 +214,25 @@ are here. How many digits each value the readers use has in the file:
         coriolis: the short list, 5 decimals (R3, dropped: negligible for wilson).
         Small force constants are not in the file at all (R2).
     CFOUR: force constants and dipole derivatives with 10 decimals, harmonic frequencies with 6. Fine.
-[ ] R7  [decide] polar.pkl of METH CCSD(T)/cc-pVDZ and cc-pVTZ (pol/polar.pkl). Wrong polgrad and polhess, which
-        wilson's EVV terms use. Three faults. The first two come from files the anharmonic job wrote last, at its last
-        displaced geometry. These two jobs used CFOUR's default, ANH_ALGORITHM=STANDARD: all geometries in one job.
-        Their output has 21 harmonic analyses; QUADRATURE matches only the last, and MOLDEN is the reference minus 0.05
-        along mode 18, within 1e-9 bohr. cc-pVQZ used PARALLEL: 1 analysis. CFOUR's docs do not say what these files
-        hold after such a job.
-        1. Reference. polar.pkl took anharm/POLAR (getPolarDers no longer does: see Done). Here that file holds an SCF
-           polarizability: it equals the last of the 21 "SCF static dipole polarizability" blocks in the out file,
-           within 6e-7 au. The displaced runs use PROPS=SECOND_ORDER. Mean of xx, yy, zz, reference against displaced
-           runs: 15.84 and 16.05 au (cc-pVDZ), 17.62 and 18.12 au (cc-pVTZ). FOMA shows which is right: displaced runs
-           25.1168 au, polar_equil/POLAR 25.1167 au, anharm/POLAR and POLARSCF 23.0787 au. Each diagonal polhess term
-           takes the gap divided by h^2 = 1e-4: 6.0e1 au (cc-pVDZ) and 1.2e2 au (cc-pVTZ), against 2.9e-3 for cc-pVQZ
-           and B3LYP.
-        2. Geometry and modes. The displaced runs start from MOLDEN_f and QUADRATURE_f, copies of that last MOLDEN and
-           QUADRATURE. Their center is 0.0077 bohr from the reference structure (q18 = -0.05, the default ANH_STEPSIZE).
-           QUADRATURE's frequencies are up to 81 cm-1 (cc-pVDZ) and 89 cm-1 (cc-pVTZ) from the out file's, and its modes
-           are not normcoord's: modes 8 and 9 mix by 8-11%, and mode 7 holds rigid motion. polgrad in normcoord's modes
-           differs by up to 33% (cc-pVDZ) and 50% (cc-pVTZ) on mode 8, 2-7% on modes 7, 9 and 11, under 1% on the
-           others. In cc-pVTZ that moves mode 8 from 0.216 to 0.303; cc-pVQZ has 0.362. The off-center shift adds up to
-           2% (4.6% on mode 8). polar_derivatives' check cannot see this fault.
-        3. cc-pVDZ only: 9 of 288 displaced runs were cancelled within 45 s (Slurm log: CANCELLED): 7_15pp, 7_15pn,
-           7_15np, 8_9pp, 8_9pn, 8_18np, 8_18nn, 9_10pp, 9_10pn. Their POLAR is about 0.21 au low, which gives
-           off-diagonal polhess terms up to 5.2 au (normal: 3e-3).
-        Not affected: FORM (CCSD(T)/cc-pVQZ, HF/cc-pVTZ, HF/STO-3G), FOAC, METH cc-pVQZ, ACTY: QUADRATURE within 0.37
-        cm-1 of the out file. METH cc-pVQZ and ACTY are exactly on the reference structure. The FORM HF sets also match
-        Gaussian mode by mode (polgrad 2e-6, polhess diagonal 7e-5, relative). FORM CCSD(T)/cc-pVQZ and FOAC: the
-        displaced runs are exactly on their reference structure, along its modes, and the reference is
-        polar_equil/POLAR. (FOAC's reference structure has its own fault: R8.) Why they pass the reference check: in HF
-        sets, SCF is the method; METH cc-pVQZ's anharm/POLAR is byte-identical to its polar_equil/POLAR (looks
-        hand-copied).
-        Decision: no new runs for now. So these two levels have no usable polgrad, polhess, geometry or normal modes,
-        and must not be used for them. Everything else there is usable: the out file's levels table, cubic, quartic, the
-        dipole files, coriolis (checked). On the cluster, cartcoord and normcoord are right:
-        normcoord's vibrations have no rigid motion of the reference (overlap 4e-6; QUADRATURE's lowest mode 32-44%).
-        Do not use POLAR, MOLDEN, QUADRATURE there. DIPDER, FCMFINAL, NORMCO: not checked.
-        Possible now, without new runs:
-            - V1: check that a polar set's center and modes are the reference's.
-            - [decide] The reader still returns these wrong numbers with no error, and polar.pkl alone cannot show it.
-              Proposal: rename the two files, so that the reader raises file not found. That changes the raw data, so it
-              is the data owner's step. A reader check would be code for two known files.
-        For when runs are possible:
-            a) Rerun (proposal): 288 displaced runs per basis at the reference structure (cartcoord), along normcoord's
-               modes in dimensionless units (d / sqrt(w_au * 1822.888); checked on FOAC), and one polar_equil run per
-               basis. At 32 cores: cc-pVDZ 101 s per run (6 h in a row), cc-pVTZ 2281 s per run (133 h in a row).
-            b) No new runs, except cc-pVDZ's 9: turn the runs into normcoord's modes and shift them to the reference.
-               This fixes polgrad. polhess stays at the wrong point, with an error that cannot be sized (no third
-               derivatives), and the code serves only these two sets.
-[ ] R8  [decide] FOAC CCSD(T)/cc-pVQZ: the reference structure is not a minimum, so all its data belong to a distorted
-        geometry. anharm/ZMAT uses one variable for two angles ("O 1 B2 2 A1" and "H 1 B4 2 A1 4 D2"), so O=C-O and
-        H-C-O are both 118.84 degrees. B3LYP, CAM-B3LYP, LC-BLYP, PBE0 and HF/cc-pVQZ give about 122.6 and 113.6. The
-        ZMAT's title says formaldehyde, where such angles are equal by symmetry. Gradient norm 0.0275 (other finished
-        sets 5e-7); rotations 76i, 11i, 166 cm-1 (others about 1). The reader is right, and the files agree with each
-        other, so no earlier check saw it. Size of the error: not known without a new run. The small gap of QUADRATURE
-        to the out file (0.37 cm-1) fits, not tested.
-        Decision: no new runs for now, so these data must not be taken as equilibrium data.
-        For when runs are possible: one variable per angle, reoptimize, anharmonic job with PARALLEL, polar_equil and
-        the 162 displaced runs, rebuild polar.pkl. ACAL's ZMAT has the same pattern (gradient norm 0.028; no finished
-        results).
-[ ] R2  [decide] Outside the goal: the numbers are not in the file, so this is not a reader question.
-        Gaussian leaves out every force constant with |K| < 3.71e-5 (Hartree amu^(-n/2) Bohr^(-n)). The cut-off is
-        Gaussian's default, listed in each .out file under "Cut-offs for the present calculation",
-        "Tolerances on Data", 3rd and 4th derivs. The smallest printed |K| is 4.0e-5 in every file, so the cut is on
-        K. The reader gets 0 for a missing term, in cff and cff_rc alike. Gaussian's own VPT2 probably leaves the
-        terms out too (to check).
-        Quartic terms with 4 different indices are never computed, by Gaussian or CFOUR; VPT2 does not need them.
-        The counts below leave them out.
-            - formaldehyde: 22 of 56 cubic and 45 of 111 quartic terms printed. These are exactly the terms that
-              C2v symmetry allows, so nothing nonzero is missing.
-            - ACAC (lowest mode 75 cm-1): 540 of 1140 cubic and 1346 of 2925 quartic terms not printed.
-              ACDM (lowest mode 46 cm-1): 9633 of 13244 cubic and 27165 of 37065 quartic terms not printed.
-              Some are zero by symmetry; how many is not known.
-        Why it matters: the cut is on K, but FI = K * (unit factor) / sqrt(w_i w_j w_k) grows for low-frequency
-        modes. A term just under the cut could be up to 16 cm-1 in FI (ACAC cubic), 9 (ACAC quartic), 34 (ACDM
-        cubic), 52 (ACDM quartic). Those are upper bounds; the median bound is 0.1-0.4 cm-1.
-        Not a parser bug: the numbers are not in the file. Ways: lower the cut-off in the Gaussian input (find the
-        ReadAnharm option in the Gaussian manual) and rerun; or accept the cut, and say so next to the data (e.g.
-        return the cut-off in the dict). CFOUR: not known whether it leaves out small terms; for formaldehyde it
-        lists the same 22 cubic and 45 quartic index sets as Gaussian.
-        For wilson: cff feeds the EVV terms, cff_rc and qff_rc the VPT2. No effect on wilson's test molecules
-        (formaldehyde loses nothing); possibly the largest remaining error for large, floppy molecules.
-        First step: rerun ACAC with a lower cut-off; compare cff, qff and the VPT2 energies (and wilson's results)
-        with the present run. Only then choose a way.
-        When: with wilson's spectra of such molecules; no CQCParse change is needed before. The only reader part
-        would be optional: return the cut-off next to the data.
+[ ] R7  METH CCSD(T)/cc-pVDZ, cc-pVTZ: pol/polar.pkl is wrong. Do not use polgrad, polhess, geometry or normal modes.
+        Size: the polhess diagonal is 20,000 to 40,000 times too large, and polgrad is up to 50% off on one mode.
+        Cause: these anharmonic jobs ran as one job (ANH_ALGORITHM=STANDARD), so MOLDEN, QUADRATURE and POLAR hold the
+        last displaced geometry. The polar runs started from those files, with POLAR, an SCF value, as the reference.
+        cc-pVDZ also has 9 cancelled polar runs.
+        Correct in these folders: out file, cubic, quartic, dipole files, coriolis, and on the cluster cartcoord,
+        normcoord.
+        Next: no new runs for now. [decide] Rename the two polar.pkl files, so that the reader raises an error.
+        Later: rerun the 288 displaced runs per basis from cartcoord and normcoord, one polar_equil run per basis.
+[ ] R8  FOAC CCSD(T)/cc-pVQZ: all data belong to a geometry that is not a minimum. Do not treat them as equilibrium
+        data.
+        Cause: anharm/ZMAT uses one variable (A1) for two angles, so O=C-O and H-C-O are both 118.84 degrees. Other
+        methods give about 122.6 and 113.6. Gradient norm 0.0275; other finished sets 5e-7.
+        The reader is right and the files agree with each other. The size of the error needs a new run to measure.
+        Next: no new runs for now. Later: one variable per angle, reoptimize, then redo the anharmonic and polar runs.
+[ ] R2  [decide] Outside the goal: the numbers are not in the file. Gaussian leaves out force constants with
+        |K| < 3.71e-5. Formaldehyde loses nothing. Large, floppy molecules may: ACAC prints about 53% of its terms, ACDM
+        27%.
+        First step, when wilson computes such spectra: rerun ACAC with a lower cut-off and compare.
     R4  Done (with T4), see Done.
     R5  Done: CQCParse/tools/build_polar_pkl.py, see Done.
 
@@ -411,19 +257,10 @@ None open (N1-N3 done).
 
 X. Mixing origins (wilson S8)
 -----------------------------
-[ ] X1  [decide] Outside the goal: the readers are fine on each origin.
-        Rules for data from two origins in one run: the mode order (reindexing), the sign of each mode, the axis
-        orientation. CFOUR and Gaussian formaldehyde differ in mode order and in the sign of 2 modes (T4);
-        for the axes the identity fits, but a mirror plane makes a flipped axis fit equally, so a fit alone does
-        not fix the axes. Inside one origin none of this matters.
-        Mode order: both readers give ascending harmonic frequency (N1). That is not enough on its own: two close
-        modes can swap between methods or basis sets (e.g. formaldehyde B1 1203 and B2 1269 cm-1), so mode k of two
-        outputs can be different vibrations, with no error. Mixing still needs a match by vibration (T4's
-        matching). Gaussian's A order (the Mulliken numbering, reindex_modes=False) would not swap this way, but
-        CFOUR would need its own numbering from symmetry labels, and B1/B2 depend on the axis choice.
-        An old problem comes back with wilson S8: the overwrite in wilson (wilson_data_obtainer,
-        dict.update: a second origin's keys replace the first's, e.g. cff_rc, reindex_modes) [wilson]. The other
-        one, the crash of A2, is fixed.
+[ ] X1  [decide] Outside the goal: the readers are fine on each origin. Using CFOUR and Gaussian data in one run needs
+        rules for mode order, mode signs and axes. Two close modes can swap between methods, so mode k of two outputs
+        can be different vibrations, with no error. wilson also overwrites keys two origins share (T10). Start: T4's
+        mode matching.
 
 
 L. Legacy code and the rewrite
@@ -438,13 +275,10 @@ S. Package layout
 The package stays: pyproject.toml (15 lines) is what lets wilson_gv import CQCParse without copies or path changes. No
 rewrite (L3). What can get smaller:
 [ ] S1  [decide] After the merge, because each step changes what wilson imports or a path it uses:
-            - relay/ holds one 47-line module (modes_reindexing.py), used by parse_gaussian16_output: move it to
-              parsing/.
-            - logger.py: only one wilson test uses setup_logger; logging.getLogger('CQCParse').setLevel replaces it.
-            - files_examples (20 MB) is inside the installed package: move it to tests/. Three wilson scripts reach it
-              through PKG_ROOT, so they change too.
-            - README's "Changes" (126 of its 191 lines) matters only for the merge: move it to the merge's text.
-        Keep CQCParse.parsing.parse_from_source: it is wilson's only way in.
+            - Move relay/modes_reindexing.py (47 lines) into parsing/.
+            - Remove logger.py; logging.getLogger('CQCParse').setLevel replaces it.
+            - Move files_examples (20 MB) to tests/; three wilson scripts use it through PKG_ROOT.
+            - Move README's "Changes" (most of the file) to the merge's text.
 
 
 Done
