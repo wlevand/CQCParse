@@ -44,6 +44,14 @@ Are the numbers right? Compared with what each file prints itself, which does no
     dipgrad, diphess, the dipole function printed in the out file (CFOUR, 9 results and ACTY): within 5e-8, its
         rounding.
     polgrad, Raman activities (74 Gaussian files): within 1e-4 relative.
+    cff, qff in au: Gaussian's column K, within its rounding (77 files); an independent conversion, both programs.
+    Geometry, through its rotational constants to B: within 6e-6 relative (77 Gaussian files, 10 CFOUR results).
+    normal_modes: mass-weighted orthonormal and free of rigid motion, within 3e-5 (77 Gaussian files, CFOUR where MOLDEN
+        fits). FOAC's overlap with rigid motion is 2e-2: its geometry is not a minimum (R8).
+    State labels: every harmonic state is the sum of its modes' fundamentals, within 0.001 cm-1 (all states, both
+        programs), and the anharmonic energy comes from the same row. Anharmonic fundamentals against the X matrix,
+        outside resonances: within 0.001 cm-1 (CFOUR); median 0.0005 cm-1 (Gaussian), up to 41 cm-1 in ACDM, probably
+        its Darling-Dennison treatment (not checked).
     cff_rc, qff_rc, B, coriolis, through the VPT2 formula to the printed X matrix:
         Gaussian, 75 files: within 0.008 cm-1 on every term outside a Fermi resonance. One more file, a DVPT2=all job,
             differs by up to 57.5 cm-1 (not looked at further).
@@ -51,8 +59,9 @@ Are the numbers right? Compared with what each file prints itself, which does no
             FOMA 1.05 cm-1. Cause not checked (V1).
     These also check the mode order, file by file.
     polar.pkl against its polarData_raw.pkl: 7 of 9 folders agree, METH CCSD(T)/cc-pVDZ and cc-pVTZ do not (R7).
-Not yet checked per file: Gaussian diphess; polhess beyond its size; cff, qff in au; geometry; normal_modes;
-anharmonic_states.
+Not checked per file, and little to gain: Gaussian diphess and polhess come from the same table and code as the checked
+first derivatives. CFOUR polhess: the code is checked on HF against Gaussian; CCSD(T) has no second program to compare
+with.
 
 Not reader bugs. The reader returns what the file holds:
     - ACDM and OXAC2 print states below 0 cm-1 (down to -597). FOMA's lowest fundamental: harmonic 122 to 1012 cm-1
@@ -85,17 +94,15 @@ Wrong numbers:
             without runs: a tool fix, a check, and whether the reader should refuse these files.
 Checks that stay:
     V1      The one-off checks above as a test over the raw outputs.
-    V2      Gaussian diphess, and polhess of both programs, file by file.
-    V3      [wilson] Every readable output through wilson's own load and data checks.
+    V2      Low value: Gaussian diphess, and polhess of both programs, file by file.
 Data the readers do not reach yet:
-    C8      CFOUR geometry, normal modes and atoms without a usable MOLDEN (7 folders).
     A11     [decide] Outputs with harmonic results only.
 Same layout, other molecules:
     A12     Other elements, high symmetry, more modes. The linear molecule ACTY reads; its reference is left.
-    A4      [decide] B for linear molecules with 2+ modes.
 Finish:
     T11     [wilson] Commit on cqcparse_cleanup: test_eval_molsys_data re-pinned for N3 (normal_modes[0] as dx/dQ,
             (atoms, 3)).
+    V3      [wilson] Not a CQCParse gap: every readable output through wilson's own load and data checks.
     T10     [wilson] wilson's obtainer: two choices (get_geometry, keys two origins share), then one more test.
     Merge   wilson_gv's cqcparse_cleanup first (so wilson main never fails on import), then this branch.
     S1      [decide] A smaller package, once the merge is done.
@@ -107,6 +114,8 @@ Outside the goal (the readers are not at fault; do when wilson needs it):
     X1      Rules for using CFOUR and Gaussian data together [decide]. Before wilson S8: without them, mixed data
             gives wrong numbers with no error. T4's mode matching is the start.
     A3      The names 'geo' and 'linear'. Only when wilson starts to read them.
+    C8      CFOUR geometry and normal modes of the 7 folders without a usable MOLDEN. Not a fault: the readers raise a
+            clear error, and wilson does not read these. Only if someone needs them.
     - The validation readers (parse_anharmonic_x_matrix, get_detected_resonances_g16 and _c4) through
       parse_from_source, so wilson can compare its VPT2 with the programs' own by itself.
     - polar.pkl as a .npz file (np.load with allow_pickle=False) instead of a pickle. pklPoldata stores 'equil'
@@ -124,7 +133,7 @@ or the numbers now; do targeted cleanups such as R4 instead).
 
 Tests
 -----
-    pass 377, xfail 0, fail 0 (tests/, 377 tests, about 5 s; 11 are the baseline, T2; 121 the contract test, T3).
+    pass 390, xfail 0, fail 0 (tests/, 390 tests, about 5 s; 11 are the baseline, T2; 133 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
@@ -218,9 +227,10 @@ V. Checks on the raw outputs
             - polgrad against the Raman activities: S = 0.529177^4 * 1822.888 * (45 a^2 + 7 g^2) angstrom^4/amu.
             - the X matrix from cff_rc, qff_rc, B, coriolis, outside resonances and starred terms.
             - polar.pkl against polarData_raw.pkl.
+            - cff, qff against column K; geometry against B; normal modes orthonormal and free of rigid motion.
+            - every state's label (harmonic energy = sum of fundamentals); dipgrad, diphess against the printed
+              function.
             - where the anharmonic job's output is there: its gradient norm and rotations at the first geometry.
-        New, not measured yet, on all outputs: cff, qff against Gaussian's column K (tests/test_force_constants.py
-        does 7 files); geometry against B (tests/test_parseGaussian.py does 7 files); the normal modes' frequency.
         To find out: why CFOUR's X terms differ by up to 0.18 cm-1 (FOMA 1.05) where Gaussian's differ by 0.008.
         C1's mean of the two listed values is one candidate.
 [ ] V2  Gaussian diphess, and polhess of both programs, file by file. CFOUR diphess is done: it matches the out file's
@@ -234,7 +244,8 @@ V. Checks on the raw outputs
 
 C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
 -------------------------------------------------------------
-[ ] C8  Geometry, normal modes and atoms when MOLDEN is missing (FORM HF/cc-pVQZ, FOMA, the METH copy) or holds
+[ ] C8  Outside the goal: not a fault, the readers raise a clear error (C7) and wilson does not read these.
+        Geometry, normal modes and atoms when MOLDEN is missing (FORM HF/cc-pVQZ, FOMA, the METH copy) or holds
         another geometry (METH CCSD(T)/cc-pVDZ and cc-pVTZ, FORM HF/STO-3G). These 7 folders raise for geometry and
         normal modes (C7), but the data is elsewhere:
             geometry  the out file's reference structure (get_reference_structure). FOMA's cartcoord equals it exactly.
@@ -242,7 +253,6 @@ C. CFOUR reader (parse_cfour_output, parseCFOUR_forWilson.py)
                       cartcoord in the files fetched from the cluster; their QUADRATURE is not usable (R7). STO-3G has
                       NORMCO and QUADRATURE: check format and frame first.
             atoms     the reference block has no symbols: find another source in the out file or ZMAT.
-        wilson does not read these three today, so this comes after the numbers wilson reads.
 
 
 A. What parse_from_source returns
@@ -254,10 +264,6 @@ A. What parse_from_source returns
         until something does.
         Choose then: CQCParse returns 'geo' and 'linear', or wilson maps the names. Both readers decide linear
         already (is_linear, since C4), so returning it is a small change. The unit and shape are decided (N3).
-[ ] A4  [decide] B for linear molecules. The Gaussian reader returns 2 values for CO; the CFOUR reader returns 3 for
-        ACTY, [1.18086, 1.18086, 0]. wilson's vpt2.coriolis_term takes 0 or 3 values and raises otherwise. It matters in
-        wilson S3 for linear molecules with 2 or more modes (CO has 1). Decide what B holds for a linear molecule, the
-        same in both readers. Proposal: 3 values, the one along the axis 0, as CFOUR. Both readers know linear since C4.
 [ ] A11 [decide] Outputs with harmonic results only. Gaussian: ACDM CAM-B3LYP/cc-pVQZ stopped before its anharmonic
         results: atoms, geometry and normal modes read; the harmonic frequencies do not. CFOUR: the out file has no
         levels table, so at most atoms reads; some folders hold harmonic results (irspectrum_harmonic.txt, e.g. ACAL,
@@ -276,7 +282,7 @@ A. What parse_from_source returns
               does no harm.
               Left: polar/POLAR ran at the rounded input geometry (RCC 1.203 against 1.2041 angstrom), so
               polar_derivatives raises. Use one polar_equil run or the displaced runs' estimate (the pairs agree within
-              1e-7 au). Then add ACTY to V1, and settle A4.
+              1e-7 au). Then add ACTY to V1.
             - More than 42 modes (ACDM, the largest): table columns may run together, as C5 found in CFOUR.
             - A section cut short where nothing is paired (zip(strict=True) covers the rest).
             - get_detected_resonances_g16 raises on jobs without a resonance search (3 VPT2 and 1 DVPT2 file). It should
@@ -519,6 +525,11 @@ A. What parse_from_source returns
     A9  Gaussian atoms: F, S, Cl and Br besides H, C, N, O.
     A10 Gaussian states of an output without the anharmonic IR tables: the block then ends at the next banner.
     C5-C7 and A7-A10: tests/test_output_variants.py.
+    A4  B has 3 values, x, y, z, from both readers, for every molecule; 0 along a linear molecule's axis. Gaussian gave
+        2. The baseline's CO moved for this reason, no other value. Tests: test_b_has_three_values,
+           test_b_of_a_linear_molecule.
+    A14 parse_anharmonic_x_matrix raises ValueError, naming the matrix, when the section lacks one (Coriolis turned
+        off). It was an IndexError. Validation only. Test: test_gaussian_x_matrix_coriolis_turned_off.
     A13 Decided: no name for third dipole derivatives. CFOUR's out file prints them (the "Third" rows of its dipole
         function), but wilson does not ask for them.
 

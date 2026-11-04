@@ -94,6 +94,8 @@ Numbers that changed:
   modes had length 1, and CFOUR's had sum_a m_a |d_a|^2 = 1 with the masses in amu.
 
 Keys:
+- `B` has 3 values (x, y, z) from both readers, for every molecule. For a linear molecule, the one along its axis is 0.
+  Before, Gaussian gave 2 values for a linear molecule.
 - `normal_modes` is `{mode: (atoms, 3) array}` from both readers, with the mode keys of the other keys. Before,
   Gaussian's values were flat (3 x atoms), and CFOUR's keys were its own mode numbers (from 7).
 - A request for `cff` or `cff_rc` returns both. The same for `qff` and `qff_rc`.
@@ -137,7 +139,8 @@ Function calls:
 - The readers print nothing.
 - Validation readers (for comparing with the programs' own VPT2 results): `get_detected_resonances_g16` returns
   (I, J, K) triples (before: `None`); `get_detected_resonances_c4` returns the resonance lines (before: `[]`);
-  `parse_anharmonic_x_matrix` raises when its section is missing (before: empty lists).
+  `parse_anharmonic_x_matrix` raises when its section, or one of the section's matrices, is missing (before: empty
+  lists).
 
 Imports:
 - `CQCParse.parsing` exports only `parse_from_source`. Import the other functions from their module, e.g.

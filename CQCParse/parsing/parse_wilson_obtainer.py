@@ -144,7 +144,7 @@ def parse_gaussian16_output(requested_data: dict,
     decimals, so a small term keeps 1 or 2 digits there (up to 11% off in the example files), while FI keeps them.
 
     Linear molecules (for B and coriolis): decided from the file, from the number of atoms and of vibrational
-    modes (is_linear).
+    modes (is_linear). B has 3 values, x, y, z, as for any molecule, with 0 along the molecule's axis.
 
     Geometry and normal modes: Gaussian prints the geometry in angstrom, with the origin at the center of nuclear
     charge, and each normal mode with length 1. The reader returns them as the CFOUR reader does (parse_from_source):

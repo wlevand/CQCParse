@@ -75,16 +75,15 @@ def parse_coriolis(lines: list[str], nModes: int, linear_molecule: bool = False,
         if linear_molecule:
             if 'E(harm)  E(anharm)' in line:
                 rot_order = [line.strip().split()[-2][-2], line.strip().split()[-1][-2]]
-                cart_lbls = ['x', 'y', 'z']
-                lbls_here = [i for i in cart_lbls if i in rot_order]
-                reorder = [rot_order.index(i) for i in lbls_here]
 
                 next_line = lines[i+1]
                 if 'Equilibrium Geometry' not in next_line:
                     raise ValueError("Cannot get rotational constant at Equilibrium Geometry from file")
-                rotational_constant = [float(i) for i in next_line.split()[2:]]
 
-                rotational_constant = np.array([float(rotational_constant[i]) for i in reorder])
+                # x, y, z as for any molecule: a linear molecule does not rotate about its axis, so 0 there
+                rotational_constant = np.zeros(3)
+                for axis, value in zip(rot_order, next_line.split()[2:], strict=True):
+                    rotational_constant['xyz'.index(axis)] = float(value)
 
                 found_rotational = True
                 break
@@ -927,7 +926,8 @@ def parse_anharmonic_x_matrix(file_lines, reindex_modes: bool = True):
             - 'total_anharmonic': (n, n) array of total anharmonic X matrix values (the sum of the three, within
               the file's print rounding)
             - 'matrix_size': the shape, (n, n)
-    Raises ValueError if the file has no "Anharmonic X Matrix" section.
+    Raises ValueError if the file has no "Anharmonic X Matrix" section, or that section lacks one of its matrices (a
+    run with the Coriolis couplings turned off prints a note where the Coriolis matrix stands).
     """
 
     result = {
@@ -1003,6 +1003,12 @@ def parse_anharmonic_x_matrix(file_lines, reindex_modes: bool = True):
             file_lines, total_start, "end_of_section", "Total Anharmonic X Matrix"
         )
         result['total_anharmonic'] = lower_triangular_to_full_matrix(p)
+
+    titles = {'coriolis_contributions': 'Coriolis contributions', '3rd_deriv_contributions': '3rd Deriv. contributions',
+              '4th_deriv_contributions': '4th Deriv. contributions', 'total_anharmonic': 'Total Anharmonic X Matrix'}
+    missing = [title for key, title in titles.items() if np.ndim(result[key]) != 2]
+    if missing:
+        raise ValueError(f'no matrix for {missing} in the "Anharmonic X Matrix" section')
 
     result['matrix_size'] = result['total_anharmonic'].shape
 

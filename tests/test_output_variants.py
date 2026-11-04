@@ -13,6 +13,7 @@ import pytest
 
 from CQCParse.parsing import parse_from_source
 from CQCParse.parsing.parse_wilson_obtainer import make_cfour_files_dict
+from CQCParse.parsing.parseGaussian_forWilson import parse_anharmonic_x_matrix
 from CQCParse.utils import PKG_ROOT
 
 EXAMPLES = PKG_ROOT + '/CQCParse/files_examples'
@@ -59,6 +60,19 @@ def test_gaussian_without_ir_tables(tmp_path):
     edited, whole = parse('gaussian', path, STATES), parse('gaussian', G16_FORM, STATES)
     for name in STATES:
         assert edited[name] == whole[name]
+
+
+def test_gaussian_x_matrix_coriolis_turned_off(tmp_path):
+    """With the Coriolis couplings turned off, the X matrix section prints a note where the Coriolis matrix stands:
+    the X matrix reader raises and names the matrix."""
+    def edit(text):
+        return re.sub(r'(Coriolis contributions to X Matrix.*?\n).*?( *3rd Deriv\. contributions to X Matrix)',
+                      r'\1 NOTE: Calculations of Coriolis contributions deactivated.\n\n\2', text, count=1, flags=re.DOTALL)
+    path = g16_copy(tmp_path, edit)
+    with open(path) as file:
+        lines = file.readlines()
+    with pytest.raises(ValueError, match='Coriolis contributions'):
+        parse_anharmonic_x_matrix(lines)
 
 
 def test_gaussian_coriolis_turned_off(tmp_path):

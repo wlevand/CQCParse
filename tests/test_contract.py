@@ -68,3 +68,17 @@ def test_property(source, name):
             other[i], other[i + 1] = other[i + 1], other[i]
             pytest.fail(f'{name}: not symmetric in its mode indices, {name}{list(map(int, idx))} = {vals[idx]:.6g}, '
                         f'{name}{list(map(int, other))} = {vals[tuple(other)]:.6g}')
+
+
+@pytest.mark.parametrize('source', list(SOURCES))
+def test_b_has_three_values(source):
+    """B has 3 values, x, y, z, from both readers and for any molecule: wilson's vpt2.coriolis_term takes 0 or 3."""
+    b = np.asarray(parse(source, ['B'])['B'])
+    assert b.shape == (3,), f'B: shape {b.shape}, expected (3,)'
+    assert (b >= 0).all()
+
+
+def test_b_of_a_linear_molecule():
+    """CO lies along z, so it does not rotate about z: B = [B, B, 0], with the 1.873859 cm-1 its output prints."""
+    np.testing.assert_array_equal(parse('g16_CO_HF_STO-3G', ['B'])['B'], [1.873859, 1.873859, 0])
+
