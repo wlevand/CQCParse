@@ -136,6 +136,8 @@ Function calls:
 - `get_cubic_post`, `get_quartic_post` (Gaussian) and `getCubicPost`, `getQuarticPost` (CFOUR): no `recipcm` and
   `reduced` arguments.
 - `get_normal_modes` takes the lines of the file, not its name.
+- `CQCParse.tools.build_polar_pkl`: `getPolarDers` and `pklPoldata` take the reference from `polar_equil/POLAR` when that
+  run exists, else from `anharm/POLAR`. Before: always `anharm/POLAR`, an SCF value in a correlated job.
 - The readers print nothing.
 - Validation readers (for comparing with the programs' own VPT2 results): `get_detected_resonances_g16` returns
   (I, J, K) triples (before: `None`); `get_detected_resonances_c4` returns the resonance lines (before: `[]`);
@@ -177,7 +179,7 @@ New:
   `MOLDEN_TOLERANCE`, `is_linear`, `check_minimum`.
 - `parsing.parseGaussian_forWilson`: `ECKART_TOLERANCE`, `get_masses` (the atomic masses Gaussian used).
 - `parsing.parseCFOUR_forWilson`: `LEVELS_ROW`, `get_reference_structure`.
-- `tools.build_polar_pkl`: `REFERENCE_TOLERANCE`, `polar_derivatives`.
+- `tools.build_polar_pkl`: `REFERENCE_TOLERANCE`, `polar_derivatives`, `reference_folder`.
 
 Install:
 - Needs only numpy, scipy and pandas. `pyproject.toml` is the only install file: `setup.py` and

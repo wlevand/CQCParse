@@ -11,9 +11,15 @@ molecule). The reader takes q as dimensionless normal coordinates (getPolarDers_
 Input: one CFOUR polarizability run per displaced geometry, and the reference (undisplaced) run:
     <polar_dir>/<k>p, <polar_dir>/<k>n               mode k displaced by +h, -h
     <polar_dir>/<k>_<l>pp, _pn, _np, _nn             modes k < l displaced by (+h, +h), (+h, -h), (-h, +h), (-h, -h)
-    <polar_dir>/../anharm/POLAR                      the reference run
+    <polar_dir>/../polar_equil/POLAR                 the reference run; without it, <polar_dir>/../anharm/POLAR
 k and l are CFOUR mode numbers. Each run folder holds POLAR (the polarizability tensor, read by pTensor) and
 outfile0.out (for OMAT). How the displaced geometries were made is not recorded here.
+
+Reference: the polar_equil run has the settings of the displaced runs (PROPS=SECOND_ORDER). An anharmonic job does not
+ask for them, so in a correlated job its POLAR holds an SCF polarizability. Example, formamide CCSD(T)/cc-pVQZ, mean of
+xx, yy, zz: displaced runs 25.1168 au, polar_equil/POLAR 25.1167 au, anharm/POLAR 23.0787 au. In HF, SCF is the method, so
+anharm/POLAR fits. With ANH_ALGORITHM=STANDARD, the job's POLAR, MOLDEN and QUADRATURE also hold its last displaced
+geometry, so do not start displaced runs from them. The check below refuses a reference that does not fit.
 
 Rotation: CFOUR puts each displaced geometry in its own orientation and prints the rotation in outfile0.out
 (OMAT, "QCOM = OMAT * QCOMP", printed with PRINT_LEVEL=1). Each displaced tensor is rotated back:
@@ -154,7 +160,8 @@ def polar_derivatives(rotated: dict, reference: np.ndarray, step: float = STEP) 
         worst = ', '.join(f'{k}_{m} {gap:.2g}' for (k, m), gap in sorted(gaps.items(), key=lambda x: -x[1])[:5])
         raise ValueError(f'the reference polarizability does not fit the displaced runs: {len(gaps)} of '
                          f'{len(modes) * (len(modes) - 1) // 2} mode pairs give another reference (largest gaps, au: '
-                         f'{worst}). The reference, or those pair runs, come from another calculation.')
+                         f'{worst}). The reference, or those pair runs, come from another calculation. Without a '
+                         'polar_equil run the reference is anharm/POLAR, which is an SCF value in a correlated job.')
 
     first = np.array([(rotated[f'{k}p'] - rotated[f'{k}n']) / (2 * step) for k in modes])
 
@@ -172,13 +179,19 @@ def polar_derivatives(rotated: dict, reference: np.ndarray, step: float = STEP) 
     return first, second
 
 
+def reference_folder(polar_dir: str) -> str:
+    """The folder of the reference run: polar_equil next to polar_dir if it holds POLAR, else anharm (module docstring)."""
+    folder = polar_dir + '/../polar_equil'
+    return folder if os.path.exists(folder + '/POLAR') else polar_dir + '/../anharm'
+
+
 def getPolarDers(polar_dir: str):
     """
     Computing polarizability derivatives
     :param polar_dir: where the displaced runs are (see the module docstring)
     :return: first, second (polar_derivatives)
     """
-    reference_file = polar_dir + '/../anharm/POLAR'
+    reference_file = reference_folder(polar_dir) + '/POLAR'
     logger.info(f'reference polarizability: {reference_file}')
     return polar_derivatives(getDisplacementsPolarData(polar_dir), pTensor(reference_file))
 
@@ -207,8 +220,9 @@ def pklPoldata(polar_dir):
     allpolardata = getDisplacementsPolarData(polar_dir)
     rawdata = getDisplacementsPolarData(polar_dir, raw=True)
 
-    poldataeq = pTensor(polar_dir + '/../anharm/POLAR')
-    R = getRotationMatrix(polar_dir + '/../anharm/outfile0.out')
+    reference = reference_folder(polar_dir)
+    poldataeq = pTensor(reference + '/POLAR')
+    R = getRotationMatrix(reference + '/outfile0.out')
     temp = np.einsum('ij,jk->ik', R.T, poldataeq)
     alpha_prime = np.einsum('ij,jk->ik', temp, R)
     allpolardata['equil'] = alpha_prime

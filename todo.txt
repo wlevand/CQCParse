@@ -91,7 +91,7 @@ Wrong numbers:
             angles). No new runs for now.
     R7      [decide] METH CCSD(T)/cc-pVDZ and cc-pVTZ: do not use polgrad, polhess, geometry or normal modes. polhess is
             about 20,000 to 40,000 times too large, and polgrad up to 50% off on one mode. No new runs for now. Open
-            without runs: a tool fix, a check, and whether the reader should refuse these files.
+            without runs: a check, and renaming the two files.
 Checks that stay:
     V1      The one-off checks above as a test over the raw outputs.
     V2      Low value: Gaussian diphess, and polhess of both programs, file by file.
@@ -133,7 +133,7 @@ or the numbers now; do targeted cleanups such as R4 instead).
 
 Tests
 -----
-    pass 390, xfail 0, fail 0 (tests/, 390 tests, about 5 s; 11 are the baseline, T2; 133 the contract test, T3).
+    pass 394, xfail 0, fail 0 (tests/, 394 tests, about 5 s; 11 are the baseline, T2; 133 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
@@ -309,12 +309,13 @@ are here. How many digits each value the readers use has in the file:
         Their output has 21 harmonic analyses; QUADRATURE matches only the last, and MOLDEN is the reference minus 0.05
         along mode 18, within 1e-9 bohr. cc-pVQZ used PARALLEL: 1 analysis. CFOUR's docs do not say what these files
         hold after such a job.
-        1. Reference. getPolarDers reads anharm/POLAR (build_polar_pkl.py). Here that file holds an SCF polarizability:
-           it equals the last of the 21 "SCF static dipole polarizability" blocks in the out file, within 6e-7 au. The
-           displaced runs use PROPS=SECOND_ORDER. Mean of xx, yy, zz, reference against displaced runs: 15.84 and 16.05
-           au (cc-pVDZ), 17.62 and 18.12 au (cc-pVTZ). FOMA shows which is right: displaced runs 25.1168 au,
-           polar_equil/POLAR 25.1167 au, anharm/POLAR and POLARSCF 23.0787 au. Each diagonal polhess term takes the gap
-           divided by h^2 = 1e-4: 6.0e1 au (cc-pVDZ) and 1.2e2 au (cc-pVTZ), against 2.9e-3 for cc-pVQZ and B3LYP.
+        1. Reference. polar.pkl took anharm/POLAR (getPolarDers no longer does: see Done). Here that file holds an SCF
+           polarizability: it equals the last of the 21 "SCF static dipole polarizability" blocks in the out file,
+           within 6e-7 au. The displaced runs use PROPS=SECOND_ORDER. Mean of xx, yy, zz, reference against displaced
+           runs: 15.84 and 16.05 au (cc-pVDZ), 17.62 and 18.12 au (cc-pVTZ). FOMA shows which is right: displaced runs
+           25.1168 au, polar_equil/POLAR 25.1167 au, anharm/POLAR and POLARSCF 23.0787 au. Each diagonal polhess term
+           takes the gap divided by h^2 = 1e-4: 6.0e1 au (cc-pVDZ) and 1.2e2 au (cc-pVTZ), against 2.9e-3 for cc-pVQZ
+           and B3LYP.
         2. Geometry and modes. The displaced runs start from MOLDEN_f and QUADRATURE_f, copies of that last MOLDEN and
            QUADRATURE. Their center is 0.0077 bohr from the reference structure (q18 = -0.05, the default ANH_STEPSIZE).
            QUADRATURE's frequencies are up to 81 cm-1 (cc-pVDZ) and 89 cm-1 (cc-pVTZ) from the out file's, and its modes
@@ -338,10 +339,10 @@ are here. How many digits each value the readers use has in the file:
         normcoord's vibrations have no rigid motion of the reference (overlap 4e-6; QUADRATURE's lowest mode 32-44%).
         Do not use POLAR, MOLDEN, QUADRATURE there. DIPDER, FCMFINAL, NORMCO: not checked.
         Possible now, without new runs:
-            - getPolarDers: read polar_equil/POLAR, not ../anharm/POLAR (and the module docstring with it).
             - V1: check that a polar set's center and modes are the reference's.
-            - [decide] The reader still returns these wrong numbers with no error. Proposal: refuse a polar.pkl that
-              does not fit the polarData_raw.pkl next to it (polar_derivatives' check). That covers both folders.
+            - [decide] The reader still returns these wrong numbers with no error, and polar.pkl alone cannot show it.
+              Proposal: rename the two files, so that the reader raises file not found. That changes the raw data, so it
+              is the data owner's step. A reader check would be code for two known files.
         For when runs are possible:
             a) Rerun (proposal): 288 displaced runs per basis at the reference structure (cartcoord), along normcoord's
                modes in dimensionless units (d / sqrt(w_au * 1822.888); checked on FOAC), and one polar_equil run per
@@ -544,6 +545,10 @@ R. Precision
         Gaussian unit lines are checked (Debye, a.u.). The *_simple names dropped; convNu2Ene deleted.
     R5  Where polar.pkl comes from: the docstring of CQCParse/tools/build_polar_pkl.py.
         test_rebuild_polar_pkl rebuilds polar.pkl from polarData_raw.pkl in 3 folders.
+    R7  (tool part) getPolarDers and pklPoldata take the reference from polar_equil/POLAR when that run exists, else
+    from
+        anharm/POLAR (reference_folder). METH cc-pVQZ rebuilt from its real runs: polar.pkl exactly. METH cc-pVDZ,
+        cc-pVTZ and ACTY raise, as they should: they have no polar_equil run.
     R6  build_polar_pkl checks the reference polarizability against its estimate from each mode pair's displaced
         runs (REFERENCE_TOLERANCE): a reference from another calculation went into every diagonal term of polhess,
         divided by h^2, with no error. Tests: test_reference_from_another_calculation and
