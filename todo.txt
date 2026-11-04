@@ -25,7 +25,7 @@ Where things stand (measured at 691eccb; long evidence for the items below: this
 Gaussian, 93 .out files: 78 read. 15 raise a clear error (14 have no anharmonic results, 1 has an imaginary frequency).
 CFOUR, 34 folders: 11 hold a finished run (9 results, 2 copies) and read. 23 raise a clear error. ACTY also reads.
 
-Checked against what each file prints, with one-off scripts (V1 makes them a test):
+Checked once against what each file prints, with one-off scripts that are not in the repo:
     Value                           Compared with                   Result
     nc_sqrt_eigval                  harmonic table                  0.0005 cm-1
     dipgrad                         IR intensities                  1e-4 relative
@@ -56,25 +56,25 @@ wilson uses this branch through wilson_gv's branch cqcparse_cleanup. Neither is 
 
 What needs doing, in order
 --------------------------
-After each change that moves a number: CQCParse's tests, the baseline (T2), V1, and wilson's tests (T6).
+After each change that moves a number: CQCParse's tests, the baseline (T2), and wilson's tests (T6).
 
-Wrong data:
-    R7      [decide] METH CCSD(T)/cc-pVDZ, cc-pVTZ: wrong polgrad, polhess, geometry, normal modes. No new runs for now.
+Wrong data, outside this repo (no code to change here; the repo's examples are not affected):
+    R7      METH CCSD(T)/cc-pVDZ, cc-pVTZ: wrong polgrad, polhess, geometry, normal modes. No new runs for now.
     R8      FOAC CCSD(T)/cc-pVQZ: all data at a geometry that is not a minimum. No new runs for now.
-Checks that stay:
-    V1      The one-off checks as a test over the raw outputs.
-    V2      Low value: Gaussian diphess, and polhess of both programs, file by file.
 Other cases:
     A11     [decide] Outputs with harmonic results only.
     A12     Other elements, high symmetry, more modes.
 Finish:
-    T11     [wilson] Commit on cqcparse_cleanup: test_eval_molsys_data re-pinned for N3.
+    Merge   wilson_gv PR #72 (cqcparse_cleanup) first, then CQCParse PR #5 (this branch). Both are drafts. Neither main
+            has commits of its own since these branches started.
+    S1      [decide] A smaller package, after the merge.
+On wilson's side, not needed for the merge:
     V3      [wilson] Every readable output through wilson's own load.
     T10     [wilson] wilson's obtainer: two choices, then one more test.
-    Merge   wilson_gv's cqcparse_cleanup first, then this branch.
-    S1      [decide] A smaller package, after the merge.
 
 Outside the goal (do when needed):
+    V1      The one-off checks as tests. Left out for now: the results are in the table above.
+    V2      Gaussian diphess, and polhess of both programs, file by file. Low value.
     R2      [decide] Force constants Gaussian leaves out below a cut-off.
     X1      [decide] Rules for using CFOUR and Gaussian data together.
     A3      The names 'geo' and 'linear'.
@@ -116,9 +116,9 @@ Rules
   
   wilson imported more, without using it: the 7 classes deleted in L1 (wilson_intensities/utils/utils.py)
       and DataVault (src/wilson_suite/parsing.py, script_example.py). Those lines are gone in wilson_gv's branch
-      cqcparse_cleanup (L1), not yet on wilson main. Also CQCParse.debug, deleted with the dead code: wilson
-      main imports it in integration/test_termND_evaluations.py, which PR #69 deletes. Commented-out code still
-      names them (wilson_intensities/tests/conftest.py, tests/evv_tester*.py): harmless.
+      cqcparse_cleanup (L1), not yet on wilson main. Also CQCParse.debug, deleted with the dead code: PR #69 deleted its
+      last user on wilson main. Commented-out code still names them (wilson_intensities/tests/conftest.py,
+      tests/evv_tester*.py): harmless.
 
 - The dict fits wilson's contract (wilson D5): properties in au (plain derivatives in mass-weighted coordinates);
   frequencies, state energies, cff_rc and qff_rc in cm-1; mode indices first, then x, y, z; modes 0 .. n-1;
@@ -169,9 +169,7 @@ T. Tests and baseline
 
 V. Checks on the raw outputs
 ----------------------------
-[ ] V1  Turn the one-off checks into a test over the raw outputs. It takes the raw folder from an environment variable,
-        so no path enters the repo, and is skipped when the variable is not set. It runs the table under "Where things
-        stand", plus each anharmonic job's gradient norm and rotations (these catch R8).
+[ ] V1  Outside the goal, left out for now: the one-off checks as tests. Only worth it if the readers change a lot.
         Formulas: IR = 974.864 * 1822.888 * |dipgrad[k]|^2 km/mol. Raman = 0.529177^4 * 1822.888 * (45 a^2 + 7 g^2).
 [ ] V2  Low value. Gaussian diphess, and polhess of both programs, have no printed copy to compare with. The anharmonic
         intensities depend on them, so a VPT2 intensity formula could test them.
@@ -191,14 +189,16 @@ A. What parse_from_source returns
         Nothing reads these fields today. Choose then: CQCParse returns those names, or wilson maps them.
 [ ] A11 [decide] Outputs with harmonic results only raise an error. wilson cannot use them, because it always asks for
         anharmonic_states. Proposal: keep the error unless there is a use for the data.
-[ ] A12 Same layout, other molecules. The raw outputs do not contain these cases, so nothing tests them:
+[ ] A12 Same layout, other molecules. Not needed for the merge. No raw output has the first four cases, so nothing tests
+        them:
             - Elements other than H, C, N, O, F, S, Cl, Br: get_equil_geo raises. Use the whole periodic table.
             - A CFOUR dipole file empty by symmetry: pDipole raises. Zeros are the right answer.
             - More than 42 modes: table columns may run together, as C5 found in CFOUR.
             - A section cut short where nothing is paired.
-            - get_detected_resonances_g16 raises on jobs without a resonance search. It should return []. Validation
+        Also, from the raw outputs:
+            - get_detected_resonances_g16 raises on 4 jobs without a resonance search. It should return []. Validation
               only.
-            - ACTY (linear, 7 modes) reads. Add it to V1. Its polar.pkl needs a polar_equil run or the runs' own
+            - ACTY (linear, 7 modes) reads, but has no polar.pkl: that needs a polar_equil run or the runs' own
               estimate.
 
 
@@ -221,7 +221,7 @@ are here. How many digits each value the readers use has in the file:
         cc-pVDZ also has 9 cancelled polar runs.
         Correct in these folders: out file, cubic, quartic, dipole files, coriolis, and on the cluster cartcoord,
         normcoord.
-        Next: no new runs for now. [decide] Rename the two polar.pkl files, so that the reader raises an error.
+        Next: nothing in this repo. No new runs for now.
         Later: rerun the 288 displaced runs per basis from cartcoord and normcoord, one polar_equil run per basis.
 [ ] R8  FOAC CCSD(T)/cc-pVQZ: all data belong to a geometry that is not a minimum. Do not treat them as equilibrium
         data.
@@ -307,6 +307,7 @@ T. Tests and baseline
     T6  wilson_gv: wilson's reference values rewritten for R1's cff (evv_reference.json,
         grid_reference.npz). Coefficients moved by up to 2.1e-5 of the largest one, spectra by up to 1.1e-4 of the
         largest amplitude. It needs CQCParse from 2ca6fa6 (C3 + R1) on.
+    T11 wilson_gv: test_eval_molsys_data re-pinned for N3 (normal_modes[0] as dx/dQ, (atoms, 3)): commit 59ef6fb.
     T8  wilson_gv: test_eval_molsys_data (refac_rsp_eval/tests/test_integration.py) pins the
         5-decimal normal_modes[0] of N2 (re-pinned for N3: T11).
     T9  wilson_gv: the per-mode references relabeled for N1's mode order (25 tests had failed).
