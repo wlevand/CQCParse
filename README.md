@@ -4,193 +4,87 @@
 
 # CQCParse
 
-CQCParse is a Python package for Parsing of Computational Quantum Chemistry (**CQC**) prorgram outputs.
+Python package for reading the results of anharmonic frequency jobs (VPT2, second-order vibrational perturbation
+theory) from two Computational Quantum Chemistry (**CQC**) programs: Gaussian 16 and CFOUR.
 
 ## Key features
 
-- Reads the results of anharmonic (VPT2) frequency jobs into one Python dict, with one function,
-  `parse_from_source`:
-  - Gaussian 16: the `.out` file of an `Opt` + `Freq=(Anharmonic,ReadAnharm)` job
-  - CFOUR: the folder of an anharmonic run (`out`, `cubic`, `quartic`, `dipolex`/`y`/`z`, `polar.pkl`,
-    `MOLDEN`). `polar.pkl` is not a CFOUR file: `CQCParse.tools.build_polar_pkl` builds it from separate
-    polarizability runs at displaced geometries. Without `out`, the reader takes `outfile0.out`; without
-    `polar.pkl`, `pol/polar.pkl`.
-- Not general: made for the outputs of these job types (examples in `CQCParse/files_examples`).
-- What it reads:
-  - harmonic and anharmonic vibrational states (cm-1) and harmonic frequencies
-  - rotational constants and Coriolis couplings
-  - first and second derivatives of the dipole moment and of the polarizability (atomic units)
-  - cubic and quartic force constants, in atomic units and in cm-1
-  - equilibrium geometry, atoms and normal modes
-- The same keys, shapes and units from both programs for everything above. Modes are numbered 0 .. n-1, and each
-  tensor has every index order filled. Atomic units, but frequencies, state energies, `B`, `cff_rc` and `qff_rc` in
-  cm-1: e.g. the geometry in bohr (origin at the center of mass), and each normal mode as the displacement per unit
-  normal coordinate, dx/dQ.
-- One mode order: both programs' results number the modes by ascending harmonic frequency, in every key. Gaussian
-  numbers most of its output in another order; the reader renumbers it (`reindex_modes=False` keeps Gaussian's
-  order). Two close modes can still swap between methods, so mode k from two results can be a different vibration;
-  see `parse_from_source`'s docstring.
-- The equilibrium geometry is in the frame of the normal modes, so the two can be drawn together.
+- One function, `parse_from_source`, with one Python dict as the result.
+- The same keys, shapes and units from both programs, except `modes_mapping`.
+- Modes numbered by ascending harmonic frequency in every key.
+- An error instead of wrong or empty data, e.g. for a missing section or an imaginary frequency.
 
 ## Installation
 
-### From source
-1. Get source code
-2. Prepare the environment
-3. Install
+Python 3.12 or newer.
 
 ```
 git clone git@github.com:wlevand/CQCParse.git
 cd CQCParse
-<make env>
+python3 -m venv .venv
+source .venv/bin/activate
 pip install .
 ```
 
 ## Quick start
 
+From the repository root:
+
 ```python
 from CQCParse.parsing import parse_from_source
 
 data = parse_from_source(
-    requested_data=dict.fromkeys(['nc_sqrt_eigval', 'anharmonic_states', 'cff', 'diphess']),
-    source_type='gaussian',     # or 'cfour', with the folder of the run as base_file_loc
+    requested_data=['nc_sqrt_eigval', 'anharmonic_states', 'cff', 'diphess'],
+    source_type='gaussian',
     base_file_loc='CQCParse/files_examples/dftGaussian/FORM/HFcc_pVTZ/g16_inputFull_3q.out',
-    lvl_theory='HF', basis_set='cc-pVTZ')
+    lvl_theory='HF', basis_set='cc-pVTZ')     # required arguments, no effect on the result
 
 data['nc_sqrt_eigval'][0]          # 1337.151: harmonic frequency of mode 0 (the lowest), cm-1
 data['anharmonic_states'][('0',)]  # 1320.251: anharmonic fundamental of mode 0, cm-1
-data['cff'].shape                  # (6, 6, 6): cubic force constants in atomic units; data['cff_rc'] in cm-1
+data['cff'].shape                  # (6, 6, 6): cubic force constants in atomic units
 data['diphess'].shape              # (6, 6, 3): mode, mode, then x, y, z
 ```
 
-## Changes
+## Inputs
 
-What changed for code written against the earlier `main` (up to commit 4e16cf4).
+| Program | `source_type` | `base_file_loc` |
+|---|---|---|
+| Gaussian 16 | `'gaussian'` | `.out` file of an `Opt` + `Freq=(Anharmonic,ReadAnharm)` job |
+| CFOUR | `'cfour'` | folder of an anharmonic run, with `out`, `cubic`, `quartic`, `dipolex`, `dipoley`, `dipolez`, `polar.pkl`, `MOLDEN` |
 
-Mode order:
-- Both readers number the modes by ascending harmonic frequency, in every key. So Gaussian values come with
-  other mode labels than before (Gaussian's `normal_modes` excepted). Example, formaldehyde HF/cc-pVTZ: mode 0
-  was 3084.24 cm-1, now it is 1337.151 cm-1.
-- `parse_from_source(..., reindex_modes=True)` is the new default. `reindex_modes=False` keeps Gaussian's own
-  order in every key, `normal_modes` included. The result's `'reindex_modes'` tells which order you got. CFOUR
-  needs no renumbering, so its `'reindex_modes'` is always `False`.
-- `parse_gaussian16_output` takes `reindex_modes` too, and so do the validation readers (below).
+- No other job types. Examples: `CQCParse/files_examples`.
+- `polar.pkl`: not a CFOUR file, but the output of `CQCParse.tools.build_polar_pkl`, from polarizability runs at
+  displaced geometries.
 
-Numbers that changed:
-- CFOUR `qff` was too large: the reader divided CFOUR's values in cm-1 by amu^2 only. The factor per term was
-  Eh^3 / (amu^2 sqrt(nu_i nu_j nu_k nu_l)), with Eh = 219474.63 cm-1, amu = 1822.888 electron masses and nu the
-  harmonic wavenumbers (cm-1) of the term's modes: about 350 when all four modes are near 3000 cm-1. Fixed.
-- Gaussian `cff` and `qff` are converted from the force constants in cm-1 (column FI of the output), no longer
-  read from column K, which has only 5 decimals. Each term moved by about the rounding of column K.
-- CFOUR `diphess`, `qff` and `qff_rc`: the files list some values twice, once per index order. The reader returns
-  the mean of the two. Before, `diphess` was not symmetric, and for `qff` the later line won. Each value moved by
-  half the gap between the two, which comes from the precision of CFOUR's numerical derivatives.
-- Gaussian `normal_modes` are read from the 5-decimal table when the file has it (`Freq=HPModes`; before: always
-  the 2-decimal one). The printed values used moved by up to 0.005.
-- `equilibrium_geometry` is in bohr with the origin at the center of mass, from both readers. Gaussian: before in
-  angstrom, with the origin at the center of nuclear charge.
-- `normal_modes`: each mode is the displacement per unit normal coordinate, dx/dQ in atomic units (m_e^(-1/2)), so
-  sum_a m_a |d_a|^2 = 1 with the masses in electron masses (`CQCParse.utils.normal_modes_au`). Before, Gaussian's
-  modes had length 1, and CFOUR's had sum_a m_a |d_a|^2 = 1 with the masses in amu.
+## Returned data
 
-Keys:
-- `B` has 3 values (x, y, z) from both readers, for every molecule. For a linear molecule, the one along its axis is 0.
-  Before, Gaussian gave 2 values for a linear molecule.
-- `normal_modes` is `{mode: (atoms, 3) array}` from both readers, with the mode keys of the other keys. Before,
-  Gaussian's values were flat (3 x atoms), and CFOUR's keys were its own mode numbers (from 7).
-- A request for `cff` or `cff_rc` returns both. The same for `qff` and `qff_rc`.
-- CFOUR results have the key `'reindex_modes'`, like Gaussian results.
-- CFOUR returns `harmonic_states` only when the request has `harmonic_states` or `nc_sqrt_eigval`.
+Names for `requested_data`, with n the number of vibrational modes:
 
-Errors instead of wrong or empty results (before: zeros, empty arrays, `None` or a missing key):
-- An unknown name in `requested_data`, or an unknown `source_type`: `ValueError`.
-- A section missing from a file: `ValueError` with the section's name.
-- A section cut short, where the reader pairs two lists.
-- Gaussian unit lines other than Debye or a.u.
-- A Gaussian geometry not in the frame of the normal modes.
-- A harmonic frequency that is not positive (an imaginary one; the geometry is not a minimum). Before, the data
-  came with no error.
-- CFOUR: `equilibrium_geometry` and `normal_modes` from a `MOLDEN` whose geometry is not the out file's reference
-  structure (another geometry, or other axes).
-- `CQCParse.tools.build_polar_pkl`: a reference polarizability that does not fit the displaced runs (from another
-  calculation). Its error would go into every diagonal second derivative, divided by the step squared.
-- A reader's error keeps its type, with a note that names the file.
+| Name | Content | Form | Unit |
+|---|---|---|---|
+| `nc_sqrt_eigval` | harmonic frequencies | `{mode: value}` | cm-1 |
+| `harmonic_states`, `anharmonic_states` | state energies relative to the ground state | `{state label: value}` | cm-1 |
+| `B` | rotational constants along x, y, z | `(3,)` | cm-1 |
+| `coriolis` | Coriolis zeta, by axis, mode, mode | `(3, n, n)` | none |
+| `dipgrad`, `diphess` | first and second derivatives of the dipole moment | `(n, 3)`, `(n, n, 3)` | atomic units |
+| `polgrad`, `polhess` | first and second derivatives of the polarizability | `(n, 3, 3)`, `(n, n, 3, 3)` | atomic units |
+| `cff`, `qff` | cubic and quartic force constants | `(n, n, n)`, `(n, n, n, n)` | atomic units |
+| `cff_rc`, `qff_rc` | the same, by dimensionless normal coordinates | `(n, n, n)`, `(n, n, n, n)` | cm-1 |
+| `equilibrium_geometry` | Cartesian coordinates, origin at the center of mass | `(atoms, 3)` | bohr |
+| `atoms` | element symbols | list | none |
+| `normal_modes` | displacement per unit normal coordinate, dx/dQ | `{mode: (atoms, 3) array}` | m_e^(-1/2) |
+| `modes_mapping` | Gaussian only: Gaussian's mode numbers to the ascending ones, both from 1 | `{int: int}` | none |
 
-Requests that failed before and work now:
-- Gaussian: `B`, `coriolis` or a force constant without `nc_sqrt_eigval` in the same request.
-- Gaussian: the states of an output without the anharmonic IR tables.
-- Gaussian: the atoms F, S, Cl and Br.
-- CFOUR: a run folder without `MOLDEN`, for every name but the geometry and the normal modes.
-- CFOUR: a run folder with `outfile0.out` and `pol/polar.pkl` instead of `out` and `polar.pkl`.
-- CFOUR: an out file whose levels table has values run together (a value that fills its whole fixed-width
-  column has no blank before it).
-- Gaussian: the geometry of the ACAC and ACDM examples, and the normal modes of the ACAC, ACDM and CO examples.
-  The geometry is always the one of the frequencies, in the frame of the normal modes. For ACAC, the reader takes
-  it from the anharmonic analysis: the last orientation block in that file is the start of an optimization.
+- Mode numbers: 0 .. n-1.
+- Derivatives in atomic units, `cff` and `qff`: by mass-weighted normal coordinates.
+- State label: mode numbers as strings, one per quantum, in numeric order, e.g. `('0',)`, `('0', '0')`, `('2', '10')`.
+- Details: docstring of `parse_from_source`.
 
-Function calls:
-- `parse_from_source`: `linear` is ignored and gives a `DeprecationWarning`. Both readers find out from the file
-  whether the molecule is linear.
-- `parse_cfour_output`: no `linear_molecule` argument.
-- `CQCParse.logger.setup_logger`: no `use_rich` and `no_color` arguments.
-- `get_cubic_post`, `get_quartic_post` (Gaussian) and `getCubicPost`, `getQuarticPost` (CFOUR): no `recipcm` and
-  `reduced` arguments.
-- `get_normal_modes` takes the lines of the file, not its name.
-- `CQCParse.tools.build_polar_pkl`: `getPolarDers` and `pklPoldata` take the reference from `polar_equil/POLAR` when that
-  run exists, else from `anharm/POLAR`. Before: always `anharm/POLAR`, an SCF value in a correlated job.
-- The readers print nothing.
-- Validation readers (for comparing with the programs' own VPT2 results): `get_detected_resonances_g16` returns
-  (I, J, K) triples (before: `None`); `get_detected_resonances_c4` returns the resonance lines (before: `[]`);
-  `parse_anharmonic_x_matrix` raises when its section, or one of the section's matrices, is missing (before: empty
-  lists).
+## Cautions
 
-Imports:
-- `CQCParse.parsing` exports only `parse_from_source`. Import the other functions from their module, e.g.
-  `from CQCParse.parsing.parseGaussian_forWilson import get_normal_modes`.
-- `CQCParse` exports only `parsing`, `relay` and `utils`.
+No error in these cases:
 
-Removed:
-- The class-based parsers, with the modules `parser_template`, `gaussian_parser` and `cfour_parser`:
-  `GaussianParser`, `GaussianOutput`, `CFOURParser`, `CFOUROutput`, `GaussianDataParser`, `CFOURdataParser`,
-  `ParsedData`, `DataStorage`, `Parser`, `OutputFiles`.
-- The modules `CQCParse.debug`, `parsing.simple_parsed_data`, `parsing.mockparser`, `parsing.filesparser`,
-  `parsing.parseGaussian_extra`, `parsing.parseCFOUR_extra`, `relay.relay_data` (with `DataVault`),
-  `relay.retrieve_data` and `relay.wilson_data_obtainer`.
-- Unused functions:
-  - `parsing.parseGaussian_forWilson`: `get_allStates_fromParsedResults`, `GHz2Nu`, `nm_floats`,
-    `nm_matrix_check`, `nm_parse_lines`, `normal_modes_prec`, `parse_frequencies`, `parse_frequencies_v2`,
-    `parse_rot_const`, `remove_extra_g16`, `reordered_modes`
-  - `parsing.parseCFOUR_forWilson`: `convNu2Ene`, `GHz2Nu`, `getDipoleDers`, `pklCubic`,
-    `pklDimless_normal_modes`, `pklDipole`, `pklOutFile`
-  - `utils`: `change_idx_modes`, `change_idx_states`, `convNu2Ene`, `make_modes_idx`
-  - `relay.modes_reindexing`: `clean_noise`, `reindex_result_data`
-
-Renamed or moved:
-- `getDipoleDers_anharm_au_simple` -> `getDipoleDers_anharm_au`, `getPolarDers_pkl_au_simple` ->
-  `getPolarDers_pkl_au` (CFOUR reader).
-- The `polar.pkl` builder moved from the CFOUR reader to `CQCParse.tools.build_polar_pkl`: `pklPoldata`,
-  `pklPolder`, `getPolarDers`, `getDisplacementsPolarData`, `getRotationMatrix`, `pTensor`.
-
-New:
-- `CQCParse.utils`: `reduced_to_au`, `dimensionless_to_mass_weighted` and `normal_modes_au` (the unit
-  conversions, with worked examples in their docstrings), `center_of_mass_frame`, `HARTREE_CM`, `AMU_IN_ME`,
-  `BOHR_ANGSTROM`.
-- `parsing.parse_wilson_obtainer`: `SOURCE_TYPES`, `KNOWN_NAMES`, `REINDEXED_TENSORS`, `REINDEXED_DICTS`,
-  `MOLDEN_TOLERANCE`, `is_linear`, `check_minimum`.
-- `parsing.parseGaussian_forWilson`: `ECKART_TOLERANCE`, `get_masses` (the atomic masses Gaussian used).
-- `parsing.parseCFOUR_forWilson`: `LEVELS_ROW`, `get_reference_structure`.
-- `tools.build_polar_pkl`: `REFERENCE_TOLERANCE`, `polar_derivatives`, `reference_folder`.
-
-Install:
-- Needs only numpy, scipy and pandas. `pyproject.toml` is the only install file: `setup.py` and
-  `requirements.txt` are gone.
-
-Speed:
-- Large Gaussian files load several times faster.
-
-Example files (`CQCParse/files_examples`):
-- New: formaldehyde HF/cc-pVTZ from both programs (`dftGaussian/FORM/HFcc_pVTZ`, `refinedc4/HFcc_pVTZ`), and
-  CFOUR HF/cc-pVDZ (`refinedc4/HFcc_pVDZ`).
-- Removed: `calculations.csv`, `polarData.pkl` in `refinedc4/CCSDTcc_pVQZ` and `refinedc4/HFcc_pVQZ`, and
-  `dimensionless.pkl` in `refinedc4/CCSDTcc_pVQZ`. The readers do not need them.
-
+- Mode k in two results, e.g. from two methods: not necessarily the same vibration. Two modes close in frequency
+  possibly in swapped order.
+- Gaussian force constants below Gaussian's print cut-off: absent from the output, so 0 in the result.
+- `coriolis`: same value at (i, j) and (j, i), so usable as zeta^2 only.
