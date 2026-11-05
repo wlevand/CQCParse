@@ -89,7 +89,7 @@ Dropped (see Done): R3 (Coriolis digits) and L3 (the rewrite).
 
 Tests
 -----
-    pass 394, xfail 0, fail 0 (tests/, 394 tests, about 5 s; 11 are the baseline, T2; 133 the contract test, T3).
+    pass 395, xfail 0, fail 0 (tests/, 395 tests, about 5 s; 11 are the baseline, T2; 133 the contract test, T3).
     xfail = a known failure, marked with its todo item (none left since C1). No CQCParse test imports wilson (T5).
 Every test uses only files in the repo, through PKG_ROOT, so the tests run from any folder (T1, see Done).
 wilson's tests (src/, T6). The only place for these counts; the other notes point here.
@@ -230,8 +230,8 @@ are here. How many digits each value the readers use has in the file:
         The reader is right and the files agree with each other. The size of the error needs a new run to measure.
         Next: no new runs for now. Later: one variable per angle, reoptimize, then redo the anharmonic and polar runs.
 [ ] R2  [decide] Outside the goal: the numbers are not in the file. Gaussian leaves out force constants with
-        |K| < 3.71e-5. Formaldehyde loses nothing. Large, floppy molecules may: ACAC prints about 53% of its terms, ACDM
-        27%.
+        |K| < 3.71e-5. Formaldehyde loses nothing. Large, floppy molecules may: ACAC prints about 53% of its cubic terms,
+        ACDM 27%.
         First step, when wilson computes such spectra: rerun ACAC with a lower cut-off and compare.
     R4  Done (with T4), see Done.
     R5  Done: CQCParse/tools/build_polar_pkl.py, see Done.
@@ -278,7 +278,6 @@ rewrite (L3). What can get smaller:
             - Move relay/modes_reindexing.py (47 lines) into parsing/.
             - Remove logger.py; logging.getLogger('CQCParse').setLevel replaces it.
             - Move files_examples (20 MB) to tests/; three wilson scripts use it through PKG_ROOT.
-            - Move README's "Changes" (most of the file) to the merge's text.
 
 
 Done
@@ -368,6 +367,9 @@ A. What parse_from_source returns
         off). It was an IndexError. Validation only. Test: test_gaussian_x_matrix_coriolis_turned_off.
     A13 Decided: no name for third dipole derivatives. CFOUR's out file prints them (the "Third" rows of its dipole
         function), but wilson does not ask for them.
+    A15 State keys in numeric order from both readers (utils.state_key): ('2', '10'). With 10 or more modes, Gaussian wrote
+        ('10', '2') and CFOUR ('2', '10'). The baseline's ACAC and ACDM keys moved for this reason, no value. Tests:
+        test_all_states_up_to_3_quanta (ACAC, ACDM), test_cfour_keys_of_two_digit_modes.
 
 R. Precision
     C3 + R1  One conversion of the force constants to au for both readers: CQCParse.utils.reduced_to_au (its
@@ -431,5 +433,5 @@ Other
         L3 dropped.
     Examples  Formaldehyde HF/cc-pVTZ in both programs (refinedc4/HFcc_pVTZ, dftGaussian/FORM/HFcc_pVTZ): the
         CFOUR-Gaussian pair for T4.
-    Cleanup   Dead code, the install, bad input, the example files; what changed for users: README, "Changes".
+    Cleanup   Dead code, the install, bad input, the example files; what changed for users: the text of PR #5.
         Its own list, todo_cleanup.txt, is deleted; the full entries are in that file's git history.

@@ -4,6 +4,7 @@ The checks use counting and the physics of the states, not values CQCParse retur
     test_all_states_up_to_3_quanta  every state up to 3 quanta is there, with the same keys in both dicts. With n
                                     modes: n states of 1 quantum, n(n+1)/2 of 2 and n(n+1)(n+2)/6 of 3, e.g.
                                     formaldehyde (n = 6): 6 + 21 + 56 = 83
+    test_cfour_keys_of_two_digit_modes  CFOUR keys in numeric order, as Gaussian's: ('2', '10')
     test_harmonic_sum_rule          a harmonic state is the sum of its modes' harmonic frequencies, e.g.
                                     ('0', '0', '3') = 2 w0 + w3
     test_anharmonic_3_quanta        each 3-quanta state is what VPT2 gives from the 1- and 2-quanta states
@@ -16,6 +17,7 @@ from collections import Counter
 
 import pytest
 
+from CQCParse.parsing import parse_from_source
 from tests.test_baseline import BASE, SOURCES, parse
 
 C4_SOURCES = [s for s, (kind, *_) in SOURCES.items() if kind == 'cfour']
@@ -24,8 +26,9 @@ G16_FORM_SOURCES = [s for s in SOURCES if s.startswith('g16_FORM')]
 
 def key_of(modes):
     """The key of the state with one quantum per mode in modes, as the readers write it: the mode numbers as
-    strings, sorted as strings. E.g. (3, 0, 0) -> ('0', '0', '3'), (2, 10) -> ('10', '2')."""
-    return tuple(sorted(str(m) for m in modes))
+    strings, in numeric order. E.g. (3, 0, 0) -> ('0', '0', '3'), (10, 2) -> ('2', '10'). Written out here, not
+    CQCParse.utils.state_key, so that these tests check the rule. ACAC and ACDM have two-digit modes."""
+    return tuple(str(m) for m in sorted(modes))
 
 
 @pytest.mark.parametrize('source', list(SOURCES))
@@ -38,6 +41,25 @@ def test_all_states_up_to_3_quanta(source):
         missing, extra = sorted(expected - keys), sorted(keys - expected)
         assert not missing and not extra, (f'{states}: {len(missing)} states missing (e.g. {missing[:3]}), '
                                            f'{len(extra)} not expected (e.g. {extra[:3]})')
+
+
+def test_cfour_keys_of_two_digit_modes(tmp_path):
+    """
+    With 10 or more modes, CFOUR keys are in numeric order, as Gaussian's are: ('2', '10'), not ('10', '2'). The CFOUR
+    examples have 6 modes, so a made-up out file: 6 atoms, CFOUR modes 7 .. 18 as vibrations 0 .. 11, and only the
+    lines the reader needs for the states. Rows: I J K L M, NI NJ NK NL NM, anharmonic, intensity, harmonic.
+    """
+    rows = [f'{m} 0 0 0 0 1 0 0 0 0 {1000.0 + m:.3f} 1.000000 {2000.0 + m:.6f}' for m in range(7, 19)]
+    rows += ['17 9 0 0 0 1 1 0 0 0 3000.000 1.000000 4000.000000',        # vibrations 10 and 2
+             '17 9 0 0 0 2 1 0 0 0 5000.000 1.000000 6000.000000']        # vibrations 10, 10 and 2
+    (tmp_path / 'out').write_text('\n'.join([f'Normal coordinate {k}' for k in range(1, 19)]
+                                            + ['All levels with up to three quanta'] + rows
+                                            + ['Electric dipole moment function in dimensionless normal coordinates']))
+    data = parse_from_source(['harmonic_states', 'anharmonic_states'], 'cfour', str(tmp_path), '', '')
+    assert data['harmonic_states'][('2', '10')] == 4000.0
+    assert data['anharmonic_states'][('2', '10', '10')] == 5000.0
+    expected = {key_of([m]) for m in range(12)} | {('2', '10'), ('2', '10', '10')}
+    assert set(data['harmonic_states']) == set(data['anharmonic_states']) == expected
 
 
 @pytest.mark.parametrize('source', list(SOURCES))

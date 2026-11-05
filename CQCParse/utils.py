@@ -12,6 +12,14 @@ AMU_IN_ME = (constants.physical_constants['atomic mass constant'][0]
 BOHR_ANGSTROM = constants.physical_constants['Bohr radius'][0] * 1e10        # 1 bohr in angstrom
 
 
+def state_key(modes) -> tuple[str, ...]:
+    """
+    The key of a state in harmonic_states and anharmonic_states: its mode numbers as strings, one per quantum, in
+    numeric order. E.g. (10, 2) -> ('2', '10'), ('3', '0', '0') -> ('0', '0', '3').
+    """
+    return tuple(str(m) for m in sorted(int(m) for m in modes))
+
+
 def center_of_mass_frame(geometry: np.ndarray, masses: np.ndarray) -> np.ndarray:
     """The geometry (atoms, 3) moved so that its center of mass is at the origin; masses in any unit."""
     masses = np.asarray(masses, dtype=np.float64)

@@ -4,6 +4,8 @@ Claude Opus 4.6
 
 import numpy as np
 
+from CQCParse.utils import state_key
+
 
 def build_permutation(mapping: dict[int, int], nmodes: int) -> np.ndarray:
     """Build array perm such that perm[h] = a (0-indexed).
@@ -25,8 +27,8 @@ def reindex_tensor(tensor: np.ndarray, perm: np.ndarray, mode_axes: list[int]) -
 def reindex_dict(states_dict, mapping):
     """
     Renumber the mode labels of a dict from A to H. mapping: A -> H, counted from 1 (from 0 if it has the key 0).
-    Keys: a mode number (nc_sqrt_eigval), or a state, a tuple of mode numbers as strings sorted as strings, as the
-    readers write them (e.g. ('10', '2'); () for the ground state).
+    Keys: a mode number (nc_sqrt_eigval), or a state (CQCParse.utils.state_key, e.g. ('2', '10'); () for the ground
+    state).
     """
     shift = 0 if 0 in mapping else 1
     to_h = {a - shift: h - shift for a, h in mapping.items()}
@@ -34,7 +36,7 @@ def reindex_dict(states_dict, mapping):
     new_dict = {}
     for key, value in states_dict.items():
         if isinstance(key, tuple):
-            new_dict[tuple(sorted(str(to_h[int(m)]) for m in key))] = value
+            new_dict[state_key(to_h[int(m)] for m in key)] = value
         else:
             new_dict[to_h[key]] = value
     return new_dict

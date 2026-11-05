@@ -72,6 +72,8 @@ def parse_from_source(requested_data: Collection[str],
         modes_mapping returns that table, A to H, both counted from 1.
         Ascending frequency is not a fixed label: two close modes can swap between methods, so mode k of two
         results can be different vibrations.
+    State keys of harmonic_states and anharmonic_states, the same from both readers: the mode numbers as strings, one
+        per quantum, in numeric order (CQCParse.utils.state_key), e.g. ('0', '0') and ('2', '10').
     Geometry and normal modes, the same from both readers, in atomic units:
         equilibrium_geometry  (atoms, 3) in bohr, origin at the center of mass, in the frame of the normal modes
         normal_modes          {mode: (atoms, 3) array}, mode keys as in the other keys; each the displacement per unit
@@ -185,6 +187,7 @@ def parse_gaussian16_output(requested_data: dict,
     needs_freqs = ('harmonic_states', 'anharmonic_states', 'nc_sqrt_eigval', 'B', 'coriolis',
                    'cff', 'cff_rc', 'qff', 'qff_rc')
     if any(k in requested_data for k in needs_freqs):
+        from CQCParse.utils import state_key
 
         from .parse_g16_freqs import get_allStates_from_parsed_freqs, parse_frequencies
         results_log = parse_frequencies(lines=log_lines)
@@ -192,7 +195,7 @@ def parse_gaussian16_output(requested_data: dict,
             raise ValueError('the anharmonic frequency section has no states')
         h_sts, ah_sts = get_allStates_from_parsed_freqs(results_log)
 
-        harmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in h_sts.items()}
+        harmonic_states = {state_key(key): value for key, value in h_sts.items()}
         fund_harm_dict = {k:v for k,v in harmonic_states.items() if len(k)==1}
         len_nmodes = len(fund_harm_dict)
         # harmonic wavenumbers in mode order 0 .. n-1, for the conversion of cff and qff
@@ -200,7 +203,7 @@ def parse_gaussian16_output(requested_data: dict,
         check_minimum(harmonic_cm)
 
         if 'anharmonic_states' in requested_data:
-            anharmonic_states = {tuple(sorted([str(i) for i in key])): value for key, value in ah_sts.items()}
+            anharmonic_states = {state_key(key): value for key, value in ah_sts.items()}
             results['anharmonic_states'] = anharmonic_states
 
         if any(k in requested_data for k in ('harmonic_states', 'nc_sqrt_eigval')):
@@ -375,6 +378,8 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
     if any(k in requested_data for k in needs_out_file):
         import numpy as np
 
+        from CQCParse.utils import state_key
+
         from .parseCFOUR_forWilson import count_normal_coordinates, parse_output_file
         vib_energy_levels_list, _, anharmonic_freqs, _, harmonic_freqs = parse_output_file(files_dict['out_file'])
 
@@ -388,7 +393,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
                              f'expected {nModesStart} .. {n_all_modes} of {n_all_modes} normal coordinates')
 
         harm_states_dict = dict(zip(vib_energy_levels_list, harmonic_freqs, strict=True))
-        harmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in harm_states_dict.items()}
+        harmonic_states = {state_key(i - nModesStart for i in k): v for k, v in harm_states_dict.items()}
         fundamentals_harmonic_int = {int(k[0]):v for k,v in harmonic_states.items() if len(k)==1}
         num_modes = len(fundamentals_harmonic_int)
         # harmonic wavenumbers in mode order 0 .. n-1, for the unit conversion of the properties
@@ -399,7 +404,7 @@ def parse_cfour_output(requested_data: dict, files_dict: str) -> dict:
 
         if 'anharmonic_states' in requested_data:
             anharm_states_dict = dict(zip(vib_energy_levels_list, anharmonic_freqs, strict=True))
-            anharmonic_states = {tuple(str(i-nModesStart) for i in k): v for k, v in anharm_states_dict.items()}
+            anharmonic_states = {state_key(i - nModesStart for i in k): v for k, v in anharm_states_dict.items()}
             results['anharmonic_states'] = anharmonic_states
 
         if any(k in requested_data for k in ('harmonic_states', 'nc_sqrt_eigval')):

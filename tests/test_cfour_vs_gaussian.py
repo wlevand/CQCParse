@@ -20,6 +20,7 @@ import itertools
 import numpy as np
 import pytest
 
+from CQCParse.utils import state_key
 from tests.test_baseline import parse
 
 NAMES = ['nc_sqrt_eigval', 'harmonic_states', 'anharmonic_states', 'B', 'dipgrad', 'diphess', 'polgrad', 'polhess']
@@ -146,7 +147,7 @@ def mapped_states(pair, kind):
     ('2', '2') becomes ('4', '4').
     """
     to_g16 = {c4_mode: m for m, c4_mode in enumerate(pair['perm'])}
-    return {tuple(sorted(str(to_g16[int(i)]) for i in key)): value for key, value in pair['c4'][kind].items()}
+    return {state_key(to_g16[int(i)] for i in key): value for key, value in pair['c4'][kind].items()}
 
 
 def test_harmonic_states(pair):

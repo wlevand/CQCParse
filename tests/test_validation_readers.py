@@ -11,6 +11,7 @@ from CQCParse.parsing.parseGaussian_forWilson import (
     get_detected_resonances_g16,
     parse_anharmonic_x_matrix,
 )
+from CQCParse.utils import state_key
 from tests.test_baseline import BASE, EXAMPLES, SOURCES, parse
 
 GAUSSIAN_SOURCES = [s for s, (kind, *_) in SOURCES.items() if kind == 'gaussian']
@@ -51,7 +52,7 @@ def test_x_matrix_order_matches_states(source):
     def energy(*modes):
         """The anharmonic energy (cm-1) of a state, one quantum per argument: energy(i) is nu_i, energy(i, i) is
         2 nu_i, energy(i, j) is nu_i + nu_j."""
-        return states[tuple(sorted(str(m) for m in modes))]
+        return states[state_key(modes)]
     for n, i in enumerate(nu1_to_nu3):
         assert (energy(i, i) - 2 * energy(i)) / 2 == pytest.approx(x[i, i], abs=5e-3)
         for j in nu1_to_nu3[:n]:
