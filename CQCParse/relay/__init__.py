@@ -1,5 +1,1 @@
-from .relay_data import DataVault
-
-__all__ = [
-    "DataVault",
-]
+"""Mode reindexing between Gaussian's two mode orders: modes_reindexing.py."""
