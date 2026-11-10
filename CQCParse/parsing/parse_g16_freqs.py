@@ -36,9 +36,11 @@ def parse_freq_line(line: str):
 
 def parse_section(lines):
     result = []
+    seen = set()    # for the duplicate check: a scan of result each time took 2 s on ACDM (14189 states)
     for line in lines:
         parsed = parse_freq_line(line)
-        if parsed is not None and parsed not in result:
+        if parsed is not None and parsed not in seen:
+            seen.add(parsed)
             result.append(parsed)
     return result
 
@@ -56,7 +58,6 @@ def extract_sections(lines):
             current = line_strip
             continue
         if 'Dipole strengths (DS) in 10^-40 esu^2.cm^2' in line_strip:
-            print('HELLO')
             return sections
 
         if current:
@@ -70,6 +71,8 @@ def extract_relevant_block(lines):
     Extract the lines between the start and end markers.
     Start markers: "Anharmonic Infrared Spectroscopy" or "Vibrational Energies at Anharmonic Level"
     End marker: "Dipole strengths (DS) in 10^-40 esu^2.cm^2"
+    Without the end marker (an output without the anharmonic IR tables), the block ends at the next "=====" banner:
+    the end of the section that the start marker opens.
     """
     start_markers = [
         "Anharmonic Infrared Spectroscopy",
@@ -92,8 +95,13 @@ def extract_relevant_block(lines):
             end_idx = i
             break
 
-    if start_idx is None or end_idx is None:
-        raise RuntimeError("Could not find start or end markers in file.")
+    if start_idx is None:
+        raise ValueError(f'no anharmonic frequency section: none of {start_markers} found')
+    if end_idx is None:
+        # lines[start_idx] closes the banner around the start marker; the next banner opens the next section
+        end_idx = next((i for i in range(start_idx + 1, len(lines)) if lines[i].strip().startswith('=====')), None)
+    if end_idx is None:
+        raise ValueError(f'end of the anharmonic frequency section not found: {end_marker!r}')
 
     return lines[start_idx:end_idx]
 

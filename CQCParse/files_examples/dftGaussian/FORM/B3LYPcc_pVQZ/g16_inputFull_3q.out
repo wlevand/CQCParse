@@ -2,7 +2,7 @@
 16
  Entering Gaussian System, Link 0=g16
  Initial command:
- /cluster/software/Gaussian/g16_B.01/l1.exe "/cluster/work/users/vle014/5834768/Gau-3937641.inp" -scrdir="/cluster/work/users/vle014/5834768/"
+ /cluster/software/Gaussian/g16_B.01/l1.exe "/cluster/work/users/xxxxxx/xxxxxxx/Gau-3937641.inp" -scrdir="/cluster/work/users/xxxxxx/xxxxxxx/"
  Entering Link 1 = /cluster/software/Gaussian/g16_B.01/l1.exe PID=   3937701.
   
  Copyright (c) 1988-2017, Gaussian, Inc.  All Rights Reserved.
@@ -83,7 +83,7 @@
  Will use up to   16 processors via shared memory.
  %chk=inputFull_3q
  %mem=745MB
- SetLPE:    new flags="-opt 'Tsnet.Node.lindarsharg: ssh' -mp 2 -nodelist 'cib3-10' -opt 'Tsnet.cib3-10.speedfactor: 2' -env GAUSS_MDEF=97648640 -env GAUSS_EXEDIR="/cluster/software/Gaussian/g16_B.01""
+ SetLPE:    new flags="-opt 'Tsnet.Node.lindarsharg: ssh' -mp 2 -nodelist 'xxxxxxx' -opt 'Tsnet.cib3-10.speedfactor: 2' -env GAUSS_MDEF=97648640 -env GAUSS_EXEDIR="/cluster/software/Gaussian/g16_B.01""
  Will use up to    2 processors via Linda.
  ----------------------------------------------------------
  #P B3LYP/cc-pVQZ Opt=VeryTight Int=UltraFine SCF=VeryTight
@@ -2288,7 +2288,7 @@
  No NMR shielding tensors so no spin-rotation constants.
  Leave Link  601 at Tue Jul  9 13:36:27 2024, MaxMem=    97648640 cpu:               2.9 elap:               0.2
  (Enter /cluster/software/Gaussian/g16_B.01/l9999.exe)
- 1\1\GINC-C3-10\FOpt\RB3LYP\CC-pVQZ\C1H2O1\VLE014\09-Jul-2024\0\\#P B3L
+ 1\1\GINC-XXXXX\FOpt\RB3LYP\CC-pVQZ\C1H2O1\XXXXXX\09-Jul-2024\0\\#P B3L
  YP/cc-pVQZ Opt=VeryTight Int=UltraFine SCF=VeryTight\\Title\\0,1\O,0.,
  0.,-0.0118746197\C,0.,0.,1.1860705734\H,0.937414161,0.,1.7728495232\H,
  -0.937414161,0.,1.7728495232\\Version=ES64L-G16RevB.01\State=1-A1\HF=-
@@ -2303,7 +2303,7 @@
  File lengths (MBytes):  RWF=     25 Int=      0 D2E=      0 Chk=      3 Scr=      1
  Normal termination of Gaussian 16 at Tue Jul  9 13:36:29 2024.
  Initial command:
- /cluster/software/Gaussian/g16_B.01/l1.exe "/cluster/work/users/vle014/5834768/Gau-3937641.inp" -scrdir="/cluster/work/users/vle014/5834768/"
+ /cluster/software/Gaussian/g16_B.01/l1.exe "/cluster/work/users/xxxxxx/xxxxxxx/Gau-3937641.inp" -scrdir="/cluster/work/users/xxxxxx/xxxxxxx/"
  Entering Link 1 = /cluster/software/Gaussian/g16_B.01/l1.exe PID=   3938801.
   
  Copyright (c) 1988-2017, Gaussian, Inc.  All Rights Reserved.
@@ -2384,7 +2384,7 @@
  %LindaWorkers=cib3-10:2
  %chk=inputFull_3q
  %mem=745MB
- SetLPE:    new flags="-opt 'Tsnet.Node.lindarsharg: ssh' -mp 2 -nodelist 'cib3-10' -opt 'Tsnet.cib3-10.speedfactor: 2' -env GAUSS_MDEF=97648640 -env GAUSS_EXEDIR="/cluster/software/Gaussian/g16_B.01""
+ SetLPE:    new flags="-opt 'Tsnet.Node.lindarsharg: ssh' -mp 2 -nodelist 'xxxxxxx' -opt 'Tsnet.cib3-10.speedfactor: 2' -env GAUSS_MDEF=97648640 -env GAUSS_EXEDIR="/cluster/software/Gaussian/g16_B.01""
  Will use up to    2 processors via Linda.
  ----------------------------------------------------------------------
  #P B3LYP/cc-pVQZ Freq=(Anharmonic,raman,hpmodes,ReadAnharm) Int=UltraF
@@ -16950,7 +16950,7 @@ SCF-CI
  ----------------------------------------------------------------------
 
  Test job not archived.
- 1\1\GINC-C3-10\Freq\RB3LYP\CC-pVQZ\C1H2O1\VLE014\09-Jul-2024\0\\#P B3L
+ 1\1\GINC-XXXXX\Freq\RB3LYP\CC-pVQZ\C1H2O1\XXXXXX\09-Jul-2024\0\\#P B3L
  YP/cc-pVQZ Freq=(Anharmonic,raman,hpmodes,ReadAnharm) Int=UltraFine SC
  F=VeryTight iop(7/33=1) IOp(10/96=2) Guess=Read Geom=AllCheck\\Title\\
  0,1\O,0.,0.,-0.0118746197\C,0.,0.,1.1860705734\H,0.937414161,0.,1.7728
