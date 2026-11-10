@@ -112,8 +112,13 @@ def flatten(result):
     return arrays, described
 
 
-def compare(saved, new, rtol=1e-12, atol=1e-18):
-    """The differences between two flattened results, as text lines."""
+def compare(saved, new, rtol=1e-10):
+    """
+    The differences between two flattened results, as text lines. Each value of a float array may differ by rtol times
+    the largest absolute value in the saved array. Rounding scales with that largest value, not with each value: in
+    the FORM examples, a coordinate that is 0 comes out as 0 or as 1e-18, depending on the numpy build. With rtol=0,
+    any difference counts.
+    """
     diffs = []
     for k in sorted(set(saved) | set(new)):
         if k not in new:
@@ -123,8 +128,9 @@ def compare(saved, new, rtol=1e-12, atol=1e-18):
         elif saved[k].shape != new[k].shape:
             diffs.append(f'{k}: shape {saved[k].shape} -> {new[k].shape}')
         elif saved[k].dtype.kind in 'fc' and new[k].dtype.kind in 'fc':
-            if not np.allclose(saved[k], new[k], rtol=rtol, atol=atol):
-                diffs.append(f'{k}: largest difference {np.max(np.abs(saved[k] - new[k])):.3g}')
+            largest = np.max(np.abs(saved[k] - new[k]), initial=0)
+            if not largest <= rtol * np.max(np.abs(saved[k]), initial=0):      # 'not <=': a NaN counts as a difference
+                diffs.append(f'{k}: largest difference {largest:.3g}')
         elif not np.array_equal(saved[k], new[k]):
             diffs.append(f'{k}: values differ')
     return diffs
@@ -171,7 +177,7 @@ def write_baseline():
         changed = True
         if os.path.exists(npz):
             with np.load(npz, allow_pickle=False) as data:
-                changed = bool(compare(dict(data), arrays, rtol=0, atol=0))
+                changed = bool(compare(dict(data), arrays, rtol=0))
         if changed:
             np.savez_compressed(npz, **arrays)
         summary[source] = {'source_type': source_type, 'file': path,
