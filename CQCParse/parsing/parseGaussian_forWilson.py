@@ -691,16 +691,19 @@ def _anharmonic_geometry(lines: list[str]) -> np.ndarray | None:
 
 
 def _turn_onto_modes(masses: np.ndarray, geometry: np.ndarray, modes: np.ndarray) -> np.ndarray:
-    """The geometry turned (a proper rotation) so that it best meets Eckart's condition with the modes. The fit
-    starts from each of the 24 turns that map the axes onto each other, since one start can end at a wrong turn."""
+    """The geometry turned (a proper rotation) so that it best meets Eckart's condition with the modes: a least squares
+    fit of the per-mode residuals (_eckart_residuals). The fit starts from each of the 24 turns that map the axes onto
+    each other, since one start can end at a wrong turn. With the ACAC example, a BFGS fit of the summed squares
+    stopped about 4e-8 bohr short of the minimum, and its result differed by up to 7e-8 bohr between numpy and scipy
+    versions; the least squares result differs by less than 1e-10 bohr."""
     import itertools
 
-    from scipy.optimize import minimize
+    from scipy.optimize import least_squares
     from scipy.spatial.transform import Rotation
 
-    def cost(rotvec):
+    def residuals(rotvec):
         turned = geometry @ Rotation.from_rotvec(rotvec).as_matrix().T
-        return np.sum(_eckart_residuals(masses, turned, modes) ** 2)
+        return _eckart_residuals(masses, turned, modes)
 
     best = None
     for perm in itertools.permutations(range(3)):
@@ -708,8 +711,8 @@ def _turn_onto_modes(masses: np.ndarray, geometry: np.ndarray, modes: np.ndarray
             start = np.diag(signs)[:, perm]
             if np.linalg.det(start) < 0:
                 continue
-            fit = minimize(cost, Rotation.from_matrix(start).as_rotvec(), method='BFGS')
-            if best is None or fit.fun < best.fun:
+            fit = least_squares(residuals, Rotation.from_matrix(start).as_rotvec())
+            if best is None or fit.cost < best.cost:
                 best = fit
     return geometry @ Rotation.from_rotvec(best.x).as_matrix().T
 
