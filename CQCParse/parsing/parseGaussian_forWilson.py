@@ -778,7 +778,9 @@ def get_equil_geo(allines):
     block = next((line for line in allines[end:harmonic] if 'Rotational constants (GHZ):' in line), None)
     freqs = next((line for line in allines[harmonic:] if 'Rotational constant' in line and '(GHZ):' in line), None)
 
-    # the thermochemistry prints 5 decimals
+    # Is the block the geometry of the frequencies? Its rotational constants must match the ones printed with the
+    # frequencies (thermochemistry, 5 decimals). They differ when the frequencies come from a geometry the file never
+    # prints as a block, e.g. read from the checkpoint (Geom=AllCheck). Among the examples: only ACAC.
     if block and freqs and not _same_rotational_constants(_rotational_constants(block),
                                                           _rotational_constants(freqs), atol=1e-5):
         at_freqs = _rotational_constants(freqs)
